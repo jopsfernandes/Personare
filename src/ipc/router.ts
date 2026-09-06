@@ -1,3 +1,4 @@
+import { activities } from "./activities";
 import { app } from "./app";
 import { database } from "./database";
 import { modules } from "./modules";
@@ -7,6 +8,7 @@ import { theme } from "./theme";
 import { window } from "./window";
 
 export const router = {
+  activities,
   app,
   database,
   modules,

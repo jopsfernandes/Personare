@@ -1,0 +1,193 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import i18n from "i18next";
+import { describe, expect, it, vi } from "vitest";
+import ActivitiesDataTable, {
+  type Activity,
+} from "@/components/activities-data-table";
+import "@/localization/i18n";
+
+/**
+ * RED phase (Issue #10, Spec Driven TDD): src/components/activities-data-table
+ * does not exist yet. Every test below is expected to fail until Bigorna
+ * (Developer) implements it, mirroring src/components/modules-data-table
+ * (Issue #9).
+ *
+ * Contract exercised here (criterio de aceite 8: "renderizacao da Data
+ * Table incluindo os Badges por tipo"):
+ * - `activities` prop: rows rendered, one per activity, showing its title.
+ * - each row renders a Badge with the translated label for its type
+ *   (criterio 2), for every MVP type: link, quiz, pdf, flashcard_deck.
+ * - `onEdit(activity)`: called when a row's edit action is triggered
+ *   (criterio 4).
+ * - `onRequestDelete(activity)`: called when a row's delete action is
+ *   triggered (naming signals it only *requests* the deletion -- the
+ *   actual soft-delete confirmation/AlertDialog, per criterio 5, is the
+ *   caller's responsibility, not the table's).
+ * - Action labels come from i18next keys `editActivityAction` and
+ *   `deleteActivityAction` (criterio 6: no hardcoded UI text) -- read
+ *   through `i18n.t` so this test does not hardcode copy, only the key
+ *   names Bigorna must add translations for.
+ * - An empty `activities` list renders the `activitiesTableEmptyMessage`
+ *   key.
+ *
+ * Unlike ModulesDataTable, there is no "view children" action -- an
+ * Activity has no drill-down Data Table of its own in this issue (Issues
+ * #12-#15 decide how a row's content is opened for editing).
+ */
+
+const ACTIVITIES: Activity[] = [
+  {
+    createdAt: new Date("2026-01-01"),
+    id: "11111111-1111-1111-1111-111111111111",
+    moduleId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    title: "Aula introdutoria",
+    type: "link",
+    updatedAt: new Date("2026-01-01"),
+  },
+  {
+    createdAt: new Date("2026-01-02"),
+    id: "22222222-2222-2222-2222-222222222222",
+    moduleId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    title: "Quiz de fixacao",
+    type: "quiz",
+    updatedAt: new Date("2026-01-02"),
+  },
+  {
+    createdAt: new Date("2026-01-03"),
+    id: "33333333-3333-3333-3333-333333333333",
+    moduleId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    title: "Apostila em PDF",
+    type: "pdf",
+    updatedAt: new Date("2026-01-03"),
+  },
+  {
+    createdAt: new Date("2026-01-04"),
+    id: "44444444-4444-4444-4444-444444444444",
+    moduleId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    title: "Baralho de revisao",
+    type: "flashcard_deck",
+    updatedAt: new Date("2026-01-04"),
+  },
+];
+
+function renderTable(activities: Activity[] = ACTIVITIES) {
+  const onEdit = vi.fn();
+  const onRequestDelete = vi.fn();
+
+  render(
+    <ActivitiesDataTable
+      activities={activities}
+      onEdit={onEdit}
+      onRequestDelete={onRequestDelete}
+    />
+  );
+
+  return { onEdit, onRequestDelete };
+}
+
+describe("ActivitiesDataTable", () => {
+  it("renders a row for each activity with its title", () => {
+    renderTable();
+
+    expect(screen.getByText("Aula introdutoria")).toBeInTheDocument();
+    expect(screen.getByText("Quiz de fixacao")).toBeInTheDocument();
+    expect(screen.getByText("Apostila em PDF")).toBeInTheDocument();
+    expect(screen.getByText("Baralho de revisao")).toBeInTheDocument();
+  });
+
+  it("renders the empty-state message when there are no activities", () => {
+    renderTable([]);
+
+    expect(
+      screen.getByText(i18n.t("activitiesTableEmptyMessage"))
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    ["link", "activityTypeLink"],
+    ["quiz", "activityTypeQuiz"],
+    ["pdf", "activityTypePdf"],
+    ["flashcard_deck", "activityTypeFlashcardDeck"],
+  ] as const)(
+    "renders a badge with the translated label for the %s type",
+    (type, translationKey) => {
+      const activity = ACTIVITIES.find((item) => item.type === type);
+      if (!activity) {
+        throw new Error(`fixture missing an activity of type ${type}`);
+      }
+
+      renderTable([activity]);
+
+      expect(screen.getByText(i18n.t(translationKey))).toBeInTheDocument();
+    }
+  );
+
+  it("renders an edit and a delete action for every activity", () => {
+    renderTable();
+
+    expect(
+      screen.getAllByRole("button", { name: i18n.t("editActivityAction") })
+    ).toHaveLength(ACTIVITIES.length);
+    expect(
+      screen.getAllByRole("button", { name: i18n.t("deleteActivityAction") })
+    ).toHaveLength(ACTIVITIES.length);
+  });
+
+  it("calls onEdit with the corresponding activity when its edit action is triggered", async () => {
+    const user = userEvent.setup();
+    const { onEdit } = renderTable();
+
+    const editButtons = screen.getAllByRole("button", {
+      name: i18n.t("editActivityAction"),
+    });
+    await user.click(editButtons[1]);
+
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onEdit).toHaveBeenCalledWith(ACTIVITIES[1]);
+  });
+
+  it("calls onRequestDelete with the corresponding activity when its delete action is triggered", async () => {
+    const user = userEvent.setup();
+    const { onRequestDelete } = renderTable();
+
+    const deleteButtons = screen.getAllByRole("button", {
+      name: i18n.t("deleteActivityAction"),
+    });
+    await user.click(deleteButtons[0]);
+
+    expect(onRequestDelete).toHaveBeenCalledTimes(1);
+    expect(onRequestDelete).toHaveBeenCalledWith(ACTIVITIES[0]);
+  });
+});
+
+describe("Activities screen i18n keys (Issue #10)", () => {
+  const REQUIRED_KEYS = [
+    "activitiesPageTitle",
+    "activitiesTableEmptyMessage",
+    "activityTitleLabel",
+    "activityTypeLabel",
+    "activityTypeLink",
+    "activityTypeQuiz",
+    "activityTypePdf",
+    "activityTypeFlashcardDeck",
+    "createActivityAction",
+    "createActivityTitle",
+    "editActivityAction",
+    "editActivityTitle",
+    "deleteActivityAction",
+    "deleteActivityConfirmTitle",
+    "deleteActivityConfirmDescription",
+  ];
+
+  it.each(["en", "pt-BR"] as const)(
+    "defines every ActivitiesDataTable key for the %s locale",
+    (locale) => {
+      const bundle = i18n.getResourceBundle(locale, "translation") ?? {};
+
+      for (const key of REQUIRED_KEYS) {
+        expect(bundle).toHaveProperty(key);
+      }
+    }
+  );
+});
