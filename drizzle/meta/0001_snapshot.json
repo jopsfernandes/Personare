@@ -63,12 +63,8 @@
           "name": "activities_module_id_modules_id_fk",
           "tableFrom": "activities",
           "tableTo": "modules",
-          "columnsFrom": [
-            "module_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["module_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -136,12 +132,8 @@
           "name": "flashcards_activity_id_activities_id_fk",
           "tableFrom": "flashcards",
           "tableTo": "activities",
-          "columnsFrom": [
-            "activity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["activity_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -219,12 +211,8 @@
           "name": "modules_program_id_programs_id_fk",
           "tableFrom": "modules",
           "tableTo": "programs",
-          "columnsFrom": [
-            "program_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["program_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -351,12 +339,8 @@
           "name": "review_items_flashcard_id_flashcards_id_fk",
           "tableFrom": "review_items",
           "tableTo": "flashcards",
-          "columnsFrom": [
-            "flashcard_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["flashcard_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
