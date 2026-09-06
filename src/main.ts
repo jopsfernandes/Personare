@@ -6,7 +6,10 @@ import {
   REACT_DEVELOPER_TOOLS,
 } from "electron-devtools-installer";
 import { UpdateSourceType, updateElectronApp } from "update-electron-app";
+import { createDatabaseClient } from "@/database/client";
+import { resolveMigrationsFolder, runMigrations } from "@/database/migrate";
 import { ipcContext } from "@/ipc/context";
+import { setDatabaseClient } from "@/ipc/database/state";
 import { IPC_CHANNELS, inDevelopment } from "./constants";
 import { getBasePath } from "./utils/path";
 
@@ -68,11 +71,24 @@ async function setupORPC() {
   });
 }
 
+function setupDatabase() {
+  const dbPath = path.join(app.getPath("userData"), "personare.sqlite");
+  const db = createDatabaseClient(dbPath);
+  const migrationsFolder = resolveMigrationsFolder({
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+  });
+
+  runMigrations(db, migrationsFolder);
+  setDatabaseClient(db);
+}
+
 app.whenReady().then(async () => {
   try {
     createWindow();
     await installExtensions();
     checkForUpdates();
+    setupDatabase();
     await setupORPC();
   } catch (error) {
     console.error("Error during app initialization:", error);
