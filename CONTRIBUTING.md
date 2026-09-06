@@ -37,6 +37,10 @@ Rode, nessa ordem:
 
 Só abra o PR depois que os três passarem localmente.
 
+## Ambiente Windows sem Visual Studio Build Tools
+
+Em uma máquina Windows sem as "Desktop development with C++" workloads do Visual Studio, `npm ci`/`npm install` normal falha tentando compilar o binário nativo do `better-sqlite3` via node-gyp (`Could not find any Visual Studio installation to use`). Isso não é um problema do projeto -- **use `npm ci --ignore-scripts` (ou `npm install --ignore-scripts`) nesse caso**: o `better-sqlite3` a partir da v13 já publica um prebuild `win32-x64`, então pular os scripts de instalação (que tentam recompilar do zero) é seguro e os testes que usam SQLite continuam funcionando normalmente. Não é necessário copiar `node_modules` de outro worktree/floor para contornar isso.
+
 ## Escopo de arquivos
 
 Ao planejar múltiplas issues em paralelo, declare explicitamente quais arquivos cada uma vai tocar antes de começar. Isso permite identificar issues sem sobreposição (podem rodar em paralelo, em branches/worktrees isoladas) e issues com dependência real (ex.: uma issue que define schema de banco depende da issue que configura o ORM). `package.json`/`package-lock.json` costumam ser tocados por qualquer issue que adiciona dependência — trate como zona de baixo risco (linhas diferentes raramente conflitam), mas sempre valide com `npm ci` após reconciliar.
