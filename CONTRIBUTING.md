@@ -21,9 +21,10 @@ Exemplos: `feature/1-rebrand-personare`, `feature/2-sqlite-drizzle`.
 Mensagem no imperativo, resumindo a mudança e o motivo (não apenas o "o quê"):
 
 ```
-Rebrand boilerplate from electron-shadcn to Personare (#1)
+Add CONTRIBUTING.md documenting branch/commit conventions (#5)
 
-Removes remaining electron-shadcn/LuanRoger references ...
+Documents the workflow already in use so sub-agents executing future
+phase issues have a single source of truth to follow.
 ```
 
 ## Antes de abrir o PR
