@@ -1,8 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import LangToggle from "@/components/lang-toggle";
+import ToggleTheme from "@/components/toggle-theme";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
@@ -35,6 +38,12 @@ export default function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter>
+        <div className="flex items-center justify-between gap-2">
+          <LangToggle />
+          <ToggleTheme />
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }
