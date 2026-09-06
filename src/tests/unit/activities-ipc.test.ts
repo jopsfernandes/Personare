@@ -172,6 +172,26 @@ describe("activities IPC namespace (Issue #10)", () => {
       expect(list.map((activity) => activity.id)).toContain(active.id);
       expect(list.map((activity) => activity.id)).not.toContain(deleted.id);
     });
+
+    /**
+     * RED phase (Issue #12, Spec Driven TDD): list does not return a "url"
+     * field yet -- expected to fail until Bancada wires it through
+     * src/ipc/activities/handlers.ts (criterio de aceite 6).
+     */
+    it("includes the url of activities that have one", async () => {
+      await activitiesClient.create({
+        moduleId,
+        title: "Aula 1",
+        type: "link",
+        url: "https://example.com/aula-1",
+      });
+
+      const list = await activitiesClient.list({ moduleId });
+
+      expect(list.find((activity) => activity.title === "Aula 1")?.url).toBe(
+        "https://example.com/aula-1"
+      );
+    });
   });
 
   describe("create", () => {
@@ -222,6 +242,34 @@ describe("activities IPC namespace (Issue #10)", () => {
 
       expect(created.type).toBe("video");
     });
+
+    /**
+     * RED phase (Issue #12, Spec Driven TDD): create/update/list do not
+     * accept or return a "url" field yet -- these are expected to fail
+     * until Bancada adds the column (schema.test.ts) and wires "url"
+     * through src/ipc/activities/schemas.ts and handlers.ts (criterio de
+     * aceite 3 and 6).
+     */
+    it("persists the url when creating a Link activity", async () => {
+      const created = await activitiesClient.create({
+        moduleId,
+        title: "Aula 1",
+        type: "link",
+        url: "https://example.com/aula-1",
+      });
+
+      expect(created.url).toBe("https://example.com/aula-1");
+    });
+
+    it("defaults url to null when creating an activity that does not provide one", async () => {
+      const created = await activitiesClient.create({
+        moduleId,
+        title: "Quiz 1",
+        type: "quiz",
+      });
+
+      expect(created.url).toBeNull();
+    });
   });
 
   describe("update", () => {
@@ -270,6 +318,32 @@ describe("activities IPC namespace (Issue #10)", () => {
       await expect(
         activitiesClient.update({ id: created.id, title: "Valido", type: "" })
       ).rejects.toThrow();
+    });
+
+    /**
+     * RED phase (Issue #12, Spec Driven TDD): see comment in the "create"
+     * describe block above -- update does not accept/return "url" yet.
+     */
+    it("updates the url of an existing Link activity", async () => {
+      const created = await activitiesClient.create({
+        moduleId,
+        title: "Aula 1",
+        type: "link",
+        url: "https://old.example.com",
+      });
+
+      const updated = await activitiesClient.update({
+        id: created.id,
+        title: "Aula 1",
+        type: "link",
+        url: "https://new.example.com",
+      });
+
+      expect(updated.url).toBe("https://new.example.com");
+
+      const list = await activitiesClient.list({ moduleId });
+      const persisted = list.find((activity) => activity.id === created.id);
+      expect(persisted?.url).toBe("https://new.example.com");
     });
   });
 

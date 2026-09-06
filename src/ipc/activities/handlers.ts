@@ -49,6 +49,7 @@ export const create = os
         title: input.title,
         type: input.type,
         updatedAt: now,
+        url: input.url ?? null,
       })
       .returning()
       .get();
@@ -61,7 +62,12 @@ export const update = os
 
     return db
       .update(activitiesTable)
-      .set({ title: input.title, type: input.type, updatedAt: new Date() })
+      .set({
+        title: input.title,
+        type: input.type,
+        updatedAt: new Date(),
+        url: input.url ?? null,
+      })
       .where(eq(activitiesTable.id, input.id))
       .returning()
       .get();

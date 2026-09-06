@@ -54,10 +54,10 @@ function ModuleActivitiesPage() {
   }, []);
 
   const handleFormSubmit = useCallback(
-    (title: string, type: string) => {
+    (title: string, type: string, url: string | null) => {
       const submit = formActivity
-        ? updateActivity(formActivity.id, title, type)
-        : createActivity(moduleId, title, type);
+        ? updateActivity(formActivity.id, title, type, url)
+        : createActivity(moduleId, title, type, url);
 
       submit.then(() => {
         setIsFormOpen(false);

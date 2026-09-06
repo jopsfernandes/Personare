@@ -45,6 +45,7 @@ export const activities = sqliteTable("activities", {
   title: text("title").notNull(),
   type: text("type").notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  url: text("url"),
 });
 
 export const flashcards = sqliteTable("flashcards", {
