@@ -38,7 +38,10 @@ test.beforeAll(async () => {
 test("renders the first page", async () => {
   const page: Page = await electronApp.firstWindow();
 
-  const title = await page.waitForSelector("h1");
-  const text = await title.textContent();
-  expect(text).toBe("Personare");
+  // The document title (from index.html) is a stable smoke-test signal --
+  // unlike the home route's content, it doesn't change as the home page
+  // evolves from placeholder to real features (e.g. Issue #8's Programs
+  // Data Table).
+  await page.waitForLoadState("domcontentloaded");
+  expect(await page.title()).toBe("Personare");
 });
