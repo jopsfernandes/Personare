@@ -45,6 +45,7 @@ export const create = os
       .insert(activitiesTable)
       .values({
         createdAt: now,
+        filePath: input.filePath ?? null,
         moduleId: input.moduleId,
         title: input.title,
         type: input.type,
@@ -63,6 +64,7 @@ export const update = os
     return db
       .update(activitiesTable)
       .set({
+        filePath: input.filePath ?? null,
         title: input.title,
         type: input.type,
         updatedAt: new Date(),

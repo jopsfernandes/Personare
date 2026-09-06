@@ -8,6 +8,17 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Added
 
+- **Atividade do tipo PDF: seleção e visualização de arquivo** ([#13](https://github.com/jopsfernandes/Personare/issues/13)).
+  Adiciona suporte a um arquivo PDF associado à Atividade, usado quando `type = 'pdf'`:
+  - **Mudança de schema**: nova coluna `activities.file_path` (`text`, nullable) em `src/database/schema.ts`, aplicada via `drizzle/0003_past_crusher_hogan.sql` (`ALTER TABLE activities ADD file_path text`, sem `NOT NULL`), seguindo o mesmo padrão de coluna opcional por tipo da Issue #12 (`url`).
+  - **Novo namespace de IPC/oRPC `dialog`** (`src/ipc/dialog/`), expondo a procedure `selectPdfFile`, registrada em `src/ipc/router.ts`. No processo main, usa `dialog.showOpenDialog` do Electron filtrado para extensão `.pdf` (`properties: ["openFile"]`), retornando o caminho do arquivo escolhido ou `null` se o usuário cancelar. Consumida pelo renderer via `src/actions/dialog.ts`. **Nota para a Issue #14**: este é o primeiro namespace de IPC que não é um CRUD sobre uma tabela — expõe uma capability do processo main (file dialog nativo do SO), sem schema de validação de payload próprio.
+  - IPC de `activities` (`src/ipc/activities/schemas.ts` e `handlers.ts`) atualizado para aceitar e retornar `filePath` em `create`/`update`/`list`, consumido pelo renderer via `src/actions/activities.ts`.
+  - `src/components/activity-form-dialog.tsx`: novo botão de seleção de arquivo, exibido apenas quando o tipo selecionado é `pdf`, que aciona `selectPdfFile` e exibe o caminho escolhido; o valor só é enviado ao submit quando o tipo é `pdf`, caso contrário `null`.
+  - Novo componente `src/components/pdf-viewer-dialog.tsx`: dialog com um `iframe` (`src="file://<filePath>"`) para visualizar o PDF embutido na própria aplicação.
+  - `src/components/activities-data-table.tsx`: nova ação "visualizar" (ícone `FileText`) na linha da Data Table, visível apenas para Atividades do tipo `pdf`, que abre o `PdfViewerDialog`.
+  - `src/localization/i18n.ts`: novas chaves de tradução (en e pt-BR) para o botão de seleção de arquivo, o título do iframe do visualizador e a ação "visualizar".
+  - Cobertura de testes em `src/tests/unit/schema.test.ts`, `src/tests/unit/activities-ipc.test.ts`, `src/tests/unit/activity-form-dialog.test.tsx`, `src/tests/unit/activities-data-table.test.tsx`, `src/tests/unit/dialog-ipc.test.ts` (novo) e `src/tests/unit/pdf-viewer-dialog.test.tsx` (novo). 163/163 testes passando, sem regressão.
+
 - **Atividade do tipo Link: campo de URL** ([#12](https://github.com/jopsfernandes/Personare/issues/12)).
   Adiciona suporte a uma URL associada à Atividade, usada quando `type = 'link'`:
   - **Mudança de schema**: nova coluna `activities.url` (`text`, nullable) em `src/database/schema.ts`, aplicada via `drizzle/0002_peaceful_apocalypse.sql` (`ALTER TABLE activities ADD url text`, sem `NOT NULL`). Esta é a primeira alteração no schema de `activities` desde a Issue #10, e a Issue #13 (Atividade tipo PDF) depende de partir deste schema já migrado.

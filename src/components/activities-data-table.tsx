@@ -1,4 +1,4 @@
-import { ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { ExternalLink, FileText, Pencil, Trash2 } from "lucide-react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { openExternalLink } from "@/actions/shell";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 
 export interface Activity {
   createdAt: Date;
+  filePath: string | null;
   id: string;
   moduleId: string;
   title: string;
@@ -26,15 +27,22 @@ interface ActivitiesDataTableProps {
   activities: Activity[];
   onEdit: (activity: Activity) => void;
   onRequestDelete: (activity: Activity) => void;
+  onViewPdf: (activity: Activity) => void;
 }
 
 interface ActivityRowProps {
   activity: Activity;
   onEdit: (activity: Activity) => void;
   onRequestDelete: (activity: Activity) => void;
+  onViewPdf: (activity: Activity) => void;
 }
 
-function ActivityRow({ activity, onEdit, onRequestDelete }: ActivityRowProps) {
+function ActivityRow({
+  activity,
+  onEdit,
+  onRequestDelete,
+  onViewPdf,
+}: ActivityRowProps) {
   const { t } = useTranslation();
 
   const handleEditClick = useCallback(() => {
@@ -50,6 +58,10 @@ function ActivityRow({ activity, onEdit, onRequestDelete }: ActivityRowProps) {
       openExternalLink(activity.url);
     }
   }, [activity.url]);
+
+  const handleViewPdfClick = useCallback(() => {
+    onViewPdf(activity);
+  }, [onViewPdf, activity]);
 
   const typeTranslationKey =
     ACTIVITY_TYPE_TRANSLATION_KEYS[activity.type] ?? activity.type;
@@ -69,6 +81,16 @@ function ActivityRow({ activity, onEdit, onRequestDelete }: ActivityRowProps) {
             variant="ghost"
           >
             <ExternalLink />
+          </Button>
+        )}
+        {activity.type === "pdf" && (
+          <Button
+            aria-label={t("viewPdfAction")}
+            onClick={handleViewPdfClick}
+            size="icon"
+            variant="ghost"
+          >
+            <FileText />
           </Button>
         )}
         <Button
@@ -96,6 +118,7 @@ export default function ActivitiesDataTable({
   activities,
   onEdit,
   onRequestDelete,
+  onViewPdf,
 }: ActivitiesDataTableProps) {
   const { t } = useTranslation();
 
@@ -112,6 +135,7 @@ export default function ActivitiesDataTable({
             key={activity.id}
             onEdit={onEdit}
             onRequestDelete={onRequestDelete}
+            onViewPdf={onViewPdf}
           />
         ))}
       </tbody>

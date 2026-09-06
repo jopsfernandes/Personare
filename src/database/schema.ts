@@ -36,6 +36,7 @@ export const modules = sqliteTable("modules", {
 export const activities = sqliteTable("activities", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   deletedAt: integer("deleted_at", { mode: "timestamp" }),
+  filePath: text("file_path"),
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),

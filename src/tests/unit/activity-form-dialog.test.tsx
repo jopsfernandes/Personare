@@ -1,10 +1,15 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import i18n from "i18next";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { selectPdfFile } from "@/actions/dialog";
 import type { Activity } from "@/components/activities-data-table";
 import ActivityFormDialog from "@/components/activity-form-dialog";
 import "@/localization/i18n";
+
+vi.mock("@/actions/dialog", () => ({
+  selectPdfFile: vi.fn(),
+}));
 
 /**
  * RED phase (Issue #12, Spec Driven TDD): ActivityFormDialog does not yet
@@ -32,6 +37,7 @@ import "@/localization/i18n";
 
 const LINK_ACTIVITY: Activity = {
   createdAt: new Date("2026-01-01"),
+  filePath: null,
   id: "11111111-1111-1111-1111-111111111111",
   moduleId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
   title: "Aula introdutoria",
@@ -42,11 +48,23 @@ const LINK_ACTIVITY: Activity = {
 
 const QUIZ_ACTIVITY: Activity = {
   createdAt: new Date("2026-01-02"),
+  filePath: null,
   id: "22222222-2222-2222-2222-222222222222",
   moduleId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
   title: "Quiz de fixacao",
   type: "quiz",
   updatedAt: new Date("2026-01-02"),
+  url: null,
+};
+
+const PDF_ACTIVITY: Activity = {
+  createdAt: new Date("2026-01-03"),
+  filePath: "C:\\Users\\aluno\\Documents\\apostila.pdf",
+  id: "33333333-3333-3333-3333-333333333333",
+  moduleId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  title: "Apostila em PDF",
+  type: "pdf",
+  updatedAt: new Date("2026-01-03"),
   url: null,
 };
 
@@ -119,7 +137,8 @@ describe("ActivityFormDialog", () => {
     expect(onSubmit).toHaveBeenCalledWith(
       "Aula 1",
       "link",
-      "https://example.com/aula-1"
+      "https://example.com/aula-1",
+      null
     );
   });
 
@@ -131,6 +150,118 @@ describe("ActivityFormDialog", () => {
       screen.getByRole("button", { name: i18n.t("saveAction") })
     );
 
-    expect(onSubmit).toHaveBeenCalledWith(QUIZ_ACTIVITY.title, "quiz", null);
+    expect(onSubmit).toHaveBeenCalledWith(
+      QUIZ_ACTIVITY.title,
+      "quiz",
+      null,
+      null
+    );
+  });
+});
+
+/**
+ * RED phase (Issue #13, Spec Driven TDD): ActivityFormDialog does not yet
+ * render a "select PDF file" button, nor pass a "filePath" value to
+ * onSubmit. Every test below is expected to fail until Serralheria
+ * (Developer) extends the component.
+ *
+ * Contract exercised here:
+ * - criterio de aceite 2: a "select file" button (labeled via the
+ *   "selectPdfFileAction" i18n key) is rendered ONLY when the current type
+ *   is "pdf" -- Electron's native file picker cannot be simulated under
+ *   jsdom, so this suite drives type-switching through the `activity` prop
+ *   (like the Link suite above), and mocks src/actions/dialog's
+ *   selectPdfFile so the component's call to it can be asserted without
+ *   touching Electron.
+ * - criterio de aceite 2: the chosen path is stored and shown (rendered as
+ *   text) once selectPdfFile resolves with a path; a canceled dialog
+ *   (selectPdfFile resolving null) leaves the previously stored path
+ *   unchanged.
+ * - onSubmit's 4th argument (filePath) carries the current path only when
+ *   type is "pdf"; every other type submits null, mirroring how url is
+ *   handled for type "link".
+ */
+describe("ActivityFormDialog PDF file selection (Issue #13)", () => {
+  beforeEach(() => {
+    vi.mocked(selectPdfFile).mockReset();
+  });
+
+  it("does not render a select-file button when creating a new activity, which defaults to type link", () => {
+    renderDialog(null);
+
+    expect(
+      screen.queryByRole("button", { name: i18n.t("selectPdfFileAction") })
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not render a select-file button when editing an activity whose type is not pdf", () => {
+    renderDialog(QUIZ_ACTIVITY);
+
+    expect(
+      screen.queryByRole("button", { name: i18n.t("selectPdfFileAction") })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders a select-file button when editing a Pdf activity, showing the currently selected file", () => {
+    renderDialog(PDF_ACTIVITY);
+
+    expect(
+      screen.getByRole("button", { name: i18n.t("selectPdfFileAction") })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(PDF_ACTIVITY.filePath as string)
+    ).toBeInTheDocument();
+  });
+
+  it("calls selectPdfFile and updates the shown path when the select-file button is clicked", async () => {
+    const user = userEvent.setup();
+    vi.mocked(selectPdfFile).mockResolvedValueOnce(
+      "C:\\Users\\aluno\\Documents\\novo.pdf"
+    );
+    renderDialog(PDF_ACTIVITY);
+
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("selectPdfFileAction") })
+    );
+
+    expect(selectPdfFile).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(
+        screen.getByText("C:\\Users\\aluno\\Documents\\novo.pdf")
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("keeps the previously selected path when selectPdfFile resolves null (dialog canceled)", async () => {
+    const user = userEvent.setup();
+    vi.mocked(selectPdfFile).mockResolvedValueOnce(null);
+    renderDialog(PDF_ACTIVITY);
+
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("selectPdfFileAction") })
+    );
+
+    await waitFor(() => {
+      expect(selectPdfFile).toHaveBeenCalledTimes(1);
+    });
+    expect(
+      screen.getByText(PDF_ACTIVITY.filePath as string)
+    ).toBeInTheDocument();
+  });
+
+  it("submits the current filePath when saving a Pdf activity", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderDialog(PDF_ACTIVITY);
+
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("saveAction") })
+    );
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      PDF_ACTIVITY.title,
+      "pdf",
+      null,
+      PDF_ACTIVITY.filePath
+    );
   });
 });

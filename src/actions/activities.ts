@@ -8,18 +8,20 @@ export function createActivity(
   moduleId: string,
   title: string,
   type: string,
-  url: string | null
+  url: string | null,
+  filePath: string | null
 ) {
-  return ipc.client.activities.create({ moduleId, title, type, url });
+  return ipc.client.activities.create({ filePath, moduleId, title, type, url });
 }
 
 export function updateActivity(
   id: string,
   title: string,
   type: string,
-  url: string | null
+  url: string | null,
+  filePath: string | null
 ) {
-  return ipc.client.activities.update({ id, title, type, url });
+  return ipc.client.activities.update({ filePath, id, title, type, url });
 }
 
 export function softDeleteActivity(id: string) {

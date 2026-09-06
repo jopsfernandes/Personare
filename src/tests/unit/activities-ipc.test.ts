@@ -192,6 +192,26 @@ describe("activities IPC namespace (Issue #10)", () => {
         "https://example.com/aula-1"
       );
     });
+
+    /**
+     * RED phase (Issue #13, Spec Driven TDD): list does not return a
+     * "filePath" field yet -- expected to fail until Serralheria wires it
+     * through src/ipc/activities/handlers.ts (criterio de aceite 5).
+     */
+    it("includes the filePath of activities that have one", async () => {
+      await activitiesClient.create({
+        filePath: "C:\\Users\\aluno\\Documents\\apostila.pdf",
+        moduleId,
+        title: "Apostila",
+        type: "pdf",
+      });
+
+      const list = await activitiesClient.list({ moduleId });
+
+      expect(
+        list.find((activity) => activity.title === "Apostila")?.filePath
+      ).toBe("C:\\Users\\aluno\\Documents\\apostila.pdf");
+    });
   });
 
   describe("create", () => {
@@ -270,6 +290,36 @@ describe("activities IPC namespace (Issue #10)", () => {
 
       expect(created.url).toBeNull();
     });
+
+    /**
+     * RED phase (Issue #13, Spec Driven TDD): create does not accept a
+     * "filePath" field yet -- expected to fail until Serralheria adds the
+     * column (schema.test.ts) and wires "filePath" through
+     * src/ipc/activities/schemas.ts and handlers.ts (criterio de aceite 1
+     * and 5).
+     */
+    it("persists the filePath when creating a Pdf activity", async () => {
+      const created = await activitiesClient.create({
+        filePath: "C:\\Users\\aluno\\Documents\\apostila.pdf",
+        moduleId,
+        title: "Apostila",
+        type: "pdf",
+      });
+
+      expect(created.filePath).toBe(
+        "C:\\Users\\aluno\\Documents\\apostila.pdf"
+      );
+    });
+
+    it("defaults filePath to null when creating an activity that does not provide one", async () => {
+      const created = await activitiesClient.create({
+        moduleId,
+        title: "Quiz 1",
+        type: "quiz",
+      });
+
+      expect(created.filePath).toBeNull();
+    });
   });
 
   describe("update", () => {
@@ -344,6 +394,32 @@ describe("activities IPC namespace (Issue #10)", () => {
       const list = await activitiesClient.list({ moduleId });
       const persisted = list.find((activity) => activity.id === created.id);
       expect(persisted?.url).toBe("https://new.example.com");
+    });
+
+    /**
+     * RED phase (Issue #13, Spec Driven TDD): update does not accept/return
+     * "filePath" yet -- see comments in the "create" describe block above.
+     */
+    it("updates the filePath of an existing Pdf activity", async () => {
+      const created = await activitiesClient.create({
+        filePath: "C:\\Users\\aluno\\Documents\\antigo.pdf",
+        moduleId,
+        title: "Apostila",
+        type: "pdf",
+      });
+
+      const updated = await activitiesClient.update({
+        filePath: "C:\\Users\\aluno\\Documents\\novo.pdf",
+        id: created.id,
+        title: "Apostila",
+        type: "pdf",
+      });
+
+      expect(updated.filePath).toBe("C:\\Users\\aluno\\Documents\\novo.pdf");
+
+      const list = await activitiesClient.list({ moduleId });
+      const persisted = list.find((activity) => activity.id === created.id);
+      expect(persisted?.filePath).toBe("C:\\Users\\aluno\\Documents\\novo.pdf");
     });
   });
 
