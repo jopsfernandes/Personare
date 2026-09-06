@@ -41,7 +41,8 @@ test("renders the first page", async () => {
   // The document title (from index.html) is a stable smoke-test signal --
   // unlike the home route's content, it doesn't change as the home page
   // evolves from placeholder to real features (e.g. Issue #8's Programs
-  // Data Table).
-  await page.waitForLoadState("domcontentloaded");
-  expect(await page.title()).toBe("Personare");
+  // Data Table). Electron shows a transient "Loading file://..." window
+  // title until the renderer finishes its first paint, so poll for the
+  // real title instead of trusting domcontentloaded's timing.
+  await expect.poll(() => page.title()).toBe("Personare");
 });
