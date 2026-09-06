@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { selectPdfFile } from "@/actions/dialog";
 import type { Activity } from "@/components/activities-data-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +35,12 @@ const ACTIVITY_TYPE_TRANSLATION_KEYS: Record<
 interface ActivityFormDialogProps {
   activity: Activity | null;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (title: string, type: string, url: string | null) => void;
+  onSubmit: (
+    title: string,
+    type: string,
+    url: string | null,
+    filePath: string | null
+  ) => void;
   open: boolean;
 }
 
@@ -53,23 +59,26 @@ export default function ActivityFormDialog({
     activity?.type ?? MVP_ACTIVITY_TYPES[0]
   );
   const [url, setUrl] = useState(activity?.url ?? "");
+  const [filePath, setFilePath] = useState(activity?.filePath ?? null);
 
   useEffect(() => {
     if (open) {
       setTitle(activity?.title ?? "");
       setType(activity?.type ?? MVP_ACTIVITY_TYPES[0]);
       setUrl(activity?.url ?? "");
+      setFilePath(activity?.filePath ?? null);
     }
   }, [open, activity]);
 
   const isLink = type === "link";
+  const isPdf = type === "pdf";
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      onSubmit(title, type, isLink ? url : null);
+      onSubmit(title, type, isLink ? url : null, isPdf ? filePath : null);
     },
-    [title, type, url, isLink, onSubmit]
+    [title, type, url, isLink, filePath, isPdf, onSubmit]
   );
 
   const handleTitleChange = useCallback(
@@ -89,6 +98,14 @@ export default function ActivityFormDialog({
   const handleCancelClick = useCallback(() => {
     onOpenChange(false);
   }, [onOpenChange]);
+
+  const handleSelectPdfFileClick = useCallback(() => {
+    selectPdfFile().then((selectedPath) => {
+      if (selectedPath) {
+        setFilePath(selectedPath);
+      }
+    });
+  }, []);
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
@@ -133,6 +150,18 @@ export default function ActivityFormDialog({
                   type="url"
                   value={url}
                 />
+              </div>
+            )}
+            {isPdf && (
+              <div className="flex flex-col gap-1">
+                <Button
+                  onClick={handleSelectPdfFileClick}
+                  type="button"
+                  variant="outline"
+                >
+                  {t("selectPdfFileAction")}
+                </Button>
+                {filePath ? <span>{filePath}</span> : null}
               </div>
             )}
           </div>

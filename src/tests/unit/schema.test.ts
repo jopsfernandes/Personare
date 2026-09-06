@@ -68,6 +68,7 @@ function insertActivity(
     type: string;
     title: string;
     url: string | null;
+    filePath: string | null;
     deletedAt: Date | null;
   }> = {}
 ) {
@@ -75,6 +76,7 @@ function insertActivity(
   const row = {
     createdAt: now,
     deletedAt: overrides.deletedAt ?? null,
+    filePath: overrides.filePath ?? null,
     id: overrides.id ?? randomUUID(),
     moduleId,
     title: overrides.title ?? "Baralho de Anatomia",
@@ -376,6 +378,61 @@ describe("database schema (Issue #4)", () => {
         .get();
 
       expect(found?.url).toBeNull();
+    });
+
+    /**
+     * RED phase (Issue #13, Spec Driven TDD): the "file_path" column does
+     * not exist yet on the "activities" table -- these tests are expected
+     * to fail until Serralheria (Developer) adds a nullable
+     * text("file_path") column to src/database/schema.ts and generates the
+     * corresponding drizzle-kit migration (criterio de aceite 1). Only Pdf
+     * activities populate it; every other activity type must keep it null
+     * without throwing. Follows the exact pattern of the "url" column added
+     * by Issue #12 above.
+     */
+    it("has a nullable filePath column, used only by Pdf activities", () => {
+      const columnNames = (
+        db.$client.prepare("PRAGMA table_info(activities)").all() as {
+          name: string;
+          notnull: number;
+        }[]
+      ).map((c) => ({ name: c.name, notnull: c.notnull }));
+
+      const filePathColumn = columnNames.find((c) => c.name === "file_path");
+
+      expect(filePathColumn).toBeDefined();
+      expect(filePathColumn?.notnull).toBe(0);
+    });
+
+    it("persists and reads back the filePath of a Pdf activity", () => {
+      const program = insertProgram(db);
+      const module_ = insertModule(db, program.id);
+      const pdf = insertActivity(db, module_.id, {
+        filePath: "C:\\Users\\aluno\\Documents\\apostila.pdf",
+        type: "pdf",
+      });
+
+      const found = db
+        .select()
+        .from(activities)
+        .where(eq(activities.id, pdf.id))
+        .get();
+
+      expect(found?.filePath).toBe("C:\\Users\\aluno\\Documents\\apostila.pdf");
+    });
+
+    it("leaves filePath as null for activity types that do not use it", () => {
+      const program = insertProgram(db);
+      const module_ = insertModule(db, program.id);
+      const quiz = insertActivity(db, module_.id, { type: "quiz" });
+
+      const found = db
+        .select()
+        .from(activities)
+        .where(eq(activities.id, quiz.id))
+        .get();
+
+      expect(found?.filePath).toBeNull();
     });
   });
 

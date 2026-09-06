@@ -13,6 +13,7 @@ import ActivitiesDataTable, {
 } from "@/components/activities-data-table";
 import ActivityFormDialog from "@/components/activity-form-dialog";
 import DeleteActivityDialog from "@/components/delete-activity-dialog";
+import PdfViewerDialog from "@/components/pdf-viewer-dialog";
 import { Button } from "@/components/ui/button";
 
 function ModuleActivitiesPage() {
@@ -23,6 +24,8 @@ function ModuleActivitiesPage() {
   const [formActivity, setFormActivity] = useState<Activity | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [activityPendingDelete, setActivityPendingDelete] =
+    useState<Activity | null>(null);
+  const [activityBeingViewed, setActivityBeingViewed] =
     useState<Activity | null>(null);
 
   const refreshActivities = useCallback(() => {
@@ -49,15 +52,24 @@ function ModuleActivitiesPage() {
     setActivityPendingDelete(activity);
   }, []);
 
+  const handleViewPdf = useCallback((activity: Activity) => {
+    setActivityBeingViewed(activity);
+  }, []);
+
   const handleFormOpenChange = useCallback((open: boolean) => {
     setIsFormOpen(open);
   }, []);
 
   const handleFormSubmit = useCallback(
-    (title: string, type: string, url: string | null) => {
+    (
+      title: string,
+      type: string,
+      url: string | null,
+      filePath: string | null
+    ) => {
       const submit = formActivity
-        ? updateActivity(formActivity.id, title, type, url)
-        : createActivity(moduleId, title, type, url);
+        ? updateActivity(formActivity.id, title, type, url, filePath)
+        : createActivity(moduleId, title, type, url, filePath);
 
       submit.then(() => {
         setIsFormOpen(false);
@@ -66,6 +78,12 @@ function ModuleActivitiesPage() {
     },
     [formActivity, moduleId, refreshActivities]
   );
+
+  const handlePdfViewerOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setActivityBeingViewed(null);
+    }
+  }, []);
 
   const handleDeleteDialogOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -94,6 +112,7 @@ function ModuleActivitiesPage() {
         activities={activities}
         onEdit={handleEdit}
         onRequestDelete={handleRequestDelete}
+        onViewPdf={handleViewPdf}
       />
       <ActivityFormDialog
         activity={formActivity}
@@ -106,6 +125,11 @@ function ModuleActivitiesPage() {
         onConfirm={handleConfirmDelete}
         onOpenChange={handleDeleteDialogOpenChange}
         open={activityPendingDelete !== null}
+      />
+      <PdfViewerDialog
+        activity={activityBeingViewed}
+        onOpenChange={handlePdfViewerOpenChange}
+        open={activityBeingViewed !== null}
       />
     </div>
   );

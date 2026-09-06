@@ -44,6 +44,7 @@ vi.mock("@/actions/shell", () => ({
 const ACTIVITIES: Activity[] = [
   {
     createdAt: new Date("2026-01-01"),
+    filePath: null,
     id: "11111111-1111-1111-1111-111111111111",
     moduleId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
     title: "Aula introdutoria",
@@ -53,6 +54,7 @@ const ACTIVITIES: Activity[] = [
   },
   {
     createdAt: new Date("2026-01-02"),
+    filePath: null,
     id: "22222222-2222-2222-2222-222222222222",
     moduleId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
     title: "Quiz de fixacao",
@@ -62,6 +64,7 @@ const ACTIVITIES: Activity[] = [
   },
   {
     createdAt: new Date("2026-01-03"),
+    filePath: "C:\\Users\\aluno\\Documents\\apostila.pdf",
     id: "33333333-3333-3333-3333-333333333333",
     moduleId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
     title: "Apostila em PDF",
@@ -71,6 +74,7 @@ const ACTIVITIES: Activity[] = [
   },
   {
     createdAt: new Date("2026-01-04"),
+    filePath: null,
     id: "44444444-4444-4444-4444-444444444444",
     moduleId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
     title: "Baralho de revisao",
@@ -83,16 +87,18 @@ const ACTIVITIES: Activity[] = [
 function renderTable(activities: Activity[] = ACTIVITIES) {
   const onEdit = vi.fn();
   const onRequestDelete = vi.fn();
+  const onViewPdf = vi.fn();
 
   render(
     <ActivitiesDataTable
       activities={activities}
       onEdit={onEdit}
       onRequestDelete={onRequestDelete}
+      onViewPdf={onViewPdf}
     />
   );
 
-  return { onEdit, onRequestDelete };
+  return { onEdit, onRequestDelete, onViewPdf };
 }
 
 describe("ActivitiesDataTable", () => {
@@ -197,6 +203,39 @@ describe("ActivitiesDataTable", () => {
     expect(openExternalLink).toHaveBeenCalledTimes(1);
     expect(openExternalLink).toHaveBeenCalledWith(ACTIVITIES[0].url);
   });
+
+  /**
+   * RED phase (Issue #13, Spec Driven TDD): ActivitiesDataTable does not
+   * render a "view PDF" action yet -- these tests are expected to fail until
+   * Serralheria adds a button/action visible only for type === "pdf" that
+   * calls onViewPdf(activity) (criterio de aceite 3). Mirrors the "open URL"
+   * action added for Link activities by Issue #12, but bubbles the request
+   * up to the caller (like onRequestDelete) instead of triggering the side
+   * effect directly, since opening the embedded viewer requires a Dialog
+   * that is the caller's responsibility, not the table's.
+   */
+  it("renders an action to view the PDF only for Pdf activities", () => {
+    renderTable();
+
+    const viewButtons = screen.getAllByRole("button", {
+      name: i18n.t("viewPdfAction"),
+    });
+
+    expect(viewButtons).toHaveLength(1);
+  });
+
+  it("calls onViewPdf with the corresponding activity when its view action is triggered", async () => {
+    const user = userEvent.setup();
+    const { onViewPdf } = renderTable();
+
+    const viewButton = screen.getByRole("button", {
+      name: i18n.t("viewPdfAction"),
+    });
+    await user.click(viewButton);
+
+    expect(onViewPdf).toHaveBeenCalledTimes(1);
+    expect(onViewPdf).toHaveBeenCalledWith(ACTIVITIES[2]);
+  });
 });
 
 describe("Activities screen i18n keys (Issue #10)", () => {
@@ -219,6 +258,10 @@ describe("Activities screen i18n keys (Issue #10)", () => {
     // Issue #12 (Atividade tipo Link)
     "activityUrlLabel",
     "openActivityUrlAction",
+    // Issue #13 (Atividade tipo PDF)
+    "selectPdfFileAction",
+    "viewPdfAction",
+    "pdfViewerFrameTitle",
   ];
 
   it.each(["en", "pt-BR"] as const)(

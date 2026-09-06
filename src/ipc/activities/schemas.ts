@@ -5,6 +5,7 @@ export const listActivitiesInputSchema = z.object({
 });
 
 export const createActivityInputSchema = z.object({
+  filePath: z.string().nullish(),
   moduleId: z.string(),
   title: z.string().min(1),
   type: z.string().min(1),
@@ -12,6 +13,7 @@ export const createActivityInputSchema = z.object({
 });
 
 export const updateActivityInputSchema = z.object({
+  filePath: z.string().nullish(),
   id: z.string(),
   title: z.string().min(1),
   type: z.string().min(1),
