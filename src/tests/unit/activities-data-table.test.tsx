@@ -2,10 +2,15 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import i18n from "i18next";
 import { describe, expect, it, vi } from "vitest";
+import { openExternalLink } from "@/actions/shell";
 import ActivitiesDataTable, {
   type Activity,
 } from "@/components/activities-data-table";
 import "@/localization/i18n";
+
+vi.mock("@/actions/shell", () => ({
+  openExternalLink: vi.fn(),
+}));
 
 /**
  * RED phase (Issue #10, Spec Driven TDD): src/components/activities-data-table
@@ -44,6 +49,7 @@ const ACTIVITIES: Activity[] = [
     title: "Aula introdutoria",
     type: "link",
     updatedAt: new Date("2026-01-01"),
+    url: "https://example.com/aula-introdutoria",
   },
   {
     createdAt: new Date("2026-01-02"),
@@ -52,6 +58,7 @@ const ACTIVITIES: Activity[] = [
     title: "Quiz de fixacao",
     type: "quiz",
     updatedAt: new Date("2026-01-02"),
+    url: null,
   },
   {
     createdAt: new Date("2026-01-03"),
@@ -60,6 +67,7 @@ const ACTIVITIES: Activity[] = [
     title: "Apostila em PDF",
     type: "pdf",
     updatedAt: new Date("2026-01-03"),
+    url: null,
   },
   {
     createdAt: new Date("2026-01-04"),
@@ -68,6 +76,7 @@ const ACTIVITIES: Activity[] = [
     title: "Baralho de revisao",
     type: "flashcard_deck",
     updatedAt: new Date("2026-01-04"),
+    url: null,
   },
 ];
 
@@ -159,6 +168,35 @@ describe("ActivitiesDataTable", () => {
     expect(onRequestDelete).toHaveBeenCalledTimes(1);
     expect(onRequestDelete).toHaveBeenCalledWith(ACTIVITIES[0]);
   });
+
+  /**
+   * RED phase (Issue #12, Spec Driven TDD): ActivitiesDataTable does not
+   * render an "open URL" action yet -- these tests are expected to fail
+   * until Bancada adds a button/action visible only for type === "link"
+   * that calls openExternalLink(activity.url) (criterio de aceite 4).
+   */
+  it("renders an action to open the URL only for Link activities", () => {
+    renderTable();
+
+    const openButtons = screen.getAllByRole("button", {
+      name: i18n.t("openActivityUrlAction"),
+    });
+
+    expect(openButtons).toHaveLength(1);
+  });
+
+  it("calls openExternalLink with the activity's url when its open action is triggered", async () => {
+    const user = userEvent.setup();
+    renderTable();
+
+    const openButton = screen.getByRole("button", {
+      name: i18n.t("openActivityUrlAction"),
+    });
+    await user.click(openButton);
+
+    expect(openExternalLink).toHaveBeenCalledTimes(1);
+    expect(openExternalLink).toHaveBeenCalledWith(ACTIVITIES[0].url);
+  });
 });
 
 describe("Activities screen i18n keys (Issue #10)", () => {
@@ -178,6 +216,9 @@ describe("Activities screen i18n keys (Issue #10)", () => {
     "deleteActivityAction",
     "deleteActivityConfirmTitle",
     "deleteActivityConfirmDescription",
+    // Issue #12 (Atividade tipo Link)
+    "activityUrlLabel",
+    "openActivityUrlAction",
   ];
 
   it.each(["en", "pt-BR"] as const)(

@@ -1,6 +1,7 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { openExternalLink } from "@/actions/shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -11,6 +12,7 @@ export interface Activity {
   title: string;
   type: string;
   updatedAt: Date;
+  url: string | null;
 }
 
 const ACTIVITY_TYPE_TRANSLATION_KEYS: Record<string, string> = {
@@ -43,6 +45,12 @@ function ActivityRow({ activity, onEdit, onRequestDelete }: ActivityRowProps) {
     onRequestDelete(activity);
   }, [onRequestDelete, activity]);
 
+  const handleOpenUrlClick = useCallback(() => {
+    if (activity.url) {
+      openExternalLink(activity.url);
+    }
+  }, [activity.url]);
+
   const typeTranslationKey =
     ACTIVITY_TYPE_TRANSLATION_KEYS[activity.type] ?? activity.type;
 
@@ -53,6 +61,16 @@ function ActivityRow({ activity, onEdit, onRequestDelete }: ActivityRowProps) {
         <Badge>{t(typeTranslationKey)}</Badge>
       </td>
       <td>
+        {activity.type === "link" && (
+          <Button
+            aria-label={t("openActivityUrlAction")}
+            onClick={handleOpenUrlClick}
+            size="icon"
+            variant="ghost"
+          >
+            <ExternalLink />
+          </Button>
+        )}
         <Button
           aria-label={t("editActivityAction")}
           onClick={handleEditClick}

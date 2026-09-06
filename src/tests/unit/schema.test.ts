@@ -67,6 +67,7 @@ function insertActivity(
     id: string;
     type: string;
     title: string;
+    url: string | null;
     deletedAt: Date | null;
   }> = {}
 ) {
@@ -79,6 +80,7 @@ function insertActivity(
     title: overrides.title ?? "Baralho de Anatomia",
     type: overrides.type ?? "flashcard_deck",
     updatedAt: now,
+    url: overrides.url ?? null,
   };
   db.insert(activities).values(row).run();
   return row;
@@ -321,6 +323,59 @@ describe("database schema (Issue #4)", () => {
         .all();
 
       expect(activeOnly.map((a) => a.id)).not.toContain(deleted.id);
+    });
+
+    /**
+     * RED phase (Issue #12, Spec Driven TDD): the "url" column does not
+     * exist yet on the "activities" table -- these tests are expected to
+     * fail until Bancada (Developer) adds a nullable text("url") column to
+     * src/database/schema.ts and generates the corresponding drizzle-kit
+     * migration (criterio de aceite 1). Only Link activities populate it;
+     * every other activity type must keep it null without throwing.
+     */
+    it("has a nullable url column, used only by Link activities", () => {
+      const columnNames = (
+        db.$client.prepare("PRAGMA table_info(activities)").all() as {
+          name: string;
+          notnull: number;
+        }[]
+      ).map((c) => ({ name: c.name, notnull: c.notnull }));
+
+      const urlColumn = columnNames.find((c) => c.name === "url");
+
+      expect(urlColumn).toBeDefined();
+      expect(urlColumn?.notnull).toBe(0);
+    });
+
+    it("persists and reads back the url of a Link activity", () => {
+      const program = insertProgram(db);
+      const module_ = insertModule(db, program.id);
+      const link = insertActivity(db, module_.id, {
+        type: "link",
+        url: "https://example.com/aula-1",
+      });
+
+      const found = db
+        .select()
+        .from(activities)
+        .where(eq(activities.id, link.id))
+        .get();
+
+      expect(found?.url).toBe("https://example.com/aula-1");
+    });
+
+    it("leaves url as null for activity types that do not use it", () => {
+      const program = insertProgram(db);
+      const module_ = insertModule(db, program.id);
+      const quiz = insertActivity(db, module_.id, { type: "quiz" });
+
+      const found = db
+        .select()
+        .from(activities)
+        .where(eq(activities.id, quiz.id))
+        .get();
+
+      expect(found?.url).toBeNull();
     });
   });
 

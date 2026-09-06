@@ -34,7 +34,7 @@ const ACTIVITY_TYPE_TRANSLATION_KEYS: Record<
 interface ActivityFormDialogProps {
   activity: Activity | null;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (title: string, type: string) => void;
+  onSubmit: (title: string, type: string, url: string | null) => void;
   open: boolean;
 }
 
@@ -47,29 +47,41 @@ export default function ActivityFormDialog({
   const { t } = useTranslation();
   const titleInputId = useId();
   const typeSelectId = useId();
+  const urlInputId = useId();
   const [title, setTitle] = useState(activity?.title ?? "");
   const [type, setType] = useState<string>(
     activity?.type ?? MVP_ACTIVITY_TYPES[0]
   );
+  const [url, setUrl] = useState(activity?.url ?? "");
 
   useEffect(() => {
     if (open) {
       setTitle(activity?.title ?? "");
       setType(activity?.type ?? MVP_ACTIVITY_TYPES[0]);
+      setUrl(activity?.url ?? "");
     }
   }, [open, activity]);
+
+  const isLink = type === "link";
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      onSubmit(title, type);
+      onSubmit(title, type, isLink ? url : null);
     },
-    [title, type, onSubmit]
+    [title, type, url, isLink, onSubmit]
   );
 
   const handleTitleChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setTitle(event.target.value);
+    },
+    []
+  );
+
+  const handleUrlChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setUrl(event.target.value);
     },
     []
   );
@@ -112,6 +124,17 @@ export default function ActivityFormDialog({
                 </SelectContent>
               </Select>
             </div>
+            {isLink && (
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={urlInputId}>{t("activityUrlLabel")}</Label>
+                <Input
+                  id={urlInputId}
+                  onChange={handleUrlChange}
+                  type="url"
+                  value={url}
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button onClick={handleCancelClick} type="button" variant="outline">
