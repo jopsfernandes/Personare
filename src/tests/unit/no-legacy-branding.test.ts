@@ -12,7 +12,10 @@ import { expect, test } from "vitest";
  */
 
 const ROOT = path.resolve(import.meta.dirname, "../../..");
-const SELF_PATH = path.resolve(import.meta.dirname, "no-legacy-branding.test.ts");
+const SELF_PATH = path.resolve(
+  import.meta.dirname,
+  "no-legacy-branding.test.ts"
+);
 
 const FORBIDDEN_TERMS = ["electron-shadcn", "luanroger"];
 
