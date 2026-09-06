@@ -1,62 +1,126 @@
-import { SiElectron, SiReact, SiVite } from "@icons-pack/react-simple-icons";
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, useTransition } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useTranslation } from "react-i18next";
-import { getAppVersion } from "@/actions/app";
-import ExternalLink from "@/components/external-link";
-import LangToggle from "@/components/lang-toggle";
-import NavigationMenu from "@/components/navigation-menu";
-import ToggleTheme from "@/components/toggle-theme";
+import {
+  createProgram,
+  listPrograms,
+  softDeleteProgram,
+  updateProgram,
+} from "@/actions/programs";
+import DeleteProgramDialog from "@/components/delete-program-dialog";
+import ProgramFormDialog from "@/components/program-form-dialog";
+import ProgramsDataTable, {
+  type Program,
+} from "@/components/programs-data-table";
+import { Button } from "@/components/ui/button";
 
-/*
- * Update this page to modify your home page.
- * You can delete this file component to start from a blank page.
- */
-
-function HomePage() {
-  const iconSize = 48;
-
-  const [appVersion, setAppVersion] = useState("0.0.0");
-  const [, startGetAppVersion] = useTransition();
+function ProgramsPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [, startTransition] = useTransition();
+  const [formProgram, setFormProgram] = useState<Program | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [programPendingDelete, setProgramPendingDelete] =
+    useState<Program | null>(null);
 
-  useEffect(
-    () => startGetAppVersion(() => getAppVersion().then(setAppVersion)),
-    []
+  const refreshPrograms = useCallback(() => {
+    startTransition(() => {
+      listPrograms().then(setPrograms);
+    });
+  }, []);
+
+  useEffect(() => {
+    refreshPrograms();
+  }, [refreshPrograms]);
+
+  const handleCreateClick = useCallback(() => {
+    setFormProgram(null);
+    setIsFormOpen(true);
+  }, []);
+
+  const handleEdit = useCallback((program: Program) => {
+    setFormProgram(program);
+    setIsFormOpen(true);
+  }, []);
+
+  const handleRequestDelete = useCallback((program: Program) => {
+    setProgramPendingDelete(program);
+  }, []);
+
+  const handleNavigateToModules = useCallback(
+    (program: Program) => {
+      navigate({
+        params: { programId: program.id },
+        to: "/programs/$programId",
+      });
+    },
+    [navigate]
   );
 
+  const handleFormOpenChange = useCallback((open: boolean) => {
+    setIsFormOpen(open);
+  }, []);
+
+  const handleFormSubmit = useCallback(
+    (name: string) => {
+      const submit = formProgram
+        ? updateProgram(formProgram.id, name)
+        : createProgram(name);
+
+      submit.then(() => {
+        setIsFormOpen(false);
+        refreshPrograms();
+      });
+    },
+    [formProgram, refreshPrograms]
+  );
+
+  const handleDeleteDialogOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setProgramPendingDelete(null);
+    }
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!programPendingDelete) {
+      return;
+    }
+
+    softDeleteProgram(programPendingDelete.id).then(() => {
+      setProgramPendingDelete(null);
+      refreshPrograms();
+    });
+  }, [programPendingDelete, refreshPrograms]);
+
   return (
-    <>
-      <NavigationMenu />
-      <div className="flex h-full flex-col items-center justify-center">
-        <div className="flex flex-col items-end justify-center gap-0.5">
-          <div className="inline-flex gap-2">
-            <SiReact size={iconSize} />
-            <SiVite size={iconSize} />
-            <SiElectron size={iconSize} />
-          </div>
-          <span className="flex items-end justify-end">
-            <h1 className="font-bold font-mono text-4xl">{t("appName")}</h1>
-            <p className="text-muted-foreground text-sm">v{appVersion}</p>
-          </span>
-          <div className="flex w-full justify-between">
-            <ExternalLink
-              className="flex gap-2 text-muted-foreground text-sm"
-              href="https://github.com/jopsfernandes"
-            >
-              {t("madeBy")}
-            </ExternalLink>
-            <div className="flex items-center gap-2">
-              <LangToggle />
-              <ToggleTheme />
-            </div>
-          </div>
-        </div>
+    <div className="flex h-full flex-col gap-4 p-2">
+      <div className="flex items-center justify-between">
+        <h1 className="font-bold text-2xl">{t("programsPageTitle")}</h1>
+        <Button onClick={handleCreateClick}>{t("createProgramAction")}</Button>
       </div>
-    </>
+      <ProgramsDataTable
+        onEdit={handleEdit}
+        onNavigateToModules={handleNavigateToModules}
+        onRequestDelete={handleRequestDelete}
+        programs={programs}
+      />
+      <ProgramFormDialog
+        onOpenChange={handleFormOpenChange}
+        onSubmit={handleFormSubmit}
+        open={isFormOpen}
+        program={formProgram}
+      />
+      <DeleteProgramDialog
+        onConfirm={handleConfirmDelete}
+        onOpenChange={handleDeleteDialogOpenChange}
+        open={programPendingDelete !== null}
+        program={programPendingDelete}
+      />
+    </div>
   );
 }
 
 export const Route = createFileRoute("/")({
-  component: HomePage,
+  component: ProgramsPage,
 });
