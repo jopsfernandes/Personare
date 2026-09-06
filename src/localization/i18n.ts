@@ -6,18 +6,18 @@ i18n.use(initReactI18next).init({
   resources: {
     en: {
       translation: {
-        appName: "electron-shadcn",
+        appName: "Personare",
         documentation: "Documentation",
-        madeBy: "Made by LuanRoger",
+        madeBy: "Made by Personare",
         titleHomePage: "Home Page",
         titleSecondPage: "Second Page",
       },
     },
     "pt-BR": {
       translation: {
-        appName: "electron-shadcn",
+        appName: "Personare",
         documentation: "Documentação",
-        madeBy: "Feito por LuanRoger",
+        madeBy: "Feito por Personare",
         titleHomePage: "Página Inicial",
         titleSecondPage: "Segunda Página",
       },

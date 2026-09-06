@@ -42,7 +42,7 @@ function HomePage() {
           <div className="flex w-full justify-between">
             <ExternalLink
               className="flex gap-2 text-muted-foreground text-sm"
-              href="https://github.com/LuanRoger"
+              href="https://github.com/jopsfernandes"
             >
               {t("madeBy")}
             </ExternalLink>
