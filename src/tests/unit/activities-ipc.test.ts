@@ -306,7 +306,9 @@ describe("activities IPC namespace (Issue #10)", () => {
         type: "pdf",
       });
 
-      expect(created.filePath).toBe("C:\\Users\\aluno\\Documents\\apostila.pdf");
+      expect(created.filePath).toBe(
+        "C:\\Users\\aluno\\Documents\\apostila.pdf"
+      );
     });
 
     it("defaults filePath to null when creating an activity that does not provide one", async () => {

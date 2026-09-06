@@ -208,7 +208,9 @@ describe("ActivityFormDialog PDF file selection (Issue #13)", () => {
     expect(
       screen.getByRole("button", { name: i18n.t("selectPdfFileAction") })
     ).toBeInTheDocument();
-    expect(screen.getByText(PDF_ACTIVITY.filePath as string)).toBeInTheDocument();
+    expect(
+      screen.getByText(PDF_ACTIVITY.filePath as string)
+    ).toBeInTheDocument();
   });
 
   it("calls selectPdfFile and updates the shown path when the select-file button is clicked", async () => {
