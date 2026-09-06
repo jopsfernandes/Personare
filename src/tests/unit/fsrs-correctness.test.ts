@@ -1,5 +1,5 @@
+import { createEmptyCard, fsrs, type Grade, Rating, State } from "ts-fsrs";
 import { describe, expect, it } from "vitest";
-import { createEmptyCard, fsrs, Rating, State, type Grade } from "ts-fsrs";
 
 /**
  * Regression test for the FSRS scheduling algorithm as implemented by ts-fsrs.
@@ -37,14 +37,12 @@ describe("ts-fsrs correctness regression", () => {
 
     const ivlHistory: number[] = [];
     for (const rating of ratings) {
-      card = scheduler.next(card, now, rating).card;
+      ({ card } = scheduler.next(card, now, rating));
       ivlHistory.push(card.scheduled_days);
       now = card.due;
     }
 
-    expect(ivlHistory).toEqual([
-      0, 2, 11, 46, 163, 498, 0, 0, 2, 4, 7, 12, 21,
-    ]);
+    expect(ivlHistory).toEqual([0, 2, 11, 46, 163, 498, 0, 0, 2, 4, 7, 12, 21]);
   });
 
   it("matches the official memory state (stability/difficulty) reference", () => {
@@ -64,11 +62,11 @@ describe("ts-fsrs correctness regression", () => {
 
     for (const [index, rating] of ratings.entries()) {
       now = new Date(+now + intervalsInDays[index] * 24 * 60 * 60 * 1000);
-      card = scheduler.next(card, now, rating).card;
+      ({ card } = scheduler.next(card, now, rating));
     }
 
-    expect(card.stability).toBeCloseTo(53.62691, 4);
-    expect(card.difficulty).toBeCloseTo(6.3574867, 4);
+    expect(card.stability).toBeCloseTo(53.626_91, 4);
+    expect(card.difficulty).toBeCloseTo(6.357_486_7, 4);
   });
 
   it("matches the official first-repeat preview reference for every rating", () => {
@@ -87,12 +85,12 @@ describe("ts-fsrs correctness regression", () => {
     const stability = gradesInOrder.map((g) => preview[g].card.stability);
     const difficulty = gradesInOrder.map((g) => preview[g].card.difficulty);
     const scheduledDays = gradesInOrder.map(
-      (g) => preview[g].card.scheduled_days,
+      (g) => preview[g].card.scheduled_days
     );
     const states = gradesInOrder.map((g) => preview[g].card.state);
 
     expect(stability).toEqual([0.212, 1.2931, 2.3065, 8.2956]);
-    expect(difficulty).toEqual([6.4133, 5.11217071, 2.11810397, 1]);
+    expect(difficulty).toEqual([6.4133, 5.112_170_71, 2.118_103_97, 1]);
     expect(scheduledDays).toEqual([0, 0, 0, 8]);
     expect(states).toEqual([
       State.Learning,
