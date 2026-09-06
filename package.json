@@ -27,7 +27,7 @@
     "@icons-pack/react-simple-icons": "^13.15.1",
     "@orpc/client": "^1.14.8",
     "@orpc/server": "^1.15.0",
-    "@tailwindcss/vite": "^4.3.2",
+    "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.102.8",
     "@tanstack/react-router": "^1.170.32",
     "@tanstack/react-router-devtools": "^1.167.0",
