@@ -1,0 +1,85 @@
+import { describe, expect, it } from "vitest";
+import {
+  calculateQuizScore,
+  type QuizScoringQuestion,
+} from "@/utils/quiz-scoring";
+
+/**
+ * RED phase (Issue #14, Spec Driven TDD): src/utils/quiz-scoring.ts does not
+ * exist yet. Every test below is expected to fail until Fundacao (Developer)
+ * implements calculateQuizScore.
+ *
+ * Contract exercised here (criterio de aceite 4 and 6): the result screen
+ * shows how many questions the user got right out of how many, computed
+ * purely in memory from the selected option per question -- nothing is
+ * persisted to the database in this V1 (Plan.md 1.2), so the function under
+ * test takes the full in-memory quiz state and returns a score, without any
+ * database or IPC dependency.
+ */
+
+const QUESTIONS: QuizScoringQuestion[] = [
+  {
+    id: "q1",
+    options: [
+      { id: "q1-a", isCorrect: true },
+      { id: "q1-b", isCorrect: false },
+    ],
+  },
+  {
+    id: "q2",
+    options: [
+      { id: "q2-a", isCorrect: false },
+      { id: "q2-b", isCorrect: true },
+      { id: "q2-c", isCorrect: false },
+    ],
+  },
+  {
+    id: "q3",
+    options: [
+      { id: "q3-a", isCorrect: false },
+      { id: "q3-b", isCorrect: true },
+    ],
+  },
+];
+
+describe("calculateQuizScore (Issue #14)", () => {
+  it("counts a fully correct run as total correct out of total", () => {
+    const answers = { q1: "q1-a", q2: "q2-b", q3: "q3-b" };
+
+    expect(calculateQuizScore(QUESTIONS, answers)).toEqual({
+      correct: 3,
+      total: 3,
+    });
+  });
+
+  it("counts only the questions whose chosen option isCorrect as correct", () => {
+    const answers = { q1: "q1-a", q2: "q2-a", q3: "q3-a" };
+
+    expect(calculateQuizScore(QUESTIONS, answers)).toEqual({
+      correct: 1,
+      total: 3,
+    });
+  });
+
+  it("counts an unanswered question as incorrect, without throwing", () => {
+    const answers = { q1: "q1-a" };
+
+    expect(calculateQuizScore(QUESTIONS, answers)).toEqual({
+      correct: 1,
+      total: 3,
+    });
+  });
+
+  it("returns zero correct out of zero for a quiz with no questions", () => {
+    expect(calculateQuizScore([], {})).toEqual({ correct: 0, total: 0 });
+  });
+
+  it("ignores an answer whose optionId does not belong to that question", () => {
+    const answers = { q1: "q2-b" };
+
+    expect(calculateQuizScore(QUESTIONS, answers)).toEqual({
+      correct: 0,
+      total: 3,
+    });
+  });
+});

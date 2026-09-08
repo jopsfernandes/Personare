@@ -49,6 +49,40 @@ export const activities = sqliteTable("activities", {
   url: text("url"),
 });
 
+/**
+ * quiz_options intentionally mirrors quiz_questions' soft-delete strategy
+ * (a nullable deleted_at column) rather than hard delete-and-recreate, so
+ * softDeleteOption behaves exactly like every other soft-delete in the app.
+ */
+export const quizQuestions = sqliteTable("quiz_questions", {
+  activityId: text("activity_id")
+    .notNull()
+    .references(() => activities.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  deletedAt: integer("deleted_at", { mode: "timestamp" }),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  text: text("text").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+export const quizOptions = sqliteTable("quiz_options", {
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  deletedAt: integer("deleted_at", { mode: "timestamp" }),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  isCorrect: integer("is_correct", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  questionId: text("question_id")
+    .notNull()
+    .references(() => quizQuestions.id),
+  text: text("text").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
 export const flashcards = sqliteTable("flashcards", {
   activityId: text("activity_id")
     .notNull()

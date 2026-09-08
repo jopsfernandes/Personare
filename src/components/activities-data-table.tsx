@@ -1,4 +1,11 @@
-import { ExternalLink, FileText, Pencil, Trash2 } from "lucide-react";
+import {
+  ExternalLink,
+  FileText,
+  ListChecks,
+  Pencil,
+  Play,
+  Trash2,
+} from "lucide-react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { openExternalLink } from "@/actions/shell";
@@ -26,21 +33,27 @@ const ACTIVITY_TYPE_TRANSLATION_KEYS: Record<string, string> = {
 interface ActivitiesDataTableProps {
   activities: Activity[];
   onEdit: (activity: Activity) => void;
+  onManageQuiz: (activity: Activity) => void;
   onRequestDelete: (activity: Activity) => void;
+  onTakeQuiz: (activity: Activity) => void;
   onViewPdf: (activity: Activity) => void;
 }
 
 interface ActivityRowProps {
   activity: Activity;
   onEdit: (activity: Activity) => void;
+  onManageQuiz: (activity: Activity) => void;
   onRequestDelete: (activity: Activity) => void;
+  onTakeQuiz: (activity: Activity) => void;
   onViewPdf: (activity: Activity) => void;
 }
 
 function ActivityRow({
   activity,
   onEdit,
+  onManageQuiz,
   onRequestDelete,
+  onTakeQuiz,
   onViewPdf,
 }: ActivityRowProps) {
   const { t } = useTranslation();
@@ -62,6 +75,14 @@ function ActivityRow({
   const handleViewPdfClick = useCallback(() => {
     onViewPdf(activity);
   }, [onViewPdf, activity]);
+
+  const handleManageQuizClick = useCallback(() => {
+    onManageQuiz(activity);
+  }, [onManageQuiz, activity]);
+
+  const handleTakeQuizClick = useCallback(() => {
+    onTakeQuiz(activity);
+  }, [onTakeQuiz, activity]);
 
   const typeTranslationKey =
     ACTIVITY_TYPE_TRANSLATION_KEYS[activity.type] ?? activity.type;
@@ -93,6 +114,26 @@ function ActivityRow({
             <FileText />
           </Button>
         )}
+        {activity.type === "quiz" && (
+          <Button
+            aria-label={t("manageQuizQuestionsAction")}
+            onClick={handleManageQuizClick}
+            size="icon"
+            variant="ghost"
+          >
+            <ListChecks />
+          </Button>
+        )}
+        {activity.type === "quiz" && (
+          <Button
+            aria-label={t("takeQuizAction")}
+            onClick={handleTakeQuizClick}
+            size="icon"
+            variant="ghost"
+          >
+            <Play />
+          </Button>
+        )}
         <Button
           aria-label={t("editActivityAction")}
           onClick={handleEditClick}
@@ -117,7 +158,9 @@ function ActivityRow({
 export default function ActivitiesDataTable({
   activities,
   onEdit,
+  onManageQuiz,
   onRequestDelete,
+  onTakeQuiz,
   onViewPdf,
 }: ActivitiesDataTableProps) {
   const { t } = useTranslation();
@@ -134,7 +177,9 @@ export default function ActivitiesDataTable({
             activity={activity}
             key={activity.id}
             onEdit={onEdit}
+            onManageQuiz={onManageQuiz}
             onRequestDelete={onRequestDelete}
+            onTakeQuiz={onTakeQuiz}
             onViewPdf={onViewPdf}
           />
         ))}
