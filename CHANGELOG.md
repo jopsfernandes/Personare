@@ -8,6 +8,19 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Added
 
+- **Atividade do tipo Quiz: perguntas de múltipla escolha, execução e resultado** ([#14](https://github.com/jopsfernandes/Personare/issues/14)).
+  Adiciona suporte a Quiz com múltiplas perguntas de múltipla escolha por Atividade, usado quando `type = 'quiz'`:
+  - **Mudança de schema**: novas tabelas `quiz_questions` (`id`, `activity_id` FK, `text`, `created_at`/`updated_at`, `deleted_at` para soft-delete) e `quiz_options` (`id`, `question_id` FK, `text`, `is_correct`, `created_at`/`updated_at`, `deleted_at` — cada opção tem soft-delete próprio, mesmo padrão do resto do app) em `src/database/schema.ts`, aplicadas via `drizzle/0004_overconfident_whiplash.sql`.
+  - **Novo namespace de IPC/oRPC `quiz`** (`src/ipc/quiz/`), espelhando `ipc/activities`: `listQuestions`/`createQuestion`/`updateQuestion`/`softDeleteQuestion` e `listOptions`/`createOption`/`updateOption`/`softDeleteOption`, registrado em `src/ipc/router.ts`. Consumido pelo renderer via `src/actions/quiz.ts`, que também expõe `listQuizQuestionsWithOptions(activityId)` — composição no processo renderer que evita N+1 dentro de um handler.
+  - `src/utils/quiz-scoring.ts`: função pura `calculateQuizScore(questions, answers)`, sem I/O; pergunta sem resposta conta como errada, sem lançar exceção.
+  - Novo componente `src/components/quiz-question-form-dialog.tsx`: cria/edita uma pergunta e suas alternativas, com validação client-side (mínimo 2 opções com texto, exatamente 1 correta).
+  - Novo componente `src/components/quiz-question-manager-dialog.tsx`: gerenciador de todas as perguntas de um Quiz (listar, adicionar, editar, excluir). Ao editar uma pergunta, as opções são reconciliadas via soft-delete-and-recreate (o form não devolve `id` das opções existentes).
+  - Novo componente `src/components/quiz-runner-dialog.tsx`: tela de execução do Quiz (radio buttons por pergunta) e tela de resultado ao final ("X de Y corretas"). Estado de resposta vive só em memória do componente — a V1 não persiste tentativas de Quiz no banco (Plan.md 1.2), reiniciando do zero se o diálogo for fechado e reaberto.
+  - `src/components/activities-data-table.tsx` e `src/routes/programs.$programId.modules.$moduleId.tsx`: dois novos botões condicionais para Atividades do tipo `quiz` — "gerenciar perguntas" (`ListChecks`) e "responder quiz" (`Play`) — seguindo o mesmo padrão condicional já usado para `link`/`pdf`.
+  - `src/localization/i18n.ts`: novas chaves de tradução (en e pt-BR) para os formulários de pergunta/opção, ações do gerenciador e executor, e o resultado do Quiz (interpolação `{{correct}}`/`{{total}}`).
+  - Fora de escopo desta issue e não alterados: Issue #15 (Flashcards/Baralho), geração de `ReviewItem` a partir de Quiz e persistência de tentativas/histórico de resultado no banco — todos explicitamente adiados pelo Plan.md para versão futura.
+  - Cobertura de testes em `src/tests/unit/quiz-schema.test.ts`, `src/tests/unit/quiz-ipc.test.ts`, `src/tests/unit/quiz-scoring.test.ts`, `src/tests/unit/quiz-question-form-dialog.test.tsx`, `src/tests/unit/quiz-actions.test.ts`, `src/tests/unit/quiz-question-manager-dialog.test.tsx`, `src/tests/unit/quiz-runner-dialog.test.tsx` e novos casos em `src/tests/unit/activities-data-table.test.tsx`. 241/241 testes passando, sem regressão.
+
 - **Atividade do tipo PDF: seleção e visualização de arquivo** ([#13](https://github.com/jopsfernandes/Personare/issues/13)).
   Adiciona suporte a um arquivo PDF associado à Atividade, usado quando `type = 'pdf'`:
   - **Mudança de schema**: nova coluna `activities.file_path` (`text`, nullable) em `src/database/schema.ts`, aplicada via `drizzle/0003_past_crusher_hogan.sql` (`ALTER TABLE activities ADD file_path text`, sem `NOT NULL`), seguindo o mesmo padrão de coluna opcional por tipo da Issue #12 (`url`).
