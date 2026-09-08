@@ -243,7 +243,9 @@ describe("quiz database schema (Issue #14)", () => {
       const module_ = insertModule(db, program.id);
       const activity = insertQuizActivity(db, module_.id);
       const question = insertQuizQuestion(db, activity.id);
-      const option = insertQuizOption(db, question.id, { text: "Rio de Janeiro" });
+      const option = insertQuizOption(db, question.id, {
+        text: "Rio de Janeiro",
+      });
 
       const found = db
         .select()

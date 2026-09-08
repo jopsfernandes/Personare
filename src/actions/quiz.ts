@@ -28,11 +28,7 @@ export function createQuizOption(
   return ipc.client.quiz.createOption({ isCorrect, questionId, text });
 }
 
-export function updateQuizOption(
-  id: string,
-  text: string,
-  isCorrect: boolean
-) {
+export function updateQuizOption(id: string, text: string, isCorrect: boolean) {
   return ipc.client.quiz.updateOption({ id, isCorrect, text });
 }
 

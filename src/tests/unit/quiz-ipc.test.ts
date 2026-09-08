@@ -6,10 +6,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createDatabaseClient, type DatabaseClient } from "@/database/client";
 import { runMigrations } from "@/database/migrate";
 import { activities as activitiesNamespace } from "@/ipc/activities";
+import { setDatabaseClient } from "@/ipc/database/state";
 import { modules as modulesNamespace } from "@/ipc/modules";
 import { programs as programsNamespace } from "@/ipc/programs";
 import { quiz as quizNamespace } from "@/ipc/quiz";
-import { setDatabaseClient } from "@/ipc/database/state";
 
 /**
  * RED phase (Issue #14, Spec Driven TDD): src/ipc/quiz does not exist yet.
@@ -111,9 +111,9 @@ describe("quiz IPC namespace (Issue #14)", () => {
   describe("questions", () => {
     describe("listQuestions", () => {
       it("returns an empty array when the activity has no questions", async () => {
-        await expect(
-          quizClient.listQuestions({ activityId })
-        ).resolves.toEqual([]);
+        await expect(quizClient.listQuestions({ activityId })).resolves.toEqual(
+          []
+        );
       });
 
       it("returns questions created through createQuestion", async () => {
@@ -406,9 +406,7 @@ describe("quiz IPC namespace (Issue #14)", () => {
         const list = await quizClient.listOptions({
           questionId: otherQuestionId,
         });
-        expect(list.map((option) => option.id)).toContain(
-          inOtherQuestion.id
-        );
+        expect(list.map((option) => option.id)).toContain(inOtherQuestion.id);
       });
     });
   });

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { calculateQuizScore, type QuizScoringQuestion } from "@/utils/quiz-scoring";
+import {
+  calculateQuizScore,
+  type QuizScoringQuestion,
+} from "@/utils/quiz-scoring";
 
 /**
  * RED phase (Issue #14, Spec Driven TDD): src/utils/quiz-scoring.ts does not

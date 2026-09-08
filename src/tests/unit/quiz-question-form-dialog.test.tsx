@@ -28,9 +28,21 @@ import "@/localization/i18n";
 const EXISTING_QUESTION: QuizQuestionFormValue = {
   id: "11111111-1111-1111-1111-111111111111",
   options: [
-    { id: "aaaaaaaa-0000-0000-0000-000000000001", isCorrect: false, text: "Sao Paulo" },
-    { id: "aaaaaaaa-0000-0000-0000-000000000002", isCorrect: true, text: "Brasilia" },
-    { id: "aaaaaaaa-0000-0000-0000-000000000003", isCorrect: false, text: "Rio de Janeiro" },
+    {
+      id: "aaaaaaaa-0000-0000-0000-000000000001",
+      isCorrect: false,
+      text: "Sao Paulo",
+    },
+    {
+      id: "aaaaaaaa-0000-0000-0000-000000000002",
+      isCorrect: true,
+      text: "Brasilia",
+    },
+    {
+      id: "aaaaaaaa-0000-0000-0000-000000000003",
+      isCorrect: false,
+      text: "Rio de Janeiro",
+    },
   ],
   text: "Qual e a capital do Brasil?",
 };
@@ -87,9 +99,9 @@ describe("QuizQuestionFormDialog (Issue #14)", () => {
   it("pre-fills the question text and options when editing an existing question", () => {
     renderDialog(EXISTING_QUESTION);
 
-    expect(
-      screen.getByLabelText(i18n.t("quizQuestionTextLabel"))
-    ).toHaveValue(EXISTING_QUESTION.text);
+    expect(screen.getByLabelText(i18n.t("quizQuestionTextLabel"))).toHaveValue(
+      EXISTING_QUESTION.text
+    );
 
     const inputs = optionTextInputs();
     expect(inputs.map((input) => (input as HTMLInputElement).value)).toEqual(

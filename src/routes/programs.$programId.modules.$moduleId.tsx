@@ -31,8 +31,9 @@ function ModuleActivitiesPage() {
     useState<Activity | null>(null);
   const [activityBeingManaged, setActivityBeingManaged] =
     useState<Activity | null>(null);
-  const [activityTakingQuiz, setActivityTakingQuiz] =
-    useState<Activity | null>(null);
+  const [activityTakingQuiz, setActivityTakingQuiz] = useState<Activity | null>(
+    null
+  );
 
   const refreshActivities = useCallback(() => {
     startTransition(() => {

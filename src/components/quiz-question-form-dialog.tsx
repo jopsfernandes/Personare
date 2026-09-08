@@ -145,14 +145,11 @@ export default function QuizQuestionFormDialog({
     []
   );
 
-  const handleOptionTextChange = useCallback(
-    (key: string, value: string) => {
-      setRows((prev) =>
-        prev.map((row) => (row.key === key ? { ...row, text: value } : row))
-      );
-    },
-    []
-  );
+  const handleOptionTextChange = useCallback((key: string, value: string) => {
+    setRows((prev) =>
+      prev.map((row) => (row.key === key ? { ...row, text: value } : row))
+    );
+  }, []);
 
   const handleOptionCorrectChange = useCallback((key: string) => {
     setRows((prev) =>
@@ -164,7 +161,11 @@ export default function QuizQuestionFormDialog({
     nextNewRowIndex.current += 1;
     setRows((prev) => [
       ...prev,
-      { isCorrect: false, key: `added-option-${nextNewRowIndex.current}`, text: "" },
+      {
+        isCorrect: false,
+        key: `added-option-${nextNewRowIndex.current}`,
+        text: "",
+      },
     ]);
   }, []);
 
@@ -204,12 +205,16 @@ export default function QuizQuestionFormDialog({
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
-              {question ? t("editQuizQuestionAction") : t("addQuizQuestionAction")}
+              {question
+                ? t("editQuizQuestionAction")
+                : t("addQuizQuestionAction")}
             </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-4">
             <div className="flex flex-col gap-1">
-              <Label htmlFor={questionTextId}>{t("quizQuestionTextLabel")}</Label>
+              <Label htmlFor={questionTextId}>
+                {t("quizQuestionTextLabel")}
+              </Label>
               <Input
                 id={questionTextId}
                 onChange={handleTextChange}
