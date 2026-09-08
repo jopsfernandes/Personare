@@ -14,6 +14,8 @@ import ActivitiesDataTable, {
 import ActivityFormDialog from "@/components/activity-form-dialog";
 import DeleteActivityDialog from "@/components/delete-activity-dialog";
 import PdfViewerDialog from "@/components/pdf-viewer-dialog";
+import QuizQuestionManagerDialog from "@/components/quiz-question-manager-dialog";
+import QuizRunnerDialog from "@/components/quiz-runner-dialog";
 import { Button } from "@/components/ui/button";
 
 function ModuleActivitiesPage() {
@@ -26,6 +28,10 @@ function ModuleActivitiesPage() {
   const [activityPendingDelete, setActivityPendingDelete] =
     useState<Activity | null>(null);
   const [activityBeingViewed, setActivityBeingViewed] =
+    useState<Activity | null>(null);
+  const [activityBeingManaged, setActivityBeingManaged] =
+    useState<Activity | null>(null);
+  const [activityTakingQuiz, setActivityTakingQuiz] =
     useState<Activity | null>(null);
 
   const refreshActivities = useCallback(() => {
@@ -54,6 +60,14 @@ function ModuleActivitiesPage() {
 
   const handleViewPdf = useCallback((activity: Activity) => {
     setActivityBeingViewed(activity);
+  }, []);
+
+  const handleManageQuiz = useCallback((activity: Activity) => {
+    setActivityBeingManaged(activity);
+  }, []);
+
+  const handleTakeQuiz = useCallback((activity: Activity) => {
+    setActivityTakingQuiz(activity);
   }, []);
 
   const handleFormOpenChange = useCallback((open: boolean) => {
@@ -85,6 +99,18 @@ function ModuleActivitiesPage() {
     }
   }, []);
 
+  const handleQuizManagerOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setActivityBeingManaged(null);
+    }
+  }, []);
+
+  const handleQuizRunnerOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setActivityTakingQuiz(null);
+    }
+  }, []);
+
   const handleDeleteDialogOpenChange = useCallback((open: boolean) => {
     if (!open) {
       setActivityPendingDelete(null);
@@ -111,7 +137,9 @@ function ModuleActivitiesPage() {
       <ActivitiesDataTable
         activities={activities}
         onEdit={handleEdit}
+        onManageQuiz={handleManageQuiz}
         onRequestDelete={handleRequestDelete}
+        onTakeQuiz={handleTakeQuiz}
         onViewPdf={handleViewPdf}
       />
       <ActivityFormDialog
@@ -130,6 +158,16 @@ function ModuleActivitiesPage() {
         activity={activityBeingViewed}
         onOpenChange={handlePdfViewerOpenChange}
         open={activityBeingViewed !== null}
+      />
+      <QuizQuestionManagerDialog
+        activity={activityBeingManaged}
+        onOpenChange={handleQuizManagerOpenChange}
+        open={activityBeingManaged !== null}
+      />
+      <QuizRunnerDialog
+        activity={activityTakingQuiz}
+        onOpenChange={handleQuizRunnerOpenChange}
+        open={activityTakingQuiz !== null}
       />
     </div>
   );
