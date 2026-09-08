@@ -86,19 +86,23 @@ const ACTIVITIES: Activity[] = [
 
 function renderTable(activities: Activity[] = ACTIVITIES) {
   const onEdit = vi.fn();
+  const onManageQuiz = vi.fn();
   const onRequestDelete = vi.fn();
+  const onTakeQuiz = vi.fn();
   const onViewPdf = vi.fn();
 
   render(
     <ActivitiesDataTable
       activities={activities}
       onEdit={onEdit}
+      onManageQuiz={onManageQuiz}
       onRequestDelete={onRequestDelete}
+      onTakeQuiz={onTakeQuiz}
       onViewPdf={onViewPdf}
     />
   );
 
-  return { onEdit, onRequestDelete, onViewPdf };
+  return { onEdit, onManageQuiz, onRequestDelete, onTakeQuiz, onViewPdf };
 }
 
 describe("ActivitiesDataTable", () => {
@@ -236,6 +240,55 @@ describe("ActivitiesDataTable", () => {
     expect(onViewPdf).toHaveBeenCalledTimes(1);
     expect(onViewPdf).toHaveBeenCalledWith(ACTIVITIES[2]);
   });
+
+  /**
+   * RED phase (Issue #14, Spec Driven TDD): ActivitiesDataTable does not
+   * render "manage questions"/"take quiz" actions yet -- these tests are
+   * expected to fail until Fundacao adds two buttons/actions visible only
+   * for type === "quiz" that call onManageQuiz(activity)/onTakeQuiz(activity)
+   * (docs/specs/issue-14-quiz.md, AC-3). Mirrors onViewPdf: the table only
+   * bubbles the request up, since opening either dialog is the caller's
+   * responsibility.
+   */
+  it("renders manage-questions and take-quiz actions only for Quiz activities", () => {
+    renderTable();
+
+    const manageButtons = screen.getAllByRole("button", {
+      name: i18n.t("manageQuizQuestionsAction"),
+    });
+    const takeButtons = screen.getAllByRole("button", {
+      name: i18n.t("takeQuizAction"),
+    });
+
+    expect(manageButtons).toHaveLength(1);
+    expect(takeButtons).toHaveLength(1);
+  });
+
+  it("calls onManageQuiz with the corresponding activity when its manage-questions action is triggered", async () => {
+    const user = userEvent.setup();
+    const { onManageQuiz } = renderTable();
+
+    const manageButton = screen.getByRole("button", {
+      name: i18n.t("manageQuizQuestionsAction"),
+    });
+    await user.click(manageButton);
+
+    expect(onManageQuiz).toHaveBeenCalledTimes(1);
+    expect(onManageQuiz).toHaveBeenCalledWith(ACTIVITIES[1]);
+  });
+
+  it("calls onTakeQuiz with the corresponding activity when its take-quiz action is triggered", async () => {
+    const user = userEvent.setup();
+    const { onTakeQuiz } = renderTable();
+
+    const takeButton = screen.getByRole("button", {
+      name: i18n.t("takeQuizAction"),
+    });
+    await user.click(takeButton);
+
+    expect(onTakeQuiz).toHaveBeenCalledTimes(1);
+    expect(onTakeQuiz).toHaveBeenCalledWith(ACTIVITIES[1]);
+  });
 });
 
 describe("Activities screen i18n keys (Issue #10)", () => {
@@ -262,6 +315,9 @@ describe("Activities screen i18n keys (Issue #10)", () => {
     "selectPdfFileAction",
     "viewPdfAction",
     "pdfViewerFrameTitle",
+    // Issue #14 (Atividade tipo Quiz)
+    "manageQuizQuestionsAction",
+    "takeQuizAction",
   ];
 
   it.each(["en", "pt-BR"] as const)(

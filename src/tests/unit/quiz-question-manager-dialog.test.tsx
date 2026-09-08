@@ -1,0 +1,271 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import i18n from "i18next";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import "@/localization/i18n";
+import type { Activity } from "@/components/activities-data-table";
+
+/**
+ * RED phase (Issue #14, Spec Driven TDD): src/components/quiz-question-manager-dialog
+ * does not exist yet. Every test below is expected to fail until Fundacao
+ * (Developer) implements it, per docs/specs/issue-14-quiz.md AC-1.
+ *
+ * Contract exercised here: given a quiz Activity, lists its existing
+ * questions (fetched through listQuizQuestionsWithOptions), with an
+ * add-question action and per-row edit/delete actions. Add/edit open the
+ * already-implemented QuizQuestionFormDialog (RED phase inherited from a
+ * previous session -- src/tests/unit/quiz-question-form-dialog.test.tsx).
+ * Submitting the form:
+ * - new question: createQuizQuestion(activityId, text), then
+ *   createQuizOption(questionId, text, isCorrect) per submitted option.
+ * - existing question: updateQuizQuestion(id, text), then reconciles
+ *   options via hard delete-and-recreate -- softDeleteQuizOption(id) for
+ *   every option that was already loaded for that question, followed by
+ *   createQuizOption(questionId, text, isCorrect) per submitted option
+ *   (the form's onSubmit does not carry option ids, so the manager owns
+ *   this reconciliation, exactly as documented in the spec).
+ * Delete calls softDeleteQuizQuestion(id) and refreshes the list.
+ */
+
+vi.mock("@/actions/quiz", () => ({
+  createQuizOption: vi.fn(),
+  createQuizQuestion: vi.fn(),
+  listQuizQuestionsWithOptions: vi.fn(),
+  softDeleteQuizOption: vi.fn(),
+  softDeleteQuizQuestion: vi.fn(),
+  updateQuizQuestion: vi.fn(),
+}));
+
+const {
+  createQuizOption,
+  createQuizQuestion,
+  listQuizQuestionsWithOptions,
+  softDeleteQuizOption,
+  softDeleteQuizQuestion,
+  updateQuizQuestion,
+} = await import("@/actions/quiz");
+const { default: QuizQuestionManagerDialog } = await import(
+  "@/components/quiz-question-manager-dialog"
+);
+
+const QUIZ_ACTIVITY: Activity = {
+  createdAt: new Date("2026-01-02"),
+  filePath: null,
+  id: "22222222-2222-2222-2222-222222222222",
+  moduleId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  title: "Quiz de fixacao",
+  type: "quiz",
+  updatedAt: new Date("2026-01-02"),
+  url: null,
+};
+
+const EXISTING_QUESTIONS = [
+  {
+    id: "q1",
+    options: [
+      { id: "o1", isCorrect: false, text: "Sao Paulo" },
+      { id: "o2", isCorrect: true, text: "Brasilia" },
+    ],
+    text: "Qual e a capital do Brasil?",
+  },
+  {
+    id: "q2",
+    options: [
+      { id: "o3", isCorrect: false, text: "3" },
+      { id: "o4", isCorrect: true, text: "4" },
+    ],
+    text: "Quanto e 2 + 2?",
+  },
+];
+
+function renderManager(activity: Activity | null = QUIZ_ACTIVITY) {
+  const onOpenChange = vi.fn();
+
+  render(
+    <QuizQuestionManagerDialog
+      activity={activity}
+      onOpenChange={onOpenChange}
+      open={activity !== null}
+    />
+  );
+
+  return { onOpenChange };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(listQuizQuestionsWithOptions).mockResolvedValue(EXISTING_QUESTIONS);
+});
+
+describe("QuizQuestionManagerDialog (Issue #14)", () => {
+  it("does not attempt to load questions when there is no activity", () => {
+    renderManager(null);
+
+    expect(listQuizQuestionsWithOptions).not.toHaveBeenCalled();
+  });
+
+  it("lists the existing questions' text once loaded", async () => {
+    renderManager();
+
+    expect(listQuizQuestionsWithOptions).toHaveBeenCalledWith(QUIZ_ACTIVITY.id);
+    expect(
+      await screen.findByText(EXISTING_QUESTIONS[0].text)
+    ).toBeInTheDocument();
+    expect(screen.getByText(EXISTING_QUESTIONS[1].text)).toBeInTheDocument();
+  });
+
+  it("renders an empty-state message when the quiz has no questions", async () => {
+    vi.mocked(listQuizQuestionsWithOptions).mockResolvedValue([]);
+
+    renderManager();
+
+    expect(
+      await screen.findByText(i18n.t("quizQuestionsEmptyMessage"))
+    ).toBeInTheDocument();
+  });
+
+  it("renders an add-question action, and an edit and a delete action for every question", async () => {
+    renderManager();
+    await screen.findByText(EXISTING_QUESTIONS[0].text);
+
+    expect(
+      screen.getByRole("button", { name: i18n.t("addQuizQuestionAction") })
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", {
+        name: i18n.t("editQuizQuestionAction"),
+      })
+    ).toHaveLength(EXISTING_QUESTIONS.length);
+    expect(
+      screen.getAllByRole("button", {
+        name: i18n.t("deleteQuizQuestionAction"),
+      })
+    ).toHaveLength(EXISTING_QUESTIONS.length);
+  });
+
+  it("calls softDeleteQuizQuestion and refreshes the list when a question's delete action is triggered", async () => {
+    const user = userEvent.setup();
+    renderManager();
+    await screen.findByText(EXISTING_QUESTIONS[0].text);
+
+    const deleteButtons = screen.getAllByRole("button", {
+      name: i18n.t("deleteQuizQuestionAction"),
+    });
+    await user.click(deleteButtons[0]);
+
+    await waitFor(() => {
+      expect(softDeleteQuizQuestion).toHaveBeenCalledWith(
+        EXISTING_QUESTIONS[0].id
+      );
+    });
+    await waitFor(() => {
+      expect(listQuizQuestionsWithOptions).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("opens the question form, pre-filled, when a question's edit action is triggered", async () => {
+    const user = userEvent.setup();
+    renderManager();
+    await screen.findByText(EXISTING_QUESTIONS[0].text);
+
+    const editButtons = screen.getAllByRole("button", {
+      name: i18n.t("editQuizQuestionAction"),
+    });
+    await user.click(editButtons[0]);
+
+    expect(screen.getByLabelText(i18n.t("quizQuestionTextLabel"))).toHaveValue(
+      EXISTING_QUESTIONS[0].text
+    );
+  });
+
+  it("opens an empty question form when the add-question action is clicked", async () => {
+    const user = userEvent.setup();
+    renderManager();
+    await screen.findByText(EXISTING_QUESTIONS[0].text);
+
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("addQuizQuestionAction") })
+    );
+
+    expect(screen.getByLabelText(i18n.t("quizQuestionTextLabel"))).toHaveValue(
+      ""
+    );
+  });
+
+  it("creates the question and its options when a new question is submitted", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createQuizQuestion).mockResolvedValue({
+      activityId: QUIZ_ACTIVITY.id,
+      id: "new-q",
+      text: "Nova pergunta",
+    });
+    renderManager();
+    await screen.findByText(EXISTING_QUESTIONS[0].text);
+
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("addQuizQuestionAction") })
+    );
+    await user.type(
+      screen.getByLabelText(i18n.t("quizQuestionTextLabel")),
+      "Nova pergunta"
+    );
+
+    const optionInputs = screen.getAllByLabelText(
+      i18n.t("quizOptionTextLabel")
+    );
+    await user.type(optionInputs[0], "Opcao A");
+    await user.type(optionInputs[1], "Opcao B");
+    await user.click(screen.getAllByRole("radio")[1]);
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("saveAction") })
+    );
+
+    await waitFor(() => {
+      expect(createQuizQuestion).toHaveBeenCalledWith(
+        QUIZ_ACTIVITY.id,
+        "Nova pergunta"
+      );
+    });
+    await waitFor(() => {
+      expect(createQuizOption).toHaveBeenCalledWith("new-q", "Opcao A", false);
+      expect(createQuizOption).toHaveBeenCalledWith("new-q", "Opcao B", true);
+    });
+  });
+
+  it("updates the question and reconciles its options when an existing question is edited", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateQuizQuestion).mockResolvedValue({
+      activityId: QUIZ_ACTIVITY.id,
+      id: "q1",
+      text: "Pergunta editada",
+    });
+    renderManager();
+    await screen.findByText(EXISTING_QUESTIONS[0].text);
+
+    const editButtons = screen.getAllByRole("button", {
+      name: i18n.t("editQuizQuestionAction"),
+    });
+    await user.click(editButtons[0]);
+
+    const questionInput = screen.getByLabelText(
+      i18n.t("quizQuestionTextLabel")
+    );
+    await user.clear(questionInput);
+    await user.type(questionInput, "Pergunta editada");
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("saveAction") })
+    );
+
+    await waitFor(() => {
+      expect(updateQuizQuestion).toHaveBeenCalledWith("q1", "Pergunta editada");
+    });
+    await waitFor(() => {
+      expect(softDeleteQuizOption).toHaveBeenCalledWith("o1");
+      expect(softDeleteQuizOption).toHaveBeenCalledWith("o2");
+    });
+    await waitFor(() => {
+      expect(createQuizOption).toHaveBeenCalledWith("q1", "Sao Paulo", false);
+      expect(createQuizOption).toHaveBeenCalledWith("q1", "Brasilia", true);
+    });
+  });
+});
