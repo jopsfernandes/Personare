@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const ensureReviewItemsInputSchema = z.object({
-  activityId: z.string(),
+  activityId: z.string().optional(),
 });
 
 export const listDueInputSchema = z.object({
