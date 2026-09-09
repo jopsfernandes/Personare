@@ -1,6 +1,7 @@
 import {
   ExternalLink,
   FileText,
+  Layers,
   ListChecks,
   Pencil,
   Play,
@@ -33,6 +34,7 @@ const ACTIVITY_TYPE_TRANSLATION_KEYS: Record<string, string> = {
 interface ActivitiesDataTableProps {
   activities: Activity[];
   onEdit: (activity: Activity) => void;
+  onManageFlashcards: (activity: Activity) => void;
   onManageQuiz: (activity: Activity) => void;
   onRequestDelete: (activity: Activity) => void;
   onTakeQuiz: (activity: Activity) => void;
@@ -42,6 +44,7 @@ interface ActivitiesDataTableProps {
 interface ActivityRowProps {
   activity: Activity;
   onEdit: (activity: Activity) => void;
+  onManageFlashcards: (activity: Activity) => void;
   onManageQuiz: (activity: Activity) => void;
   onRequestDelete: (activity: Activity) => void;
   onTakeQuiz: (activity: Activity) => void;
@@ -51,6 +54,7 @@ interface ActivityRowProps {
 function ActivityRow({
   activity,
   onEdit,
+  onManageFlashcards,
   onManageQuiz,
   onRequestDelete,
   onTakeQuiz,
@@ -83,6 +87,10 @@ function ActivityRow({
   const handleTakeQuizClick = useCallback(() => {
     onTakeQuiz(activity);
   }, [onTakeQuiz, activity]);
+
+  const handleManageFlashcardsClick = useCallback(() => {
+    onManageFlashcards(activity);
+  }, [onManageFlashcards, activity]);
 
   const typeTranslationKey =
     ACTIVITY_TYPE_TRANSLATION_KEYS[activity.type] ?? activity.type;
@@ -134,6 +142,16 @@ function ActivityRow({
             <Play />
           </Button>
         )}
+        {activity.type === "flashcard_deck" && (
+          <Button
+            aria-label={t("manageFlashcardsAction")}
+            onClick={handleManageFlashcardsClick}
+            size="icon"
+            variant="ghost"
+          >
+            <Layers />
+          </Button>
+        )}
         <Button
           aria-label={t("editActivityAction")}
           onClick={handleEditClick}
@@ -158,6 +176,7 @@ function ActivityRow({
 export default function ActivitiesDataTable({
   activities,
   onEdit,
+  onManageFlashcards,
   onManageQuiz,
   onRequestDelete,
   onTakeQuiz,
@@ -177,6 +196,7 @@ export default function ActivitiesDataTable({
             activity={activity}
             key={activity.id}
             onEdit={onEdit}
+            onManageFlashcards={onManageFlashcards}
             onManageQuiz={onManageQuiz}
             onRequestDelete={onRequestDelete}
             onTakeQuiz={onTakeQuiz}
