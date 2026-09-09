@@ -1,7 +1,13 @@
-import { ensureReviewItems, listDue, submitRating } from "./handlers";
+import {
+  ensureReviewItems,
+  listDue,
+  listSchedule,
+  submitRating,
+} from "./handlers";
 
 export const review = {
   ensureReviewItems,
   listDue,
+  listSchedule,
   submitRating,
 };

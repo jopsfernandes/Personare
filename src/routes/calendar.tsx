@@ -1,13 +1,91 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ensureReviewItems,
+  listSchedule,
+  toCalendarEvents,
+} from "@/actions/calendar";
+import {
+  type CalendarEvent,
+  EventCalendar,
+  EventCalendarContent,
+  EventCalendarNav,
+  type EventCalendarRenderEventProps,
+} from "@/components/reui/event-calendar";
 
-function CalendarPage() {
-  const { t } = useTranslation();
+interface CalendarEventData {
+  moduleId: string;
+  programId: string;
+}
+
+interface CalendarEventChipProps {
+  event: CalendarEvent<CalendarEventData>;
+  onSelect: (data: CalendarEventData) => void;
+}
+
+function CalendarEventChip({ event, onSelect }: CalendarEventChipProps) {
+  const handleClick = useCallback(() => {
+    if (event.data) {
+      onSelect(event.data);
+    }
+  }, [event.data, onSelect]);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-2">
-      <h1 className="font-bold text-4xl">{t("navCalendar")}</h1>
-    </div>
+    <button
+      className="w-full truncate text-left"
+      onClick={handleClick}
+      type="button"
+    >
+      {event.title}
+    </button>
+  );
+}
+
+export function CalendarPage() {
+  const navigate = useNavigate();
+  const [events, setEvents] = useState<CalendarEvent<CalendarEventData>[]>([]);
+
+  useEffect(() => {
+    ensureReviewItems()
+      .then(() => listSchedule())
+      .then((rows) => {
+        setEvents(toCalendarEvents(rows));
+      });
+  }, []);
+
+  const handleSelectEvent = useCallback(
+    (data: CalendarEventData) => {
+      navigate({
+        params: { moduleId: data.moduleId, programId: data.programId },
+        to: "/programs/$programId/modules/$moduleId",
+      });
+    },
+    [navigate]
+  );
+
+  const renderEvent = useCallback(
+    ({ occurrence }: EventCalendarRenderEventProps<CalendarEventData>) => (
+      <CalendarEventChip
+        event={occurrence.event}
+        onSelect={handleSelectEvent}
+      />
+    ),
+    [handleSelectEvent]
+  );
+
+  return (
+    <EventCalendar
+      className="h-full"
+      defaultView="month"
+      events={events}
+      interactions={{ drag: false, resize: false, selectSlot: false }}
+      onEventsChange={setEvents}
+      renderEvent={renderEvent}
+      views={["month", "agenda"]}
+    >
+      <EventCalendarNav />
+      <EventCalendarContent />
+    </EventCalendar>
   );
 }
 

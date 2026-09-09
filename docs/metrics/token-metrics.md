@@ -141,3 +141,50 @@ Cada terminal também gastou um pouco de `claude-haiku-4-5` (background/roteamen
   armadilhas mais fáceis de cair ao integrar uma biblioteca de algoritmo (over-engineering de
   configuração, ou persistir campo deprecated "por via das dúvidas") foram evitadas, confirmando que o
   spec detalhado (com a fronteira explícita do que NÃO fazer) continua compensando o esforço de escrevê-lo.
+
+## Issue #18 — Calendário (EventCalendar da ReUI)
+
+- **Branch:** `feature/18-calendario`
+- **Time reaproveitado** (mesmos quatro terminais desde a Issue #14) — valores abaixo são o delta
+  sobre o acumulado ao final da Issue #16.
+- **O ciclo mais caro até agora, por uma margem grande** — envolveu: instalação de uma biblioteca de
+  UI externa nova (ReUI), uma colisão de overwrite não prevista no spec (button/dropdown-menu/tooltip
+  já customizados), a descoberta de um bug pré-existente de precisão de timestamp (Issue #64,
+  investigado e corretamente desviado, não corrigido), e — fora do próprio pipeline dos 4 terminais —
+  uma rodada de depuração visual feita pelo orquestrador (esta sessão) contra um build empacotado real,
+  que achou e descreveu com precisão um segundo bug (`defaultEvents` vs. `events`/`onEventsChange`)
+  antes mesmo do Revisor entrar em cena.
+
+| Papel | Terminal | Custo acumulado (após #18) | Custo acumulado (após #16) | **Delta (#18)** |
+|---|---|---|---|---|
+| Testador | Sentinela | $13,36 | $6,39 | **$6,97** |
+| Desenvolvedor | Cinzel | $28,75 | $14,16 | **$14,59** |
+| Revisor | Lupa | $3,11 | $1,89 | **$1,22** |
+| Redator de Docs | Cronista | $1,67 | $1,08 | **$0,59** |
+| **Total do ciclo (#18, só os 4 terminais)** | | | | **~$23,37** |
+
+## Leituras do quarto ciclo (Issue #18)
+
+- **O Desenvolvedor sozinho custou mais que o ciclo INTEIRO da Issue #14** ($14,59 vs. ~$6,77) — o
+  maior salto de custo de papel único registrado até aqui. A causa não foi "biblioteca externa" por si
+  só (a Issue #16 já tinha isso, com `ts-fsrs`, e custou bem menos) — foi a **combinação** de instalar
+  uma biblioteca de UI de terceiros (que trouxe consigo uma colisão real com componentes já
+  customizados do projeto, exigindo investigação e uma decisão de produto no meio da implementação) com
+  dois ciclos de descoberta-de-bug-e-correção que cada um exigiu reler documentação, testar hipóteses, e
+  esperar validação externa antes de prosseguir.
+- **A instrumentação de tokens não captura o custo real do ciclo** — esta tabela mede só os 4 terminais
+  do pipeline; não inclui o trabalho do orquestrador (esta sessão), que nesta issue foi
+  desproporcionalmente maior que nas anteriores: pesquisa da API real via `mcp__reui__*` (várias
+  chamadas, incluindo instalar-e-descartar um exemplo só para ler código-fonte real do registry),
+  duas rodadas de teste visual contra build empacotado (a segunda encontrando e diagnosticando o bug de
+  `defaultEvents`/`events` ANTES de qualquer terminal do pipeline), e toda a coordenação entre eles. Um
+  número de "custo total do ciclo" que só soma os 4 terminais subestima sistematicamente o custo real
+  de issues como esta, onde o orquestrador faz trabalho de investigação pesado. Vale registrar isso
+  como limitação conhecida desta instrumentação, não como um dado a mais a interpretar.
+- **Encontrar um bug de UI real exigiu rodar o app de verdade, não só os testes** — os testes unitários
+  desta issue mockam o componente ReUI inteiro (decisão correta do Testador, documentada no próprio RED:
+  "isso é responsabilidade da própria lib"), o que significa que nenhuma bateria de testes unitários
+  jamais teria pego o bug de `defaultEvents`. Só apareceu ao empacotar o app e olhar a tela. Isso
+  reforça, com um exemplo concreto e não-hipotético, a mesma lição já registrada no PR #61 (Issue #60):
+  há uma classe de bug — integração real com uma biblioteca de terceiros, comportamento controlado vs.
+  não-controlado, timing assíncrono — que só aparece rodando o software de verdade.

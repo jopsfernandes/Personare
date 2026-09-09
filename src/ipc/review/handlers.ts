@@ -3,7 +3,10 @@ import { and, asc, eq, isNull, lte } from "drizzle-orm";
 import type { Grade, StateType } from "ts-fsrs";
 import { Rating } from "ts-fsrs";
 import {
+  activities as activitiesTable,
   flashcards as flashcardsTable,
+  modules as modulesTable,
+  programs as programsTable,
   reviewItems as reviewItemsTable,
 } from "@/database/schema";
 import { getDatabaseClient } from "@/ipc/database/state";
@@ -41,6 +44,10 @@ export const ensureReviewItems = os
   .handler(({ input }) => {
     const db = requireDatabaseClient();
 
+    const scopeCondition = input.activityId
+      ? eq(flashcardsTable.activityId, input.activityId)
+      : undefined;
+
     const flashcardsWithoutReviewItems = db
       .select({ id: flashcardsTable.id })
       .from(flashcardsTable)
@@ -50,7 +57,7 @@ export const ensureReviewItems = os
       )
       .where(
         and(
-          eq(flashcardsTable.activityId, input.activityId),
+          scopeCondition,
           isNull(flashcardsTable.deletedAt),
           isNull(reviewItemsTable.id)
         )
@@ -113,6 +120,34 @@ export const listDue = os.input(listDueInputSchema).handler(({ input }) => {
       )
     )
     .orderBy(asc(reviewItemsTable.dueDate))
+    .all();
+});
+
+export const listSchedule = os.handler(() => {
+  const db = requireDatabaseClient();
+
+  return db
+    .select({
+      activityId: activitiesTable.id,
+      activityTitle: activitiesTable.title,
+      dueDate: reviewItemsTable.dueDate,
+      front: flashcardsTable.front,
+      id: reviewItemsTable.id,
+      moduleId: modulesTable.id,
+      programId: programsTable.id,
+    })
+    .from(reviewItemsTable)
+    .innerJoin(
+      flashcardsTable,
+      eq(reviewItemsTable.flashcardId, flashcardsTable.id)
+    )
+    .innerJoin(
+      activitiesTable,
+      eq(flashcardsTable.activityId, activitiesTable.id)
+    )
+    .innerJoin(modulesTable, eq(activitiesTable.moduleId, modulesTable.id))
+    .innerJoin(programsTable, eq(modulesTable.programId, programsTable.id))
+    .where(isNull(flashcardsTable.deletedAt))
     .all();
 });
 
