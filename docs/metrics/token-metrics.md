@@ -228,3 +228,51 @@ Cada terminal também gastou um pouco de `claude-haiku-4-5` (background/roteamen
   (lint, lockfile) → corrigir direto; mudança de comportamento com superfície de decisão (regra de
   cascata, quais linhas sobrescrever) → pipeline completo, mesmo quando a causa raiz já é conhecida com
   precisão.
+
+## Issue #20 — Notificação via inicialização com o SO
+
+- **Branch:** `feature/20-notificacao-boot`
+- **Time reaproveitado** (mesmos quatro terminais desde a Issue #14) — valores abaixo são o delta
+  sobre o acumulado ao final da Issue #22.
+- **Primeira issue tocando de verdade o processo main do Electron** (Tray, Notification,
+  `app.setLoginItemSettings`, interceptar `close`) — território novo tanto tecnicamente quanto em
+  termos de validação: parte do comportamento (orquestração de ciclo de vida em `main.ts`) não é
+  testável de forma automatizada neste stack, então o Desenvolvedor precisou validar manualmente
+  contra um build empacotado real, incluindo criar e remover um registro genuíno de auto-start no
+  Registro do Windows.
+
+| Papel | Terminal | Custo acumulado (após #20) | Custo acumulado (após #22) | **Delta (#20)** |
+|---|---|---|---|---|
+| Testador | Sentinela | $21,63 | $18,61 | **$3,02** |
+| Desenvolvedor | Cinzel | $51,30 | $34,07 | **$17,23** |
+| Revisor | Lupa | $5,17 | $3,69 | **$1,48** |
+| Redator de Docs | Cronista | $2,85 | $2,09 | **$0,76** |
+| **Total do ciclo (#20, só os 4 terminais)** | | | | **~$22,49** |
+
+## Leituras do sexto ciclo (Issue #20)
+
+- **O maior delta de Desenvolvedor único registrado até aqui** ($17,23, superando os $14,59 da Issue
+  #18) — mas por um motivo diferente do de #18 (que foi biblioteca externa + dois bugs). Aqui a causa
+  foi majoritariamente **validação manual real**: o Desenvolvedor escreveu e rodou não um, mas dois
+  scripts Playwright descartáveis contra o build empacotado (o primeiro tinha um bug de navegação —
+  tentou mudar a rota via hash, que não funciona com o memory history do TanStack Router deste app —
+  precisou diagnosticar e corrigir o próprio script antes de conseguir validar o toggle de verdade),
+  além de escrever e rodar um terceiro script só para desfazer o registro real de auto-start no Windows
+  e não deixar sujeira na máquina. Testar de verdade uma feature que só existe fora da suíte automatizada
+  tem custo de token real e proporcional — não é overhead evitável, é o preço de garantir que o código
+  funciona contra a API real do SO, não só contra mocks.
+- **Preferir "validar manualmente e documentar" a "forçar um teste automatizado artificial"
+  compensou**: o spec já tinha avisado que a orquestração de `main.ts` não seria testável neste stack, e
+  o Testador respeitou isso (só escreveu testes para as partes genuinamente testáveis — `countDueReviews`,
+  `createPlaceholderTrayIcon`, o namespace `settings`). Isso evitou gastar tokens tentando forçar um
+  harness de teste que não existe no projeto para Electron main de verdade, canalizando esse esforço
+  para validação manual real (que encontrou e corrigiu um bug de verdade no script de verificação,
+  não no código do app) em vez de para uma abstração de teste frágil que só daria falsa confiança.
+- **Decisões de produto explícitas do usuário, feitas ANTES do spec, evitaram retrabalho** — as duas
+  perguntas feitas ao usuário (ícone placeholder vs. bloquear a issue; escopo do "modo oculto" só no
+  auto-start vs. global) foram resolvidas em uma única rodada de `AskUserQuestion`, sem nenhuma
+  necessidade de revisitar essas decisões depois durante GREEN ou revisão — diferente da Issue #18,
+  onde decisões de design (visão do calendário, granularidade do evento) também foram perguntadas
+  antes, mas ali ainda restou espaço para descobertas de bug durante a implementação. Perguntar cedo
+  continua sendo mais barato que descobrir tarde, mas não elimina sozinho o custo de território
+  tecnicamente novo.

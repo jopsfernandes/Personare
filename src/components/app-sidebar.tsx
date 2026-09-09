@@ -16,6 +16,7 @@ import {
 const NAV_ITEMS = [
   { labelKey: "navPrograms", to: "/" },
   { labelKey: "navCalendar", to: "/calendar" },
+  { labelKey: "navSettings", to: "/settings" },
 ] as const;
 
 export default function AppSidebar() {

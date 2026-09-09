@@ -124,3 +124,15 @@ export const reviewItems = sqliteTable("review_items", {
   state: text("state").notNull().default("New"),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
+
+/**
+ * Singleton settings row -- id is always 1, never a UUID like the rest of
+ * the schema. The row is created lazily on first read/write (AC-4), not
+ * seeded by a migration.
+ */
+export const appSettings = sqliteTable("app_settings", {
+  autoStartEnabled: integer("auto_start_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  id: integer("id").primaryKey(),
+});
