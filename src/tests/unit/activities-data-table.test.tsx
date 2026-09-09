@@ -89,6 +89,7 @@ function renderTable(activities: Activity[] = ACTIVITIES) {
   const onManageFlashcards = vi.fn();
   const onManageQuiz = vi.fn();
   const onRequestDelete = vi.fn();
+  const onStartReview = vi.fn();
   const onTakeQuiz = vi.fn();
   const onViewPdf = vi.fn();
 
@@ -99,6 +100,7 @@ function renderTable(activities: Activity[] = ACTIVITIES) {
       onManageFlashcards={onManageFlashcards}
       onManageQuiz={onManageQuiz}
       onRequestDelete={onRequestDelete}
+      onStartReview={onStartReview}
       onTakeQuiz={onTakeQuiz}
       onViewPdf={onViewPdf}
     />
@@ -109,6 +111,7 @@ function renderTable(activities: Activity[] = ACTIVITIES) {
     onManageFlashcards,
     onManageQuiz,
     onRequestDelete,
+    onStartReview,
     onTakeQuiz,
     onViewPdf,
   };
@@ -330,6 +333,38 @@ describe("ActivitiesDataTable", () => {
     expect(onManageFlashcards).toHaveBeenCalledTimes(1);
     expect(onManageFlashcards).toHaveBeenCalledWith(ACTIVITIES[3]);
   });
+
+  /**
+   * RED phase (Issue #16, Spec Driven TDD): ActivitiesDataTable does not
+   * render a "start review" action yet -- these tests are expected to fail
+   * until the Developer adds a button/action visible only for
+   * type === "flashcard_deck" that calls onStartReview(activity)
+   * (docs/specs/issue-16-fsrs-review-session.md, AC-5). A Flashcard Deck
+   * activity now has two conditional actions (manage flashcards, start
+   * review) -- distinct from each other and from Quiz's "take quiz".
+   */
+  it("renders a start-review action only for Flashcard Deck activities", () => {
+    renderTable();
+
+    const startReviewButtons = screen.getAllByRole("button", {
+      name: i18n.t("startReviewAction"),
+    });
+
+    expect(startReviewButtons).toHaveLength(1);
+  });
+
+  it("calls onStartReview with the corresponding activity when its start-review action is triggered", async () => {
+    const user = userEvent.setup();
+    const { onStartReview } = renderTable();
+
+    const startReviewButton = screen.getByRole("button", {
+      name: i18n.t("startReviewAction"),
+    });
+    await user.click(startReviewButton);
+
+    expect(onStartReview).toHaveBeenCalledTimes(1);
+    expect(onStartReview).toHaveBeenCalledWith(ACTIVITIES[3]);
+  });
 });
 
 describe("Activities screen i18n keys (Issue #10)", () => {
@@ -361,6 +396,8 @@ describe("Activities screen i18n keys (Issue #10)", () => {
     "takeQuizAction",
     // Issue #15 (Atividade tipo Flashcard/Baralho)
     "manageFlashcardsAction",
+    // Issue #16 (Motor FSRS: sessao de revisao do Baralho)
+    "startReviewAction",
   ];
 
   it.each(["en", "pt-BR"] as const)(
