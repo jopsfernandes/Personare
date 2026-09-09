@@ -8,6 +8,17 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Added
 
+- **Atividade do tipo Flashcard/Baralho: CRUD de Flashcards** ([#15](https://github.com/jopsfernandes/Personare/issues/15)).
+  Adiciona CRUD de Flashcards (frente/verso) dentro de uma Atividade do tipo `flashcard_deck` (Baralho):
+  - **Nenhuma migration nova**: as tabelas `flashcards` e `review_items` já existiam desde `drizzle/0001_chilly_zombie.sql` (schema fundacional); esta issue só implementa o CRUD sobre a tabela `flashcards` já existente.
+  - **Novo namespace de IPC/oRPC `flashcards`** (`src/ipc/flashcards/`), espelhando `ipc/activities` (entidade flat, sem sub-entidade): `list({ activityId })`/`create({ activityId, front, back })`/`update({ id, front, back })`/`softDelete({ id })`, registrado em `src/ipc/router.ts`. `front`/`back` rejeitam string vazia (Zod `.min(1)`). Consumido pelo renderer via `src/actions/flashcards.ts` (wrappers finos, sem camada de composição — Flashcard não tem sub-entidade como as opções do Quiz).
+  - Novo componente `src/components/flashcard-form-dialog.tsx`: cria/edita UM flashcard por vez (campos `front`/`back`, validação HTML nativa `required`).
+  - Novo componente `src/components/flashcard-manager-dialog.tsx`: gerenciador de todos os flashcards de um Baralho, mostrando frente e verso de cada linha (tela de autoria, não a tela de revisão) — listar, adicionar, editar, excluir (soft-delete).
+  - `src/components/activities-data-table.tsx` e `src/routes/programs.$programId.modules.$moduleId.tsx`: novo botão condicional "gerenciar flashcards" (ícone `Layers`) para Atividades do tipo `flashcard_deck`, seguindo o mesmo padrão condicional de `link`/`pdf`/`quiz`.
+  - `src/localization/i18n.ts`: novas chaves de tradução (en e pt-BR) para o gerenciador e o formulário de flashcard, reaproveitando `saveAction`/`cancelAction` já existentes.
+  - **Fora de escopo, explicitamente não tocado**: qualquer leitura/escrita em `review_items`, integração com `ts-fsrs` e a tela de sessão de revisão — tudo isso pertence à Issue #16 (Motor FSRS), que depende desta issue estar concluída. Um Flashcard criado por esta feature fica sem `ReviewItem` associado até a Issue #16 existir.
+  - Cobertura de testes em `src/tests/unit/flashcards-ipc.test.ts`, `src/tests/unit/flashcard-form-dialog.test.tsx`, `src/tests/unit/flashcard-manager-dialog.test.tsx` e novos casos em `src/tests/unit/activities-data-table.test.tsx`. 272/272 testes passando, sem regressão.
+
 - **Atividade do tipo Quiz: perguntas de múltipla escolha, execução e resultado** ([#14](https://github.com/jopsfernandes/Personare/issues/14)).
   Adiciona suporte a Quiz com múltiplas perguntas de múltipla escolha por Atividade, usado quando `type = 'quiz'`:
   - **Mudança de schema**: novas tabelas `quiz_questions` (`id`, `activity_id` FK, `text`, `created_at`/`updated_at`, `deleted_at` para soft-delete) e `quiz_options` (`id`, `question_id` FK, `text`, `is_correct`, `created_at`/`updated_at`, `deleted_at` — cada opção tem soft-delete próprio, mesmo padrão do resto do app) em `src/database/schema.ts`, aplicadas via `drizzle/0004_overconfident_whiplash.sql`.
