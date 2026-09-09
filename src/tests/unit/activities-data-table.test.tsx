@@ -86,6 +86,7 @@ const ACTIVITIES: Activity[] = [
 
 function renderTable(activities: Activity[] = ACTIVITIES) {
   const onEdit = vi.fn();
+  const onManageFlashcards = vi.fn();
   const onManageQuiz = vi.fn();
   const onRequestDelete = vi.fn();
   const onTakeQuiz = vi.fn();
@@ -95,6 +96,7 @@ function renderTable(activities: Activity[] = ACTIVITIES) {
     <ActivitiesDataTable
       activities={activities}
       onEdit={onEdit}
+      onManageFlashcards={onManageFlashcards}
       onManageQuiz={onManageQuiz}
       onRequestDelete={onRequestDelete}
       onTakeQuiz={onTakeQuiz}
@@ -102,7 +104,14 @@ function renderTable(activities: Activity[] = ACTIVITIES) {
     />
   );
 
-  return { onEdit, onManageQuiz, onRequestDelete, onTakeQuiz, onViewPdf };
+  return {
+    onEdit,
+    onManageFlashcards,
+    onManageQuiz,
+    onRequestDelete,
+    onTakeQuiz,
+    onViewPdf,
+  };
 }
 
 describe("ActivitiesDataTable", () => {
@@ -289,6 +298,38 @@ describe("ActivitiesDataTable", () => {
     expect(onTakeQuiz).toHaveBeenCalledTimes(1);
     expect(onTakeQuiz).toHaveBeenCalledWith(ACTIVITIES[1]);
   });
+
+  /**
+   * RED phase (Issue #15, Spec Driven TDD): ActivitiesDataTable does not
+   * render a "manage flashcards" action yet -- these tests are expected to
+   * fail until the Developer adds a button/action visible only for
+   * type === "flashcard_deck" that calls onManageFlashcards(activity)
+   * (docs/specs/issue-15-flashcard-baralho.md, AC-5). Mirrors onManageQuiz:
+   * the table only bubbles the request up, since opening the manager dialog
+   * is the caller's responsibility.
+   */
+  it("renders a manage-flashcards action only for Flashcard Deck activities", () => {
+    renderTable();
+
+    const manageFlashcardsButtons = screen.getAllByRole("button", {
+      name: i18n.t("manageFlashcardsAction"),
+    });
+
+    expect(manageFlashcardsButtons).toHaveLength(1);
+  });
+
+  it("calls onManageFlashcards with the corresponding activity when its manage-flashcards action is triggered", async () => {
+    const user = userEvent.setup();
+    const { onManageFlashcards } = renderTable();
+
+    const manageFlashcardsButton = screen.getByRole("button", {
+      name: i18n.t("manageFlashcardsAction"),
+    });
+    await user.click(manageFlashcardsButton);
+
+    expect(onManageFlashcards).toHaveBeenCalledTimes(1);
+    expect(onManageFlashcards).toHaveBeenCalledWith(ACTIVITIES[3]);
+  });
 });
 
 describe("Activities screen i18n keys (Issue #10)", () => {
@@ -318,6 +359,8 @@ describe("Activities screen i18n keys (Issue #10)", () => {
     // Issue #14 (Atividade tipo Quiz)
     "manageQuizQuestionsAction",
     "takeQuizAction",
+    // Issue #15 (Atividade tipo Flashcard/Baralho)
+    "manageFlashcardsAction",
   ];
 
   it.each(["en", "pt-BR"] as const)(
