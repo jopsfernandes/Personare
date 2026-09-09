@@ -104,3 +104,40 @@ Cada terminal também gastou um pouco de `claude-haiku-4-5` (background/roteamen
   vale considerar pedir a cada terminal para anotar seu próprio "checkpoint de custo" ao final de cada
   issue (ou dispensar e recriar os terminais por issue, trocando o benefício de contexto quente por
   leitura de métrica mais simples).
+
+## Issue #16 — Motor FSRS: sessão de revisão do Baralho
+
+- **Branch:** `feature/16-motor-fsrs-sessao-revisao`
+- **Time reaproveitado** (mesmos quatro terminais desde a Issue #14) — valores abaixo são novamente o
+  **delta** sobre o acumulado ao final da Issue #15.
+- **Issue tecnicamente mais densa até aqui**: integra uma biblioteca externa real (`ts-fsrs`) com um
+  modelo de dados (`Card`) mais rico do que o schema persistia, exigindo desenho de migration nova +
+  módulo de conversão puro, não só CRUD espelhando um padrão já existente.
+
+| Papel | Terminal | Custo acumulado (após #16) | Custo acumulado (após #15) | **Delta (#16)** |
+|---|---|---|---|---|
+| Testador | Sentinela | $6,39 | $2,91 | **$3,48** |
+| Desenvolvedor | Cinzel | $14,16 | $8,81 | **$5,35** |
+| Revisor | Lupa | $1,89 | $1,35 | **$0,54** |
+| Redator de Docs | Cronista | $1,08 | $0,72 | **$0,36** |
+| **Total do ciclo (#16)** | | | | **~$9,73** |
+
+## Leituras do terceiro ciclo (Issue #16)
+
+- **O ciclo mais caro até agora** (~$9,73, contra ~$6,77 da #14 e ~$7,02 da #15) — mas proporcionalmente
+  alinhado com a complexidade real: esta é a primeira issue com uma biblioteca externa de domínio
+  (`ts-fsrs`) cujo modelo de dados não cabia no schema existente, exigindo desenhar a migration e um
+  módulo de tradução (`src/utils/fsrs.ts`) do zero, não apenas espelhar um CRUD já resolvido em Link/
+  PDF/Quiz/Flashcard. O custo acompanhou a complexidade genuína da tarefa, não cresceu
+  desproporcionalmente — sinal de que o pipeline escala razoavelmente com dificuldade real.
+- **Testador e Desenvolvedor cresceram juntos desta vez** ($3,48 e $5,35, ambos os maiores valores do
+  papel até agora) — diferente da Issue #15, onde só o Testador tinha custado mais que o padrão. Aqui
+  os dois precisaram ler a documentação da biblioteca (`node_modules/ts-fsrs/README.md`) e entender uma
+  API nova antes de produzir qualquer teste/código, não só espelhar convenções internas do projeto —
+  sugere que "aprender uma biblioteca externa" é um driver de custo genuinamente distinto de "seguir um
+  padrão interno já estabelecido".
+- **A disciplina de escopo se manteve mesmo sob complexidade maior**: o Revisor confirmou explicitamente
+  que `elapsed_days` nunca foi persistido e que `fsrs()` nunca recebeu parâmetros customizados — as duas
+  armadilhas mais fáceis de cair ao integrar uma biblioteca de algoritmo (over-engineering de
+  configuração, ou persistir campo deprecated "por via das dúvidas") foram evitadas, confirmando que o
+  spec detalhado (com a fronteira explícita do que NÃO fazer) continua compensando o esforço de escrevê-lo.

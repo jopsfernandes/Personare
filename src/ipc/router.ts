@@ -6,6 +6,7 @@ import { flashcards } from "./flashcards";
 import { modules } from "./modules";
 import { programs } from "./programs";
 import { quiz } from "./quiz";
+import { review } from "./review";
 import { shell } from "./shell";
 import { theme } from "./theme";
 import { window } from "./window";
@@ -19,6 +20,7 @@ export const router = {
   modules,
   programs,
   quiz,
+  review,
   shell,
   theme,
   window,

@@ -1,0 +1,437 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { createRouterClient } from "@orpc/server";
+import { eq } from "drizzle-orm";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createDatabaseClient, type DatabaseClient } from "@/database/client";
+import { runMigrations } from "@/database/migrate";
+import { reviewItems as reviewItemsTable } from "@/database/schema";
+import { activities as activitiesNamespace } from "@/ipc/activities";
+import { setDatabaseClient } from "@/ipc/database/state";
+import { flashcards as flashcardsNamespace } from "@/ipc/flashcards";
+import { modules as modulesNamespace } from "@/ipc/modules";
+import { programs as programsNamespace } from "@/ipc/programs";
+import { review as reviewNamespace } from "@/ipc/review";
+
+/**
+ * RED phase (Issue #16, Spec Driven TDD): src/ipc/review does not exist yet.
+ * Every test below is expected to fail until the Developer implements the
+ * "review" oRPC namespace, per docs/specs/issue-16-fsrs-review-session.md
+ * AC-3. Exercises the full FSRS review lifecycle:
+ *
+ * - ensureReviewItems({ activityId }): idempotent, lazy creation of a
+ *   review_items row (via src/utils/fsrs.ts's createInitialReviewItemFields)
+ *   for every non-deleted flashcard of that Activity that doesn't have one
+ *   yet.
+ * - listDue({ activityId }): review_items whose dueDate <= now, scoped to
+ *   non-deleted flashcards of that Activity, ordered by dueDate ascending,
+ *   joined with the flashcard's front/back (no N+1 in the UI).
+ * - submitRating({ reviewItemId, rating }): rating is one of the 4 strings
+ *   "again"|"hard"|"good"|"easy" (never "manual"), validated before being
+ *   mapped to the ts-fsrs Rating enum. Persists the fields AC-1 adds to
+ *   review_items (state, reps, lapses, scheduledDays, learningSteps,
+ *   lastReviewedAt) plus lastRating and an appended ratingHistory entry.
+ *
+ * Procedures are exercised through `createRouterClient`, oRPC's in-process
+ * server-side client, exactly like every other *-ipc.test.ts in this suite.
+ */
+
+const REVIEW_ROUTER_REGISTRATION_PATTERN = /\breview\b/;
+
+describe("review IPC namespace (Issue #16)", () => {
+  let tmpDir: string;
+  let dbPath: string;
+  let db: DatabaseClient;
+  let reviewClient: ReturnType<
+    typeof createRouterClient<typeof reviewNamespace>
+  >;
+  let flashcardsClient: ReturnType<
+    typeof createRouterClient<typeof flashcardsNamespace>
+  >;
+  let activitiesClient: ReturnType<
+    typeof createRouterClient<typeof activitiesNamespace>
+  >;
+  let modulesClient: ReturnType<
+    typeof createRouterClient<typeof modulesNamespace>
+  >;
+  let programsClient: ReturnType<
+    typeof createRouterClient<typeof programsNamespace>
+  >;
+  let activityId: string;
+  let otherActivityId: string;
+
+  beforeEach(async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "personare-review-ipc-"));
+    dbPath = path.join(tmpDir, "test.sqlite");
+    db = createDatabaseClient(dbPath);
+    runMigrations(db);
+    setDatabaseClient(db);
+    reviewClient = createRouterClient(reviewNamespace);
+    flashcardsClient = createRouterClient(flashcardsNamespace);
+    activitiesClient = createRouterClient(activitiesNamespace);
+    modulesClient = createRouterClient(modulesNamespace);
+    programsClient = createRouterClient(programsNamespace);
+
+    const program = await programsClient.create({ name: "Bacharelado II" });
+    const createdModule = await modulesClient.create({
+      name: "Modulo 1",
+      programId: program.id,
+    });
+    const activity = await activitiesClient.create({
+      moduleId: createdModule.id,
+      title: "Baralho de Revisao",
+      type: "flashcard_deck",
+    });
+    activityId = activity.id;
+    const otherActivity = await activitiesClient.create({
+      moduleId: createdModule.id,
+      title: "Outro Baralho",
+      type: "flashcard_deck",
+    });
+    otherActivityId = otherActivity.id;
+  });
+
+  afterEach(() => {
+    // Windows refuses to delete a sqlite file while a connection to it is
+    // still open (EPERM), unlike Linux/macOS -- close it first.
+    db.$client.close();
+    fs.rmSync(tmpDir, { force: true, recursive: true });
+  });
+
+  it("is registered on the root oRPC router in src/ipc/router.ts", () => {
+    const routerSource = fs.readFileSync(
+      path.resolve(process.cwd(), "src/ipc/router.ts"),
+      "utf-8"
+    );
+
+    expect(routerSource).toMatch(REVIEW_ROUTER_REGISTRATION_PATTERN);
+  });
+
+  it("exposes ensureReviewItems, listDue and submitRating procedures", () => {
+    expect(reviewNamespace.ensureReviewItems).toBeDefined();
+    expect(reviewNamespace.listDue).toBeDefined();
+    expect(reviewNamespace.submitRating).toBeDefined();
+  });
+
+  describe("ensureReviewItems", () => {
+    it("creates a review_items row for every flashcard that does not have one yet", async () => {
+      const first = await flashcardsClient.create({
+        activityId,
+        back: "Verso 1",
+        front: "Frente 1",
+      });
+      const second = await flashcardsClient.create({
+        activityId,
+        back: "Verso 2",
+        front: "Frente 2",
+      });
+
+      await reviewClient.ensureReviewItems({ activityId });
+
+      const rows = db.select().from(reviewItemsTable).all();
+      expect(rows.map((row) => row.flashcardId)).toEqual(
+        expect.arrayContaining([first.id, second.id])
+      );
+      expect(rows).toHaveLength(2);
+    });
+
+    it("initializes a new review_item with a brand-new ts-fsrs card's fields", async () => {
+      const flashcard = await flashcardsClient.create({
+        activityId,
+        back: "Verso",
+        front: "Frente",
+      });
+
+      await reviewClient.ensureReviewItems({ activityId });
+
+      const row = db
+        .select()
+        .from(reviewItemsTable)
+        .where(eq(reviewItemsTable.flashcardId, flashcard.id))
+        .get();
+
+      expect(row?.state).toBe("New");
+      expect(row?.reps).toBe(0);
+      expect(row?.lapses).toBe(0);
+      expect(row?.scheduledDays).toBe(0);
+      expect(row?.learningSteps).toBe(0);
+      expect(row?.lastReviewedAt).toBeNull();
+      expect(row?.dueDate.getTime()).toBeLessThanOrEqual(Date.now());
+    });
+
+    it("is idempotent -- calling it again does not create a duplicate review_item for the same flashcard", async () => {
+      const flashcard = await flashcardsClient.create({
+        activityId,
+        back: "Verso",
+        front: "Frente",
+      });
+
+      await reviewClient.ensureReviewItems({ activityId });
+      await reviewClient.ensureReviewItems({ activityId });
+
+      const rows = db
+        .select()
+        .from(reviewItemsTable)
+        .where(eq(reviewItemsTable.flashcardId, flashcard.id))
+        .all();
+      expect(rows).toHaveLength(1);
+    });
+
+    it("does not create a review_item for a soft-deleted flashcard", async () => {
+      const flashcard = await flashcardsClient.create({
+        activityId,
+        back: "Verso",
+        front: "Frente",
+      });
+      await flashcardsClient.softDelete({ id: flashcard.id });
+
+      await reviewClient.ensureReviewItems({ activityId });
+
+      const rows = db
+        .select()
+        .from(reviewItemsTable)
+        .where(eq(reviewItemsTable.flashcardId, flashcard.id))
+        .all();
+      expect(rows).toHaveLength(0);
+    });
+
+    it("only creates review_items for flashcards belonging to the given activity", async () => {
+      const inActivity = await flashcardsClient.create({
+        activityId,
+        back: "Verso",
+        front: "Deste baralho",
+      });
+      const inOtherActivity = await flashcardsClient.create({
+        activityId: otherActivityId,
+        back: "Verso",
+        front: "De outro baralho",
+      });
+
+      await reviewClient.ensureReviewItems({ activityId });
+
+      const rows = db.select().from(reviewItemsTable).all();
+      expect(rows.map((row) => row.flashcardId)).toContain(inActivity.id);
+      expect(rows.map((row) => row.flashcardId)).not.toContain(
+        inOtherActivity.id
+      );
+    });
+  });
+
+  describe("listDue", () => {
+    it("returns an empty array when the activity has no review_items", async () => {
+      await expect(reviewClient.listDue({ activityId })).resolves.toEqual([]);
+    });
+
+    it("returns a review_item that is immediately due, right after ensureReviewItems creates it", async () => {
+      await flashcardsClient.create({
+        activityId,
+        back: "Capital do Brasil",
+        front: "Brasilia",
+      });
+      await reviewClient.ensureReviewItems({ activityId });
+
+      const due = await reviewClient.listDue({ activityId });
+
+      expect(due).toHaveLength(1);
+      expect(due[0].front).toBe("Brasilia");
+      expect(due[0].back).toBe("Capital do Brasil");
+    });
+
+    it("excludes review_items whose dueDate is in the future", async () => {
+      const flashcard = await flashcardsClient.create({
+        activityId,
+        back: "Verso",
+        front: "Frente",
+      });
+      await reviewClient.ensureReviewItems({ activityId });
+
+      const future = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+      db.update(reviewItemsTable)
+        .set({ dueDate: future })
+        .where(eq(reviewItemsTable.flashcardId, flashcard.id))
+        .run();
+
+      await expect(reviewClient.listDue({ activityId })).resolves.toEqual([]);
+    });
+
+    it("orders due review_items by dueDate ascending", async () => {
+      const first = await flashcardsClient.create({
+        activityId,
+        back: "Verso 1",
+        front: "Frente 1",
+      });
+      const second = await flashcardsClient.create({
+        activityId,
+        back: "Verso 2",
+        front: "Frente 2",
+      });
+      await reviewClient.ensureReviewItems({ activityId });
+
+      const now = Date.now();
+      db.update(reviewItemsTable)
+        .set({ dueDate: new Date(now - 1000) })
+        .where(eq(reviewItemsTable.flashcardId, second.id))
+        .run();
+      db.update(reviewItemsTable)
+        .set({ dueDate: new Date(now - 2000) })
+        .where(eq(reviewItemsTable.flashcardId, first.id))
+        .run();
+
+      const due = await reviewClient.listDue({ activityId });
+
+      expect(due.map((item) => item.front)).toEqual(["Frente 1", "Frente 2"]);
+    });
+
+    it("only returns review_items for flashcards belonging to the given activity", async () => {
+      await flashcardsClient.create({
+        activityId,
+        back: "Verso",
+        front: "Deste baralho",
+      });
+      await flashcardsClient.create({
+        activityId: otherActivityId,
+        back: "Verso",
+        front: "De outro baralho",
+      });
+      await reviewClient.ensureReviewItems({ activityId });
+      await reviewClient.ensureReviewItems({ activityId: otherActivityId });
+
+      const due = await reviewClient.listDue({ activityId });
+
+      expect(due.map((item) => item.front)).toEqual(["Deste baralho"]);
+    });
+
+    it("excludes review_items whose flashcard has been soft-deleted", async () => {
+      const flashcard = await flashcardsClient.create({
+        activityId,
+        back: "Verso",
+        front: "Frente",
+      });
+      await reviewClient.ensureReviewItems({ activityId });
+      await flashcardsClient.softDelete({ id: flashcard.id });
+
+      await expect(reviewClient.listDue({ activityId })).resolves.toEqual([]);
+    });
+  });
+
+  describe("submitRating", () => {
+    async function createDueReviewItem() {
+      const flashcard = await flashcardsClient.create({
+        activityId,
+        back: "Capital do Brasil",
+        front: "Brasilia",
+      });
+      await reviewClient.ensureReviewItems({ activityId });
+      const [due] = await reviewClient.listDue({ activityId });
+      return { due, flashcard };
+    }
+
+    it("rejects a rating outside again/hard/good/easy", async () => {
+      const { due } = await createDueReviewItem();
+
+      await expect(
+        reviewClient.submitRating({ rating: "manual", reviewItemId: due.id })
+      ).rejects.toThrow();
+      await expect(
+        reviewClient.submitRating({
+          rating: "excellent",
+          reviewItemId: due.id,
+        })
+      ).rejects.toThrow();
+    });
+
+    it.each(["again", "hard", "good", "easy"] as const)(
+      "accepts the %s rating",
+      async (rating) => {
+        const { due } = await createDueReviewItem();
+
+        await expect(
+          reviewClient.submitRating({ rating, reviewItemId: due.id })
+        ).resolves.toBeDefined();
+      }
+    );
+
+    it("persists the updated ts-fsrs scheduling fields onto the review_item", async () => {
+      const { due, flashcard } = await createDueReviewItem();
+
+      await reviewClient.submitRating({
+        rating: "good",
+        reviewItemId: due.id,
+      });
+
+      const row = db
+        .select()
+        .from(reviewItemsTable)
+        .where(eq(reviewItemsTable.flashcardId, flashcard.id))
+        .get();
+
+      expect(row?.reps).toBe(1);
+      expect(row?.state).not.toBe("New");
+      expect(row?.lastReviewedAt).not.toBeNull();
+      expect(row?.dueDate.getTime()).toBeGreaterThan(due.dueDate.getTime());
+    });
+
+    it("updates lastRating to the applied rating", async () => {
+      const { due, flashcard } = await createDueReviewItem();
+
+      await reviewClient.submitRating({
+        rating: "easy",
+        reviewItemId: due.id,
+      });
+
+      const row = db
+        .select()
+        .from(reviewItemsTable)
+        .where(eq(reviewItemsTable.flashcardId, flashcard.id))
+        .get();
+
+      expect(row?.lastRating).toBe("easy");
+    });
+
+    it("appends the rating and timestamp to ratingHistory, keeping prior entries", async () => {
+      const { due, flashcard } = await createDueReviewItem();
+
+      await reviewClient.submitRating({
+        rating: "good",
+        reviewItemId: due.id,
+      });
+
+      const row = db
+        .select()
+        .from(reviewItemsTable)
+        .where(eq(reviewItemsTable.flashcardId, flashcard.id))
+        .get();
+
+      const history = JSON.parse(row?.ratingHistory ?? "[]") as {
+        rating: string;
+        reviewedAt: number;
+      }[];
+      expect(history).toHaveLength(1);
+      expect(history[0].rating).toBe("good");
+      expect(typeof history[0].reviewedAt).toBe("number");
+    });
+
+    it("removes the reviewed item from a subsequent listDue call until it becomes due again", async () => {
+      const { due } = await createDueReviewItem();
+
+      await reviewClient.submitRating({
+        rating: "good",
+        reviewItemId: due.id,
+      });
+
+      await expect(reviewClient.listDue({ activityId })).resolves.toEqual([]);
+    });
+
+    it("returns the updated review_item row", async () => {
+      const { due } = await createDueReviewItem();
+
+      const updated = await reviewClient.submitRating({
+        rating: "good",
+        reviewItemId: due.id,
+      });
+
+      expect(updated.id).toBe(due.id);
+    });
+  });
+});

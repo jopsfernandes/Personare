@@ -5,6 +5,7 @@ import {
   ListChecks,
   Pencil,
   Play,
+  Repeat,
   Trash2,
 } from "lucide-react";
 import { useCallback } from "react";
@@ -37,6 +38,7 @@ interface ActivitiesDataTableProps {
   onManageFlashcards: (activity: Activity) => void;
   onManageQuiz: (activity: Activity) => void;
   onRequestDelete: (activity: Activity) => void;
+  onStartReview: (activity: Activity) => void;
   onTakeQuiz: (activity: Activity) => void;
   onViewPdf: (activity: Activity) => void;
 }
@@ -47,6 +49,7 @@ interface ActivityRowProps {
   onManageFlashcards: (activity: Activity) => void;
   onManageQuiz: (activity: Activity) => void;
   onRequestDelete: (activity: Activity) => void;
+  onStartReview: (activity: Activity) => void;
   onTakeQuiz: (activity: Activity) => void;
   onViewPdf: (activity: Activity) => void;
 }
@@ -57,6 +60,7 @@ function ActivityRow({
   onManageFlashcards,
   onManageQuiz,
   onRequestDelete,
+  onStartReview,
   onTakeQuiz,
   onViewPdf,
 }: ActivityRowProps) {
@@ -91,6 +95,10 @@ function ActivityRow({
   const handleManageFlashcardsClick = useCallback(() => {
     onManageFlashcards(activity);
   }, [onManageFlashcards, activity]);
+
+  const handleStartReviewClick = useCallback(() => {
+    onStartReview(activity);
+  }, [onStartReview, activity]);
 
   const typeTranslationKey =
     ACTIVITY_TYPE_TRANSLATION_KEYS[activity.type] ?? activity.type;
@@ -152,6 +160,16 @@ function ActivityRow({
             <Layers />
           </Button>
         )}
+        {activity.type === "flashcard_deck" && (
+          <Button
+            aria-label={t("startReviewAction")}
+            onClick={handleStartReviewClick}
+            size="icon"
+            variant="ghost"
+          >
+            <Repeat />
+          </Button>
+        )}
         <Button
           aria-label={t("editActivityAction")}
           onClick={handleEditClick}
@@ -179,6 +197,7 @@ export default function ActivitiesDataTable({
   onManageFlashcards,
   onManageQuiz,
   onRequestDelete,
+  onStartReview,
   onTakeQuiz,
   onViewPdf,
 }: ActivitiesDataTableProps) {
@@ -199,6 +218,7 @@ export default function ActivitiesDataTable({
             onManageFlashcards={onManageFlashcards}
             onManageQuiz={onManageQuiz}
             onRequestDelete={onRequestDelete}
+            onStartReview={onStartReview}
             onTakeQuiz={onTakeQuiz}
             onViewPdf={onViewPdf}
           />
