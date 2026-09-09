@@ -135,6 +135,17 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
   - Novo teste de regressão `src/tests/unit/fsrs-correctness.test.ts`, validando `stability`, `difficulty` e os intervalos (`scheduled_days`) calculados pelo algoritmo FSRS-6 (pesos padrão da biblioteca) contra sequências de ratings (`again`/`hard`/`good`/`easy`).
   - Os valores de referência usados no teste são copiados literalmente da suíte de testes oficial do `ts-fsrs` (`FSRS-6.test.ts`, upstream `open-spaced-repetition/ts-fsrs`), garantindo que nossa integração se comporte de forma idêntica à implementação de referência.
 
+### Fixed
+
+- **Cascata de soft-delete ao excluir Programa/Módulo/Atividade** ([#22](https://github.com/jopsfernandes/Personare/issues/22)).
+  Corrige um bug real: todo `softDelete` do app (`programs`, `modules`, `activities`, `flashcards`, `quiz.softDeleteQuestion`) setava `deletedAt` só na própria linha, sem propagar para as tabelas filhas. Isso já causava um efeito visível na Issue #18 (Calendário) — excluir um Módulo (ou Atividade, ou Programa) inteiro não removia seus Flashcards pendentes do Calendário, que continuavam aparecendo indefinidamente mesmo sem nenhum caminho de navegação de volta a eles na UI.
+  - Novo módulo compartilhado `src/ipc/shared/cascade-soft-delete.ts`, com funções reaproveitáveis entre os handlers: excluir um **Programa** cascateia para seus Módulos → Atividades desses Módulos → Flashcards dessas Atividades; excluir um **Módulo** cascateia para suas Atividades → Flashcards; excluir uma **Atividade** cascateia para seus Flashcards (`flashcard_deck`) ou, no caso de `quiz`, para suas `quiz_questions` → `quiz_options`. Toda a cascata de uma mesma chamada usa o mesmo timestamp.
+  - **Regra de não sobrescrita**: a cascata só atualiza linhas com `deletedAt IS NULL` — uma linha filha já excluída independentemente antes (com seu próprio timestamp) não é sobrescrita pelo timestamp da cascata do pai, preservando quando cada coisa foi de fato excluída.
+  - `review_items` não é tocado por nenhuma cascata (não tem coluna `deletedAt`, decisão de design já existente desde a Issue #16) — fica automaticamente invisível em `listDue`/`listSchedule`/`ensureReviewItems` assim que o Flashcard associado é corretamente cascateado; o bug estava na ausência de cascata, não nessas queries.
+  - Editar um Flashcard que já tem histórico de revisão já funcionava corretamente sem nenhuma mudança de código (`flashcards.update` não versiona/faz snapshot, então o `ReviewItem` continua referenciando o mesmo `flashcardId` e mostrando o texto atual) — coberto agora por um teste de regressão explícito que trava esse comportamento.
+  - Nenhuma UI foi alterada — os diálogos de exclusão já existentes continuam chamando as mesmas procedures `softDelete`, que agora cascateiam corretamente por baixo dos panos.
+  - Cobertura de testes estendida em `src/tests/unit/programs-ipc.test.ts`, `modules-ipc.test.ts`, `activities-ipc.test.ts`, `quiz-ipc.test.ts` e `review-ipc.test.ts` (incluindo a reprodução exata do bug original da Issue #18: criar Programa → Módulo → Atividade `flashcard_deck` → Flashcard → excluir o Módulo → confirmar que `listSchedule` não retorna mais aquele item). 359/359 testes passando, sem regressão.
+
 ### Changed
 
 - **Rebranding do boilerplate `electron-shadcn` para Personare** ([#1](https://github.com/jopsfernandes/Personare/issues/1)).
