@@ -6,12 +6,16 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createDatabaseClient, type DatabaseClient } from "@/database/client";
 import { runMigrations } from "@/database/migrate";
-import { flashcards as flashcardsTable } from "@/database/schema";
+import {
+  flashcards as flashcardsTable,
+  reviewItems as reviewItemsTable,
+} from "@/database/schema";
 import { activities as activitiesNamespace } from "@/ipc/activities";
 import { setDatabaseClient } from "@/ipc/database/state";
 import { flashcards as flashcardsNamespace } from "@/ipc/flashcards";
 import { modules as modulesNamespace } from "@/ipc/modules";
 import { programs as programsNamespace } from "@/ipc/programs";
+import { review as reviewNamespace } from "@/ipc/review";
 
 /**
  * RED phase (Issue #15, Spec Driven TDD): src/ipc/flashcards does not exist
@@ -309,6 +313,108 @@ describe("flashcards IPC namespace (Issue #15)", () => {
       const list = await flashcardsClient.list({ activityId });
 
       expect(list.map((flashcard) => flashcard.id)).not.toContain(created.id);
+    });
+  });
+
+  /**
+   * RED phase (Issue #22, Spec Driven TDD): AC-3 documents behavior that
+   * already works today (docs/specs/issue-22-cascata-soft-delete.md) --
+   * flashcards.update never touches review_items, and softDelete never
+   * removes a review_item row (review_items has no deletedAt column by
+   * design, Issue #16). These tests are expected to PASS immediately,
+   * locking in the existing correct behavior rather than driving new
+   * production code.
+   */
+  describe("editing/deleting a flashcard that already has a ReviewItem (Issue #22)", () => {
+    let reviewClient: ReturnType<
+      typeof createRouterClient<typeof reviewNamespace>
+    >;
+
+    beforeEach(() => {
+      reviewClient = createRouterClient(reviewNamespace);
+    });
+
+    it("does not alter the ReviewItem's FSRS fields or ratingHistory when the flashcard's content is edited", async () => {
+      const flashcard = await flashcardsClient.create({
+        activityId,
+        back: "Verso antigo",
+        front: "Frente antiga",
+      });
+      await reviewClient.ensureReviewItems({ activityId });
+      const [due] = await reviewClient.listDue({ activityId });
+      await reviewClient.submitRating({ rating: "good", reviewItemId: due.id });
+
+      const before = db
+        .select()
+        .from(reviewItemsTable)
+        .where(eq(reviewItemsTable.flashcardId, flashcard.id))
+        .get();
+
+      await flashcardsClient.update({
+        back: "Verso novo",
+        front: "Frente nova",
+        id: flashcard.id,
+      });
+
+      const after = db
+        .select()
+        .from(reviewItemsTable)
+        .where(eq(reviewItemsTable.flashcardId, flashcard.id))
+        .get();
+
+      expect(after?.stability).toBe(before?.stability);
+      expect(after?.difficulty).toBe(before?.difficulty);
+      expect(after?.dueDate.getTime()).toBe(before?.dueDate.getTime());
+      expect(after?.ratingHistory).toBe(before?.ratingHistory);
+      expect(after?.state).toBe(before?.state);
+      expect(after?.reps).toBe(before?.reps);
+    });
+
+    it("shows the edited front/back through listDue and listSchedule, not the original content", async () => {
+      const flashcard = await flashcardsClient.create({
+        activityId,
+        back: "Verso antigo",
+        front: "Frente antiga",
+      });
+      await reviewClient.ensureReviewItems({ activityId });
+
+      await flashcardsClient.update({
+        back: "Verso novo",
+        front: "Frente nova",
+        id: flashcard.id,
+      });
+
+      const due = await reviewClient.listDue({ activityId });
+      const schedule = await reviewClient.listSchedule();
+
+      expect(due[0].front).toBe("Frente nova");
+      expect(due[0].back).toBe("Verso novo");
+      expect(schedule[0].front).toBe("Frente nova");
+    });
+
+    it("does not delete or otherwise modify the ReviewItem row when its flashcard is soft-deleted", async () => {
+      const flashcard = await flashcardsClient.create({
+        activityId,
+        back: "Verso",
+        front: "Frente",
+      });
+      await reviewClient.ensureReviewItems({ activityId });
+      const before = db
+        .select()
+        .from(reviewItemsTable)
+        .where(eq(reviewItemsTable.flashcardId, flashcard.id))
+        .get();
+
+      await flashcardsClient.softDelete({ id: flashcard.id });
+
+      const after = db
+        .select()
+        .from(reviewItemsTable)
+        .where(eq(reviewItemsTable.flashcardId, flashcard.id))
+        .get();
+
+      expect(after).toBeDefined();
+      expect(after).toEqual(before);
     });
   });
 });

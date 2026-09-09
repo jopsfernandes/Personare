@@ -2,9 +2,15 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createRouterClient } from "@orpc/server";
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createDatabaseClient, type DatabaseClient } from "@/database/client";
 import { runMigrations } from "@/database/migrate";
+import {
+  activities as activitiesTable,
+  quizOptions as quizOptionsTable,
+  quizQuestions as quizQuestionsTable,
+} from "@/database/schema";
 import { activities as activitiesNamespace } from "@/ipc/activities";
 import { setDatabaseClient } from "@/ipc/database/state";
 import { modules as modulesNamespace } from "@/ipc/modules";
@@ -427,6 +433,133 @@ describe("quiz IPC namespace (Issue #14)", () => {
 
       const list = await quizClient.listQuestions({ activityId });
       expect(list.map((q) => q.id)).toContain(question.id);
+    });
+  });
+
+  /**
+   * RED phase (Issue #22, Spec Driven TDD): activities.softDelete does not
+   * cascade to a quiz's quiz_questions/quiz_options yet -- see
+   * docs/specs/issue-22-cascata-soft-delete.md (AC-2), the same bug as AC-1
+   * applied to the Quiz sub-hierarchy (activities -> quiz_questions ->
+   * quiz_options) instead of the Flashcard one.
+   */
+  describe("cascading soft-delete from the parent activity (Issue #22)", () => {
+    it("cascades deletedAt down to every non-deleted question and option when the activity is soft-deleted", async () => {
+      const question = await quizClient.createQuestion({
+        activityId,
+        text: "Pergunta",
+      });
+      const option = await quizClient.createOption({
+        isCorrect: true,
+        questionId: question.id,
+        text: "Opcao",
+      });
+
+      await activitiesClient.softDelete({ id: activityId });
+
+      const questionRow = db
+        .select()
+        .from(quizQuestionsTable)
+        .where(eq(quizQuestionsTable.id, question.id))
+        .get();
+      const optionRow = db
+        .select()
+        .from(quizOptionsTable)
+        .where(eq(quizOptionsTable.id, option.id))
+        .get();
+
+      expect(questionRow?.deletedAt).not.toBeNull();
+      expect(optionRow?.deletedAt).not.toBeNull();
+    });
+
+    it("uses the same timestamp as the activity for both the cascaded question and its cascaded option", async () => {
+      const question = await quizClient.createQuestion({
+        activityId,
+        text: "Pergunta",
+      });
+      const option = await quizClient.createOption({
+        isCorrect: true,
+        questionId: question.id,
+        text: "Opcao",
+      });
+
+      await activitiesClient.softDelete({ id: activityId });
+
+      const activityRow = db
+        .select()
+        .from(activitiesTable)
+        .where(eq(activitiesTable.id, activityId))
+        .get();
+      const questionRow = db
+        .select()
+        .from(quizQuestionsTable)
+        .where(eq(quizQuestionsTable.id, question.id))
+        .get();
+      const optionRow = db
+        .select()
+        .from(quizOptionsTable)
+        .where(eq(quizOptionsTable.id, option.id))
+        .get();
+
+      expect(questionRow?.deletedAt?.getTime()).toBe(
+        activityRow?.deletedAt?.getTime()
+      );
+      expect(optionRow?.deletedAt?.getTime()).toBe(
+        activityRow?.deletedAt?.getTime()
+      );
+    });
+
+    it("does not overwrite the deletedAt of a question that was already independently soft-deleted before", async () => {
+      const question = await quizClient.createQuestion({
+        activityId,
+        text: "Pergunta",
+      });
+      const previouslyDeletedAt = new Date("2020-01-01T00:00:00Z");
+      db.update(quizQuestionsTable)
+        .set({ deletedAt: previouslyDeletedAt })
+        .where(eq(quizQuestionsTable.id, question.id))
+        .run();
+
+      await activitiesClient.softDelete({ id: activityId });
+
+      const questionRow = db
+        .select()
+        .from(quizQuestionsTable)
+        .where(eq(quizQuestionsTable.id, question.id))
+        .get();
+
+      expect(questionRow?.deletedAt?.getTime()).toBe(
+        previouslyDeletedAt.getTime()
+      );
+    });
+
+    it("does not overwrite the deletedAt of an option that was already independently soft-deleted before", async () => {
+      const question = await quizClient.createQuestion({
+        activityId,
+        text: "Pergunta",
+      });
+      const option = await quizClient.createOption({
+        isCorrect: true,
+        questionId: question.id,
+        text: "Opcao",
+      });
+      const previouslyDeletedAt = new Date("2020-01-01T00:00:00Z");
+      db.update(quizOptionsTable)
+        .set({ deletedAt: previouslyDeletedAt })
+        .where(eq(quizOptionsTable.id, option.id))
+        .run();
+
+      await activitiesClient.softDelete({ id: activityId });
+
+      const optionRow = db
+        .select()
+        .from(quizOptionsTable)
+        .where(eq(quizOptionsTable.id, option.id))
+        .get();
+
+      expect(optionRow?.deletedAt?.getTime()).toBe(
+        previouslyDeletedAt.getTime()
+      );
     });
   });
 });

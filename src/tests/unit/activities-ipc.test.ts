@@ -6,9 +6,13 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createDatabaseClient, type DatabaseClient } from "@/database/client";
 import { runMigrations } from "@/database/migrate";
-import { activities as activitiesTable } from "@/database/schema";
+import {
+  activities as activitiesTable,
+  flashcards as flashcardsTable,
+} from "@/database/schema";
 import { activities as activitiesNamespace } from "@/ipc/activities";
 import { setDatabaseClient } from "@/ipc/database/state";
+import { flashcards as flashcardsNamespace } from "@/ipc/flashcards";
 import { modules as modulesNamespace } from "@/ipc/modules";
 import { programs as programsNamespace } from "@/ipc/programs";
 
@@ -455,6 +459,107 @@ describe("activities IPC namespace (Issue #10)", () => {
       const list = await activitiesClient.list({ moduleId });
 
       expect(list.map((activity) => activity.id)).not.toContain(created.id);
+    });
+  });
+
+  /**
+   * RED phase (Issue #22, Spec Driven TDD): activities.softDelete does not
+   * cascade to a flashcard_deck's flashcards yet -- see
+   * docs/specs/issue-22-cascata-soft-delete.md (AC-1), last level of the
+   * programs -> modules -> activities -> flashcards chain. link/pdf/quiz
+   * activities have no flashcards to cascade to, so this only applies to
+   * flashcard_deck.
+   */
+  describe("cascading soft-delete to flashcards (Issue #22)", () => {
+    let flashcardsClient: ReturnType<
+      typeof createRouterClient<typeof flashcardsNamespace>
+    >;
+
+    beforeEach(() => {
+      flashcardsClient = createRouterClient(flashcardsNamespace);
+    });
+
+    it("cascades deletedAt down to every non-deleted flashcard when a flashcard_deck activity is soft-deleted", async () => {
+      const deck = await activitiesClient.create({
+        moduleId,
+        title: "Baralho",
+        type: "flashcard_deck",
+      });
+      const flashcard = await flashcardsClient.create({
+        activityId: deck.id,
+        back: "Verso",
+        front: "Frente",
+      });
+
+      await activitiesClient.softDelete({ id: deck.id });
+
+      const flashcardRow = db
+        .select()
+        .from(flashcardsTable)
+        .where(eq(flashcardsTable.id, flashcard.id))
+        .get();
+
+      expect(flashcardRow?.deletedAt).not.toBeNull();
+    });
+
+    it("uses the same timestamp for the activity and every cascaded flashcard", async () => {
+      const deck = await activitiesClient.create({
+        moduleId,
+        title: "Baralho",
+        type: "flashcard_deck",
+      });
+      const flashcard = await flashcardsClient.create({
+        activityId: deck.id,
+        back: "Verso",
+        front: "Frente",
+      });
+
+      await activitiesClient.softDelete({ id: deck.id });
+
+      const activityRow = db
+        .select()
+        .from(activitiesTable)
+        .where(eq(activitiesTable.id, deck.id))
+        .get();
+      const flashcardRow = db
+        .select()
+        .from(flashcardsTable)
+        .where(eq(flashcardsTable.id, flashcard.id))
+        .get();
+
+      expect(flashcardRow?.deletedAt?.getTime()).toBe(
+        activityRow?.deletedAt?.getTime()
+      );
+    });
+
+    it("does not overwrite the deletedAt of a flashcard that was already independently soft-deleted before", async () => {
+      const deck = await activitiesClient.create({
+        moduleId,
+        title: "Baralho",
+        type: "flashcard_deck",
+      });
+      const flashcard = await flashcardsClient.create({
+        activityId: deck.id,
+        back: "Verso",
+        front: "Frente",
+      });
+      const previouslyDeletedAt = new Date("2020-01-01T00:00:00Z");
+      db.update(flashcardsTable)
+        .set({ deletedAt: previouslyDeletedAt })
+        .where(eq(flashcardsTable.id, flashcard.id))
+        .run();
+
+      await activitiesClient.softDelete({ id: deck.id });
+
+      const flashcardRow = db
+        .select()
+        .from(flashcardsTable)
+        .where(eq(flashcardsTable.id, flashcard.id))
+        .get();
+
+      expect(flashcardRow?.deletedAt?.getTime()).toBe(
+        previouslyDeletedAt.getTime()
+      );
     });
   });
 });
