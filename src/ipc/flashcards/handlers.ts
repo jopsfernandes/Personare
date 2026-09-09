@@ -19,23 +19,21 @@ function requireDatabaseClient() {
   return db;
 }
 
-export const list = os
-  .input(listFlashcardsInputSchema)
-  .handler(({ input }) => {
-    const db = requireDatabaseClient();
+export const list = os.input(listFlashcardsInputSchema).handler(({ input }) => {
+  const db = requireDatabaseClient();
 
-    return db
-      .select()
-      .from(flashcardsTable)
-      .where(
-        and(
-          eq(flashcardsTable.activityId, input.activityId),
-          isNull(flashcardsTable.deletedAt)
-        )
+  return db
+    .select()
+    .from(flashcardsTable)
+    .where(
+      and(
+        eq(flashcardsTable.activityId, input.activityId),
+        isNull(flashcardsTable.deletedAt)
       )
-      .orderBy(asc(flashcardsTable.createdAt))
-      .all();
-  });
+    )
+    .orderBy(asc(flashcardsTable.createdAt))
+    .all();
+});
 
 export const create = os
   .input(createFlashcardInputSchema)
