@@ -17,6 +17,7 @@ import FlashcardManagerDialog from "@/components/flashcard-manager-dialog";
 import PdfViewerDialog from "@/components/pdf-viewer-dialog";
 import QuizQuestionManagerDialog from "@/components/quiz-question-manager-dialog";
 import QuizRunnerDialog from "@/components/quiz-runner-dialog";
+import ReviewSessionDialog from "@/components/review-session-dialog";
 import { Button } from "@/components/ui/button";
 
 function ModuleActivitiesPage() {
@@ -37,6 +38,9 @@ function ModuleActivitiesPage() {
   );
   const [activityBeingManagedFlashcards, setActivityBeingManagedFlashcards] =
     useState<Activity | null>(null);
+  const [activityInReview, setActivityInReview] = useState<Activity | null>(
+    null
+  );
 
   const refreshActivities = useCallback(() => {
     startTransition(() => {
@@ -76,6 +80,10 @@ function ModuleActivitiesPage() {
 
   const handleManageFlashcards = useCallback((activity: Activity) => {
     setActivityBeingManagedFlashcards(activity);
+  }, []);
+
+  const handleStartReview = useCallback((activity: Activity) => {
+    setActivityInReview(activity);
   }, []);
 
   const handleFormOpenChange = useCallback((open: boolean) => {
@@ -125,6 +133,12 @@ function ModuleActivitiesPage() {
     }
   }, []);
 
+  const handleReviewSessionOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setActivityInReview(null);
+    }
+  }, []);
+
   const handleDeleteDialogOpenChange = useCallback((open: boolean) => {
     if (!open) {
       setActivityPendingDelete(null);
@@ -154,6 +168,7 @@ function ModuleActivitiesPage() {
         onManageFlashcards={handleManageFlashcards}
         onManageQuiz={handleManageQuiz}
         onRequestDelete={handleRequestDelete}
+        onStartReview={handleStartReview}
         onTakeQuiz={handleTakeQuiz}
         onViewPdf={handleViewPdf}
       />
@@ -188,6 +203,11 @@ function ModuleActivitiesPage() {
         activity={activityBeingManagedFlashcards}
         onOpenChange={handleFlashcardManagerOpenChange}
         open={activityBeingManagedFlashcards !== null}
+      />
+      <ReviewSessionDialog
+        activity={activityInReview}
+        onOpenChange={handleReviewSessionOpenChange}
+        open={activityInReview !== null}
       />
     </div>
   );

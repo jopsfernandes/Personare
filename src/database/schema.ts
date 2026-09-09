@@ -113,8 +113,14 @@ export const reviewItems = sqliteTable("review_items", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
+  lapses: integer("lapses").notNull().default(0),
   lastRating: text("last_rating").notNull(),
+  lastReviewedAt: integer("last_reviewed_at", { mode: "timestamp" }),
+  learningSteps: integer("learning_steps").notNull().default(0),
   ratingHistory: text("rating_history").notNull(),
+  reps: integer("reps").notNull().default(0),
+  scheduledDays: integer("scheduled_days").notNull().default(0),
   stability: real("stability").notNull(),
+  state: text("state").notNull().default("New"),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
