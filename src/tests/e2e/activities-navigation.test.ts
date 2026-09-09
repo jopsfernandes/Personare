@@ -38,7 +38,14 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  await electronApp.close();
+  // Issue #20 made the main window's own `close` handler preventDefault()
+  // unless the app is quitting via the Tray's "Sair" item (isQuitting flag)
+  // -- `electronApp.close()` triggers a graceful app.quit(), which respects
+  // that same prevention and now hangs until Playwright's afterAll timeout.
+  // `app.exit()` bypasses the close/before-quit lifecycle entirely (it is
+  // Electron's documented immediate-exit API), so it isn't blocked by the
+  // app's own close interception.
+  await electronApp.evaluate(({ app }) => app.exit());
 });
 
 test("navigating Programs -> Modules -> Activities renders each page", async () => {

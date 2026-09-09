@@ -35,6 +35,15 @@ test.beforeAll(async () => {
   });
 });
 
+test.afterAll(async () => {
+  // See src/tests/e2e/activities-navigation.test.ts's afterAll for why
+  // app.exit() is used instead of electronApp.close() -- Issue #20's
+  // close-to-tray behavior blocks the graceful quit path close() relies on.
+  // This file previously had no explicit teardown at all, relying on
+  // Playwright's own worker-level cleanup; that cleanup hit the same hang.
+  await electronApp.evaluate(({ app }) => app.exit());
+});
+
 test("renders the first page", async () => {
   const page: Page = await electronApp.firstWindow();
 
