@@ -216,6 +216,71 @@ describe("review IPC namespace (Issue #16)", () => {
         inOtherActivity.id
       );
     });
+
+    /**
+     * RED phase (Issue #18, Spec Driven TDD): ensureReviewItemsInputSchema
+     * does not accept an omitted activityId yet -- these tests are expected
+     * to fail until the Developer makes it optional and, when omitted,
+     * covers every non-deleted flashcard in the app instead of scoping to
+     * one Activity (docs/specs/issue-18-calendario.md, AC-2). This is what
+     * lets a Flashcard Deck that was never opened for review still show up
+     * on the calendar.
+     */
+    it("covers flashcards from every activity when activityId is omitted", async () => {
+      const inFirstActivity = await flashcardsClient.create({
+        activityId,
+        back: "Verso 1",
+        front: "Frente 1",
+      });
+      const inOtherActivity = await flashcardsClient.create({
+        activityId: otherActivityId,
+        back: "Verso 2",
+        front: "Frente 2",
+      });
+
+      await reviewClient.ensureReviewItems({});
+
+      const rows = db.select().from(reviewItemsTable).all();
+      expect(rows.map((row) => row.flashcardId)).toEqual(
+        expect.arrayContaining([inFirstActivity.id, inOtherActivity.id])
+      );
+    });
+
+    it("does not create a review_item for a soft-deleted flashcard, even when activityId is omitted", async () => {
+      const flashcard = await flashcardsClient.create({
+        activityId,
+        back: "Verso",
+        front: "Frente",
+      });
+      await flashcardsClient.softDelete({ id: flashcard.id });
+
+      await reviewClient.ensureReviewItems({});
+
+      const rows = db
+        .select()
+        .from(reviewItemsTable)
+        .where(eq(reviewItemsTable.flashcardId, flashcard.id))
+        .all();
+      expect(rows).toHaveLength(0);
+    });
+
+    it("remains idempotent across a global call after a scoped call already created the review_item", async () => {
+      const flashcard = await flashcardsClient.create({
+        activityId,
+        back: "Verso",
+        front: "Frente",
+      });
+
+      await reviewClient.ensureReviewItems({ activityId });
+      await reviewClient.ensureReviewItems({});
+
+      const rows = db
+        .select()
+        .from(reviewItemsTable)
+        .where(eq(reviewItemsTable.flashcardId, flashcard.id))
+        .all();
+      expect(rows).toHaveLength(1);
+    });
   });
 
   describe("listDue", () => {
@@ -432,6 +497,97 @@ describe("review IPC namespace (Issue #16)", () => {
       });
 
       expect(updated.id).toBe(due.id);
+    });
+  });
+
+  /**
+   * RED phase (Issue #18, Spec Driven TDD): src/ipc/review does not expose
+   * a `listSchedule` procedure yet. Every test below is expected to fail
+   * until the Developer implements it, per
+   * docs/specs/issue-18-calendario.md AC-2. Unlike `listDue` (which this
+   * issue leaves completely untouched -- it stays scoped to one Activity
+   * and only the already-due items, for the review session), `listSchedule`
+   * takes no input, returns every review_item regardless of dueDate (the
+   * calendar needs to show future revisions too), and joins all the way up
+   * to modules/programs so the calendar can navigate back to the source
+   * Module on a click.
+   */
+  describe("listSchedule", () => {
+    it("is exposed as a procedure on the review namespace", () => {
+      expect(reviewNamespace.listSchedule).toBeDefined();
+    });
+
+    it("returns an empty array when there are no review_items", async () => {
+      await expect(reviewClient.listSchedule()).resolves.toEqual([]);
+    });
+
+    it("returns review_items regardless of due_date, unlike listDue", async () => {
+      const flashcard = await flashcardsClient.create({
+        activityId,
+        back: "Capital do Brasil",
+        front: "Brasilia",
+      });
+      await reviewClient.ensureReviewItems({ activityId });
+
+      const future = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+      db.update(reviewItemsTable)
+        .set({ dueDate: future })
+        .where(eq(reviewItemsTable.flashcardId, flashcard.id))
+        .run();
+
+      const schedule = await reviewClient.listSchedule();
+
+      expect(schedule).toHaveLength(1);
+      expect(schedule[0].front).toBe("Brasilia");
+      expect(schedule[0].dueDate.getTime()).toBe(future.getTime());
+    });
+
+    it("includes activityId, activityTitle, moduleId and programId for navigation, joined from the content hierarchy", async () => {
+      await flashcardsClient.create({
+        activityId,
+        back: "Capital do Brasil",
+        front: "Brasilia",
+      });
+      await reviewClient.ensureReviewItems({ activityId });
+
+      const [scheduled] = await reviewClient.listSchedule();
+
+      expect(scheduled.activityId).toBe(activityId);
+      expect(scheduled.activityTitle).toBe("Baralho de Revisao");
+      expect(scheduled.moduleId).toBeTruthy();
+      expect(scheduled.programId).toBeTruthy();
+    });
+
+    it("returns review_items across every activity, not scoped to one", async () => {
+      await flashcardsClient.create({
+        activityId,
+        back: "Verso 1",
+        front: "Frente 1",
+      });
+      await flashcardsClient.create({
+        activityId: otherActivityId,
+        back: "Verso 2",
+        front: "Frente 2",
+      });
+      await reviewClient.ensureReviewItems({});
+
+      const schedule = await reviewClient.listSchedule();
+
+      expect(schedule.map((item) => item.front)).toEqual(
+        expect.arrayContaining(["Frente 1", "Frente 2"])
+      );
+    });
+
+    it("excludes review_items whose flashcard has been soft-deleted", async () => {
+      const flashcard = await flashcardsClient.create({
+        activityId,
+        back: "Verso",
+        front: "Frente",
+      });
+      await reviewClient.ensureReviewItems({ activityId });
+      await flashcardsClient.softDelete({ id: flashcard.id });
+
+      await expect(reviewClient.listSchedule()).resolves.toEqual([]);
     });
   });
 });
