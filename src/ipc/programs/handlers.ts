@@ -1,7 +1,11 @@
 import { os } from "@orpc/server";
-import { asc, eq, isNull } from "drizzle-orm";
-import { programs as programsTable } from "@/database/schema";
+import { and, asc, eq, isNull } from "drizzle-orm";
+import {
+  modules as modulesTable,
+  programs as programsTable,
+} from "@/database/schema";
 import { getDatabaseClient } from "@/ipc/database/state";
+import { cascadeSoftDeleteModule } from "@/ipc/shared/cascade-soft-delete";
 import {
   createProgramInputSchema,
   softDeleteProgramInputSchema,
@@ -63,9 +67,28 @@ export const softDelete = os
   .input(softDeleteProgramInputSchema)
   .handler(({ input }) => {
     const db = requireDatabaseClient();
+    const now = new Date();
 
     db.update(programsTable)
-      .set({ deletedAt: new Date() })
+      .set({ deletedAt: now })
       .where(eq(programsTable.id, input.id))
       .run();
+
+    const moduleIds = db
+      .select({ id: modulesTable.id })
+      .from(modulesTable)
+      .where(eq(modulesTable.programId, input.id))
+      .all()
+      .map((row) => row.id);
+
+    for (const moduleId of moduleIds) {
+      db.update(modulesTable)
+        .set({ deletedAt: now })
+        .where(
+          and(eq(modulesTable.id, moduleId), isNull(modulesTable.deletedAt))
+        )
+        .run();
+
+      cascadeSoftDeleteModule(db, moduleId, now);
+    }
   });

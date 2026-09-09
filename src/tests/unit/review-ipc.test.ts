@@ -598,5 +598,42 @@ describe("review IPC namespace (Issue #16)", () => {
 
       await expect(reviewClient.listSchedule()).resolves.toEqual([]);
     });
+
+    /**
+     * RED phase (Issue #22, Spec Driven TDD): this is the concrete,
+     * reproducible bug documented in
+     * docs/specs/issue-22-cascata-soft-delete.md -- modules.softDelete does
+     * not cascade to its activities/flashcards yet, so a deleted Module's
+     * pending flashcards keep showing up on the Calendar (Issue #18)
+     * indefinitely, with no navigation path back to them in the UI.
+     * listSchedule itself is correct (it already filters on
+     * flashcards.deletedAt) -- the bug is entirely in the missing cascade.
+     */
+    it("excludes review_items whose flashcard's Module was soft-deleted, closing the original Issue #18 calendar bug", async () => {
+      const program = await programsClient.create({ name: "Outro Programa" });
+      const moduleToDelete = await modulesClient.create({
+        name: "Modulo a ser removido",
+        programId: program.id,
+      });
+      const deck = await activitiesClient.create({
+        moduleId: moduleToDelete.id,
+        title: "Baralho a ser removido",
+        type: "flashcard_deck",
+      });
+      await flashcardsClient.create({
+        activityId: deck.id,
+        back: "Verso",
+        front: "Frente",
+      });
+      await reviewClient.ensureReviewItems({ activityId: deck.id });
+
+      const beforeDelete = await reviewClient.listSchedule();
+      expect(beforeDelete.map((item) => item.activityId)).toContain(deck.id);
+
+      await modulesClient.softDelete({ id: moduleToDelete.id });
+
+      const afterDelete = await reviewClient.listSchedule();
+      expect(afterDelete.map((item) => item.activityId)).not.toContain(deck.id);
+    });
   });
 });

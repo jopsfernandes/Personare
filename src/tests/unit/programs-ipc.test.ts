@@ -6,8 +6,16 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createDatabaseClient, type DatabaseClient } from "@/database/client";
 import { runMigrations } from "@/database/migrate";
-import { programs as programsTable } from "@/database/schema";
+import {
+  activities as activitiesTable,
+  flashcards as flashcardsTable,
+  modules as modulesTable,
+  programs as programsTable,
+} from "@/database/schema";
+import { activities as activitiesNamespace } from "@/ipc/activities";
 import { setDatabaseClient } from "@/ipc/database/state";
+import { flashcards as flashcardsNamespace } from "@/ipc/flashcards";
+import { modules as modulesNamespace } from "@/ipc/modules";
 import { programs as programsNamespace } from "@/ipc/programs";
 
 /**
@@ -161,6 +169,183 @@ describe("programs IPC namespace (Issue #8)", () => {
       const list = await client.list();
 
       expect(list.map((program) => program.id)).not.toContain(created.id);
+    });
+  });
+
+  /**
+   * RED phase (Issue #22, Spec Driven TDD): programs.softDelete does not
+   * cascade to child modules/activities/flashcards yet -- this is the real,
+   * reproducible bug documented in docs/specs/issue-22-cascata-soft-delete.md
+   * (AC-1): deleting a Program leaves its Modules/Activities/Flashcards with
+   * deletedAt still NULL, which is exactly why the Issue #18 Calendar keeps
+   * showing pending reviews from content that was supposedly deleted.
+   */
+  describe("cascading soft-delete (Issue #22)", () => {
+    let modulesClient: ReturnType<
+      typeof createRouterClient<typeof modulesNamespace>
+    >;
+    let activitiesClient: ReturnType<
+      typeof createRouterClient<typeof activitiesNamespace>
+    >;
+    let flashcardsClient: ReturnType<
+      typeof createRouterClient<typeof flashcardsNamespace>
+    >;
+
+    beforeEach(() => {
+      modulesClient = createRouterClient(modulesNamespace);
+      activitiesClient = createRouterClient(activitiesNamespace);
+      flashcardsClient = createRouterClient(flashcardsNamespace);
+    });
+
+    it("cascades deletedAt down to every non-deleted module, activity and flashcard under the program", async () => {
+      const program = await client.create({ name: "Sera Removido" });
+      const module_ = await modulesClient.create({
+        name: "Modulo 1",
+        programId: program.id,
+      });
+      const activity = await activitiesClient.create({
+        moduleId: module_.id,
+        title: "Baralho",
+        type: "flashcard_deck",
+      });
+      const flashcard = await flashcardsClient.create({
+        activityId: activity.id,
+        back: "Verso",
+        front: "Frente",
+      });
+
+      await client.softDelete({ id: program.id });
+
+      const moduleRow = db
+        .select()
+        .from(modulesTable)
+        .where(eq(modulesTable.id, module_.id))
+        .get();
+      const activityRow = db
+        .select()
+        .from(activitiesTable)
+        .where(eq(activitiesTable.id, activity.id))
+        .get();
+      const flashcardRow = db
+        .select()
+        .from(flashcardsTable)
+        .where(eq(flashcardsTable.id, flashcard.id))
+        .get();
+
+      expect(moduleRow?.deletedAt).not.toBeNull();
+      expect(activityRow?.deletedAt).not.toBeNull();
+      expect(flashcardRow?.deletedAt).not.toBeNull();
+    });
+
+    it("uses the same timestamp for the program and every cascaded child row", async () => {
+      const program = await client.create({ name: "Sera Removido" });
+      const module_ = await modulesClient.create({
+        name: "Modulo 1",
+        programId: program.id,
+      });
+      const activity = await activitiesClient.create({
+        moduleId: module_.id,
+        title: "Baralho",
+        type: "flashcard_deck",
+      });
+      const flashcard = await flashcardsClient.create({
+        activityId: activity.id,
+        back: "Verso",
+        front: "Frente",
+      });
+
+      await client.softDelete({ id: program.id });
+
+      const programRow = db
+        .select()
+        .from(programsTable)
+        .where(eq(programsTable.id, program.id))
+        .get();
+      const moduleRow = db
+        .select()
+        .from(modulesTable)
+        .where(eq(modulesTable.id, module_.id))
+        .get();
+      const activityRow = db
+        .select()
+        .from(activitiesTable)
+        .where(eq(activitiesTable.id, activity.id))
+        .get();
+      const flashcardRow = db
+        .select()
+        .from(flashcardsTable)
+        .where(eq(flashcardsTable.id, flashcard.id))
+        .get();
+
+      expect(moduleRow?.deletedAt?.getTime()).toBe(
+        programRow?.deletedAt?.getTime()
+      );
+      expect(activityRow?.deletedAt?.getTime()).toBe(
+        programRow?.deletedAt?.getTime()
+      );
+      expect(flashcardRow?.deletedAt?.getTime()).toBe(
+        programRow?.deletedAt?.getTime()
+      );
+    });
+
+    it("does not overwrite the deletedAt of a module that was already independently soft-deleted before", async () => {
+      const program = await client.create({ name: "Sera Removido" });
+      const module_ = await modulesClient.create({
+        name: "Modulo 1",
+        programId: program.id,
+      });
+      const previouslyDeletedAt = new Date("2020-01-01T00:00:00Z");
+      db.update(modulesTable)
+        .set({ deletedAt: previouslyDeletedAt })
+        .where(eq(modulesTable.id, module_.id))
+        .run();
+
+      await client.softDelete({ id: program.id });
+
+      const moduleRow = db
+        .select()
+        .from(modulesTable)
+        .where(eq(modulesTable.id, module_.id))
+        .get();
+
+      expect(moduleRow?.deletedAt?.getTime()).toBe(
+        previouslyDeletedAt.getTime()
+      );
+    });
+
+    it("does not overwrite the deletedAt of a flashcard that was already independently soft-deleted before", async () => {
+      const program = await client.create({ name: "Sera Removido" });
+      const module_ = await modulesClient.create({
+        name: "Modulo 1",
+        programId: program.id,
+      });
+      const activity = await activitiesClient.create({
+        moduleId: module_.id,
+        title: "Baralho",
+        type: "flashcard_deck",
+      });
+      const flashcard = await flashcardsClient.create({
+        activityId: activity.id,
+        back: "Verso",
+        front: "Frente",
+      });
+      const previouslyDeletedAt = new Date("2020-01-01T00:00:00Z");
+      db.update(flashcardsTable)
+        .set({ deletedAt: previouslyDeletedAt })
+        .where(eq(flashcardsTable.id, flashcard.id))
+        .run();
+
+      await client.softDelete({ id: program.id });
+
+      const flashcardRow = db
+        .select()
+        .from(flashcardsTable)
+        .where(eq(flashcardsTable.id, flashcard.id))
+        .get();
+
+      expect(flashcardRow?.deletedAt?.getTime()).toBe(
+        previouslyDeletedAt.getTime()
+      );
     });
   });
 });
