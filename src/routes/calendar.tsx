@@ -76,9 +76,10 @@ export function CalendarPage() {
   return (
     <EventCalendar
       className="h-full"
-      defaultEvents={events}
       defaultView="month"
+      events={events}
       interactions={{ drag: false, resize: false, selectSlot: false }}
+      onEventsChange={setEvents}
       renderEvent={renderEvent}
       views={["month", "agenda"]}
     >
