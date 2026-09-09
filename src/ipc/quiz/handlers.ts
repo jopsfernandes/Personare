@@ -2,6 +2,7 @@ import { os } from "@orpc/server";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { quizOptions, quizQuestions } from "@/database/schema";
 import { getDatabaseClient } from "@/ipc/database/state";
+import { cascadeSoftDeleteQuizQuestion } from "@/ipc/shared/cascade-soft-delete";
 import {
   createOptionInputSchema,
   createQuestionInputSchema,
@@ -76,11 +77,14 @@ export const softDeleteQuestion = os
   .input(softDeleteQuestionInputSchema)
   .handler(({ input }) => {
     const db = requireDatabaseClient();
+    const now = new Date();
 
     db.update(quizQuestions)
-      .set({ deletedAt: new Date() })
+      .set({ deletedAt: now })
       .where(eq(quizQuestions.id, input.id))
       .run();
+
+    cascadeSoftDeleteQuizQuestion(db, input.id, now);
   });
 
 export const listOptions = os

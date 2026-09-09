@@ -2,6 +2,7 @@ import { os } from "@orpc/server";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { activities as activitiesTable } from "@/database/schema";
 import { getDatabaseClient } from "@/ipc/database/state";
+import { cascadeSoftDeleteActivity } from "@/ipc/shared/cascade-soft-delete";
 import {
   createActivityInputSchema,
   listActivitiesInputSchema,
@@ -79,9 +80,12 @@ export const softDelete = os
   .input(softDeleteActivityInputSchema)
   .handler(({ input }) => {
     const db = requireDatabaseClient();
+    const now = new Date();
 
     db.update(activitiesTable)
-      .set({ deletedAt: new Date() })
+      .set({ deletedAt: now })
       .where(eq(activitiesTable.id, input.id))
       .run();
+
+    cascadeSoftDeleteActivity(db, input.id, now);
   });
