@@ -13,6 +13,7 @@ import ActivitiesDataTable, {
 } from "@/components/activities-data-table";
 import ActivityFormDialog from "@/components/activity-form-dialog";
 import DeleteActivityDialog from "@/components/delete-activity-dialog";
+import FlashcardManagerDialog from "@/components/flashcard-manager-dialog";
 import PdfViewerDialog from "@/components/pdf-viewer-dialog";
 import QuizQuestionManagerDialog from "@/components/quiz-question-manager-dialog";
 import QuizRunnerDialog from "@/components/quiz-runner-dialog";
@@ -34,6 +35,8 @@ function ModuleActivitiesPage() {
   const [activityTakingQuiz, setActivityTakingQuiz] = useState<Activity | null>(
     null
   );
+  const [activityBeingManagedFlashcards, setActivityBeingManagedFlashcards] =
+    useState<Activity | null>(null);
 
   const refreshActivities = useCallback(() => {
     startTransition(() => {
@@ -69,6 +72,10 @@ function ModuleActivitiesPage() {
 
   const handleTakeQuiz = useCallback((activity: Activity) => {
     setActivityTakingQuiz(activity);
+  }, []);
+
+  const handleManageFlashcards = useCallback((activity: Activity) => {
+    setActivityBeingManagedFlashcards(activity);
   }, []);
 
   const handleFormOpenChange = useCallback((open: boolean) => {
@@ -112,6 +119,12 @@ function ModuleActivitiesPage() {
     }
   }, []);
 
+  const handleFlashcardManagerOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setActivityBeingManagedFlashcards(null);
+    }
+  }, []);
+
   const handleDeleteDialogOpenChange = useCallback((open: boolean) => {
     if (!open) {
       setActivityPendingDelete(null);
@@ -138,6 +151,7 @@ function ModuleActivitiesPage() {
       <ActivitiesDataTable
         activities={activities}
         onEdit={handleEdit}
+        onManageFlashcards={handleManageFlashcards}
         onManageQuiz={handleManageQuiz}
         onRequestDelete={handleRequestDelete}
         onTakeQuiz={handleTakeQuiz}
@@ -169,6 +183,11 @@ function ModuleActivitiesPage() {
         activity={activityTakingQuiz}
         onOpenChange={handleQuizRunnerOpenChange}
         open={activityTakingQuiz !== null}
+      />
+      <FlashcardManagerDialog
+        activity={activityBeingManagedFlashcards}
+        onOpenChange={handleFlashcardManagerOpenChange}
+        open={activityBeingManagedFlashcards !== null}
       />
     </div>
   );

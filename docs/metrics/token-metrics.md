@@ -63,3 +63,44 @@ Cada terminal também gastou um pouco de `claude-haiku-4-5` (background/roteamen
   premissa original ("documentação grande consome tokens") não se confirma neste ciclo — quem consumiu
   tokens foi o volume de código gerado/lido (Desenvolvedor) e o overhead de coordenação
   (`/maestri`), exatamente como o conselho havia previsto antes de qualquer medição existir.
+
+## Issue #15 — Atividade tipo Flashcard/Baralho
+
+- **Branch:** `feature/15-atividade-flashcard-baralho`
+- **Time reaproveitado**: mesmos quatro terminais Maestri da Issue #14 (Sentinela/Cinzel/Lupa/Cronista),
+  ainda vivos no canvas, reatribuídos para esta issue sem recriação. Isso significa que o `/cost` de
+  cada terminal é **cumulativo desde a Issue #14**, não isolado a esta issue — os valores abaixo são o
+  **delta** (custo atual menos o custo já registrado ao final da Issue #14), não uma leitura direta do
+  `/cost`.
+- **Diferença estrutural desta issue**: nenhuma migration nova foi necessária (`flashcards` e
+  `review_items` já existiam desde `drizzle/0001`), então o trabalho do Desenvolvedor foi só
+  IPC + UI, sem a etapa de schema/`drizzle-kit generate` que a Issue #14 teve.
+
+| Papel | Terminal | Custo acumulado (após #15) | Custo acumulado (após #14) | **Delta (#15)** |
+|---|---|---|---|---|
+| Testador | Sentinela | $2,91 | $0,90 | **$2,01** |
+| Desenvolvedor | Cinzel | $8,81 | $4,87 | **$3,94** |
+| Revisor | Lupa | $1,35 | $0,71 | **$0,64** |
+| Redator de Docs | Cronista | $0,72 | $0,29 | **$0,43** |
+| **Total do ciclo (#15)** | | | | **~$7,02** |
+
+## Leituras do segundo ciclo (Issue #15)
+
+- **O padrão de dominância do Desenvolvedor se repete e se intensifica**: $3,94 de $7,02 (~56%) — mesmo
+  numa issue *sem* etapa de schema/migration (mais simples que #14), o Desenvolvedor continua sendo o
+  papel mais caro por uma margem larga. Isso reforça a leitura da Issue #14: o custo está na geração de
+  código e na releitura de arquivos de referência para manter convenção (aqui, principalmente
+  `ipc/activities/*` e `quiz-question-manager-dialog.tsx` como modelos a espelhar), não em qualquer
+  coisa proporcional ao tamanho da issue em si.
+- **O Testador desta issue custou mais que o da Issue #14** ($2,01 vs. $0,90) apesar de a feature ser
+  mais simples — provável causa: o Testador desta vez teve que ler bem mais arquivos de referência
+  para aprender os padrões a espelhar (IPC de `activities`, dois pares diálogo-gerenciador/diálogo-form
+  de Quiz) antes de escrever qualquer teste, já que Flashcard não tinha nenhum RED phase herdado de uma
+  sessão anterior como a Quiz tinha. Sugere que o custo do Testador é mais sensível a "quantos exemplos
+  precisa ler para aprender a convenção" do que ao tamanho do que efetivamente escreve.
+- **Reaproveitar os terminais entre issues tem um custo de medição, não só um benefício de setup**:
+  como o `/cost` é cumulativo por sessão, cada issue subsequente exige calcular um delta manualmente em
+  vez de ler o número direto — um lembrete prático de que, se esse hábito de instrumentação continuar,
+  vale considerar pedir a cada terminal para anotar seu próprio "checkpoint de custo" ao final de cada
+  issue (ou dispensar e recriar os terminais por issue, trocando o benefício de contexto quente por
+  leitura de métrica mais simples).

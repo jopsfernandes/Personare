@@ -1,0 +1,241 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import i18n from "i18next";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import "@/localization/i18n";
+import type { Activity } from "@/components/activities-data-table";
+
+/**
+ * RED phase (Issue #15, Spec Driven TDD): src/components/flashcard-manager-dialog
+ * does not exist yet. Every test below is expected to fail until the
+ * Developer implements it, per docs/specs/issue-15-flashcard-baralho.md AC-4.
+ *
+ * Contract exercised here: given a flashcard_deck Activity (a "Baralho"),
+ * lists its existing flashcards (fetched through listFlashcards), showing
+ * BOTH front and back per row -- this is an authoring/management screen,
+ * not the review screen, so the user needs to see both sides to proofread
+ * content. Renders an add-flashcard action and per-row edit/delete actions.
+ * Add/edit open FlashcardFormDialog. Submitting the form calls
+ * createFlashcard or updateFlashcard depending on whether a flashcard is
+ * being edited, then refreshes the list -- simpler than
+ * QuizQuestionManagerDialog since a Flashcard is a flat entity with no
+ * sub-entity to reconcile. Delete calls softDeleteFlashcard and refreshes
+ * the list. None of this ever reads or writes review_items (Issue #16).
+ */
+
+vi.mock("@/actions/flashcards", () => ({
+  createFlashcard: vi.fn(),
+  listFlashcards: vi.fn(),
+  softDeleteFlashcard: vi.fn(),
+  updateFlashcard: vi.fn(),
+}));
+
+const {
+  createFlashcard,
+  listFlashcards,
+  softDeleteFlashcard,
+  updateFlashcard,
+} = await import("@/actions/flashcards");
+const { default: FlashcardManagerDialog } = await import(
+  "@/components/flashcard-manager-dialog"
+);
+
+const DECK_ACTIVITY: Activity = {
+  createdAt: new Date("2026-01-02"),
+  filePath: null,
+  id: "22222222-2222-2222-2222-222222222222",
+  moduleId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  title: "Baralho de fixacao",
+  type: "flashcard_deck",
+  updatedAt: new Date("2026-01-02"),
+  url: null,
+};
+
+const EXISTING_FLASHCARDS = [
+  { back: "Capital do Brasil", front: "Brasilia", id: "f1" },
+  { back: "Oceano Atlantico", front: "Qual oceano banha o Brasil?", id: "f2" },
+];
+
+function renderManager(activity: Activity | null = DECK_ACTIVITY) {
+  const onOpenChange = vi.fn();
+
+  render(
+    <FlashcardManagerDialog
+      activity={activity}
+      onOpenChange={onOpenChange}
+      open={activity !== null}
+    />
+  );
+
+  return { onOpenChange };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(listFlashcards).mockResolvedValue(EXISTING_FLASHCARDS);
+});
+
+describe("FlashcardManagerDialog (Issue #15)", () => {
+  it("does not attempt to load flashcards when there is no activity", () => {
+    renderManager(null);
+
+    expect(listFlashcards).not.toHaveBeenCalled();
+  });
+
+  it("lists the existing flashcards' front and back once loaded", async () => {
+    renderManager();
+
+    expect(listFlashcards).toHaveBeenCalledWith(DECK_ACTIVITY.id);
+    expect(
+      await screen.findByText(EXISTING_FLASHCARDS[0].front)
+    ).toBeInTheDocument();
+    expect(screen.getByText(EXISTING_FLASHCARDS[0].back)).toBeInTheDocument();
+    expect(screen.getByText(EXISTING_FLASHCARDS[1].front)).toBeInTheDocument();
+    expect(screen.getByText(EXISTING_FLASHCARDS[1].back)).toBeInTheDocument();
+  });
+
+  it("renders an empty-state message when the deck has no flashcards", async () => {
+    vi.mocked(listFlashcards).mockResolvedValue([]);
+
+    renderManager();
+
+    expect(
+      await screen.findByText(i18n.t("flashcardsEmptyMessage"))
+    ).toBeInTheDocument();
+  });
+
+  it("renders an add-flashcard action, and an edit and a delete action for every flashcard", async () => {
+    renderManager();
+    await screen.findByText(EXISTING_FLASHCARDS[0].front);
+
+    expect(
+      screen.getByRole("button", { name: i18n.t("addFlashcardAction") })
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: i18n.t("editFlashcardAction") })
+    ).toHaveLength(EXISTING_FLASHCARDS.length);
+    expect(
+      screen.getAllByRole("button", { name: i18n.t("deleteFlashcardAction") })
+    ).toHaveLength(EXISTING_FLASHCARDS.length);
+  });
+
+  it("calls softDeleteFlashcard and refreshes the list when a flashcard's delete action is triggered", async () => {
+    const user = userEvent.setup();
+    renderManager();
+    await screen.findByText(EXISTING_FLASHCARDS[0].front);
+
+    const deleteButtons = screen.getAllByRole("button", {
+      name: i18n.t("deleteFlashcardAction"),
+    });
+    await user.click(deleteButtons[0]);
+
+    await waitFor(() => {
+      expect(softDeleteFlashcard).toHaveBeenCalledWith(
+        EXISTING_FLASHCARDS[0].id
+      );
+    });
+    await waitFor(() => {
+      expect(listFlashcards).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("opens the flashcard form, pre-filled, when a flashcard's edit action is triggered", async () => {
+    const user = userEvent.setup();
+    renderManager();
+    await screen.findByText(EXISTING_FLASHCARDS[0].front);
+
+    const editButtons = screen.getAllByRole("button", {
+      name: i18n.t("editFlashcardAction"),
+    });
+    await user.click(editButtons[0]);
+
+    expect(screen.getByLabelText(i18n.t("flashcardFrontLabel"))).toHaveValue(
+      EXISTING_FLASHCARDS[0].front
+    );
+    expect(screen.getByLabelText(i18n.t("flashcardBackLabel"))).toHaveValue(
+      EXISTING_FLASHCARDS[0].back
+    );
+  });
+
+  it("opens an empty flashcard form when the add-flashcard action is clicked", async () => {
+    const user = userEvent.setup();
+    renderManager();
+    await screen.findByText(EXISTING_FLASHCARDS[0].front);
+
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("addFlashcardAction") })
+    );
+
+    expect(screen.getByLabelText(i18n.t("flashcardFrontLabel"))).toHaveValue(
+      ""
+    );
+    expect(screen.getByLabelText(i18n.t("flashcardBackLabel"))).toHaveValue("");
+  });
+
+  it("creates the flashcard when a new one is submitted", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createFlashcard).mockResolvedValue({
+      activityId: DECK_ACTIVITY.id,
+      back: "Verso novo",
+      front: "Frente nova",
+      id: "new-f",
+    });
+    renderManager();
+    await screen.findByText(EXISTING_FLASHCARDS[0].front);
+
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("addFlashcardAction") })
+    );
+    await user.type(
+      screen.getByLabelText(i18n.t("flashcardFrontLabel")),
+      "Frente nova"
+    );
+    await user.type(
+      screen.getByLabelText(i18n.t("flashcardBackLabel")),
+      "Verso novo"
+    );
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("saveAction") })
+    );
+
+    await waitFor(() => {
+      expect(createFlashcard).toHaveBeenCalledWith(
+        DECK_ACTIVITY.id,
+        "Frente nova",
+        "Verso novo"
+      );
+    });
+  });
+
+  it("updates the flashcard when an existing one is edited", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateFlashcard).mockResolvedValue({
+      activityId: DECK_ACTIVITY.id,
+      back: EXISTING_FLASHCARDS[0].back,
+      front: "Frente editada",
+      id: "f1",
+    });
+    renderManager();
+    await screen.findByText(EXISTING_FLASHCARDS[0].front);
+
+    const editButtons = screen.getAllByRole("button", {
+      name: i18n.t("editFlashcardAction"),
+    });
+    await user.click(editButtons[0]);
+
+    const frontInput = screen.getByLabelText(i18n.t("flashcardFrontLabel"));
+    await user.clear(frontInput);
+    await user.type(frontInput, "Frente editada");
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("saveAction") })
+    );
+
+    await waitFor(() => {
+      expect(updateFlashcard).toHaveBeenCalledWith(
+        "f1",
+        "Frente editada",
+        EXISTING_FLASHCARDS[0].back
+      );
+    });
+  });
+});
