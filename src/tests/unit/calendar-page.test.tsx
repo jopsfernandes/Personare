@@ -26,7 +26,7 @@ import "@/localization/i18n";
  * EventCalendarNav/EventCalendarContent from) is mocked here so these tests
  * only assert the OBSERVABLE wiring: ensureReviewItems then listSchedule
  * are called on mount, the rows are passed through toCalendarEvents, and
- * the mapped events end up in EventCalendar's `defaultEvents` prop.
+ * the mapped events end up in EventCalendar's `events` prop.
  * Rendering the real month/agenda grid is the ReUI library's own
  * responsibility, not re-tested here.
  *
@@ -127,13 +127,13 @@ describe("CalendarPage (Issue #18)", () => {
     });
   });
 
-  it("passes the events from toCalendarEvents to EventCalendar's defaultEvents prop", async () => {
+  it("passes the events from toCalendarEvents to EventCalendar's events prop", async () => {
     renderCalendarPage();
 
     await waitFor(() => {
       const lastCall = vi.mocked(EventCalendar).mock.calls.at(-1);
       expect(lastCall?.[0]).toEqual(
-        expect.objectContaining({ defaultEvents: MAPPED_EVENTS })
+        expect.objectContaining({ events: MAPPED_EVENTS })
       );
     });
   });
