@@ -188,3 +188,43 @@ Cada terminal também gastou um pouco de `claude-haiku-4-5` (background/roteamen
   reforça, com um exemplo concreto e não-hipotético, a mesma lição já registrada no PR #61 (Issue #60):
   há uma classe de bug — integração real com uma biblioteca de terceiros, comportamento controlado vs.
   não-controlado, timing assíncrono — que só aparece rodando o software de verdade.
+
+## Issue #22 — Regra de exclusão/edição com histórico de revisão
+
+- **Branch:** `feature/22-cascata-soft-delete`
+- **Time reaproveitado** (mesmos quatro terminais desde a Issue #14) — valores abaixo são o delta
+  sobre o acumulado ao final da Issue #18.
+- **Origem da issue**: não veio de uma leitura fresca do backlog — veio de um bug real e concreto que o
+  orquestrador encontrou pensando no escopo da Issue #22 antes mesmo de escrever o spec (nenhum
+  `softDelete` cascateava, quebrando o Calendário da Issue #18 já em produção). O spec nasceu apontando
+  para o código exato do bug, não para uma descrição abstrata do requisito.
+
+| Papel | Terminal | Custo acumulado (após #22) | Custo acumulado (após #18) | **Delta (#22)** |
+|---|---|---|---|---|
+| Testador | Sentinela | $18,61 | $13,36 | **$5,25** |
+| Desenvolvedor | Cinzel | $34,07 | $28,75 | **$5,32** |
+| Revisor | Lupa | $3,69 | $3,11 | **$0,58** |
+| Redator de Docs | Cronista | $2,09 | $1,67 | **$0,42** |
+| **Total do ciclo (#22)** | | | | **~$11,57** |
+
+## Leituras do quinto ciclo (Issue #22)
+
+- **Primeira vez que Testador e Desenvolvedor custam quase o mesmo** ($5,25 e $5,32 — a diferença mais
+  próxima de todos os ciclos até aqui). Faz sentido dado o formato da issue: não há UI nova nem
+  biblioteca externa para nenhum dos dois aprender — o trabalho real é ler os MESMOS cinco handlers de
+  IPC já existentes (`programs`/`modules`/`activities`/`flashcards`/`quiz`) e aplicar o mesmo padrão de
+  cascata em cada um, então Testador e Desenvolvedor pagam essencialmente o mesmo custo de leitura de
+  contexto, só que um escrevendo testes e o outro escrevendo a implementação sobre o mesmo material.
+- **O ciclo mais barato desde a Issue #16** (~$11,57, contra ~$23,37 da #18) apesar de tocar em CINCO
+  namespaces de IPC diferentes — mais lugares tocados, mas cada um é uma mudança pequena e mecânica
+  (adicionar uma chamada de cascata), não uma decisão de design nova. Reforça a leitura already
+  registrada nas Issues #14-#18: o custo segue a complexidade de decisão, não o número de arquivos
+  tocados.
+- **Uma issue que nasceu de investigação, não de leitura de backlog, ainda assim seguiu o pipeline
+  completo sem atalho** — o orquestrador poderia ter corrigido o bug de cascata diretamente (como fez
+  com os hotfixes de lint/lockfile), mas por ser uma mudança de comportamento de dados (não mecânica
+  como formatação), passou pelo ciclo RED→GREEN→Revisão→Docs completo, incluindo um teste que reproduz
+  o bug original ponta a ponta. O critério usado até aqui parece ser: mudança mecânica e sem ambiguidade
+  (lint, lockfile) → corrigir direto; mudança de comportamento com superfície de decisão (regra de
+  cascata, quais linhas sobrescrever) → pipeline completo, mesmo quando a causa raiz já é conhecida com
+  precisão.
