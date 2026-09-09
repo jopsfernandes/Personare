@@ -1,0 +1,80 @@
+import {
+  type ElectronApplication,
+  _electron as electron,
+  expect,
+  type Page,
+  test,
+} from "@playwright/test";
+import { findLatestBuild, parseElectronApp } from "electron-playwright-helpers";
+
+/**
+ * Regression test for Issue #60: `/programs/$programId/modules/$moduleId`
+ * is a TanStack Router file-route child of `programs.$programId.tsx` (its
+ * filename is a prefix match), so the parent must render an `<Outlet />`
+ * for the child to ever mount. Before the fix, `programs.$programId.tsx`
+ * rendered its own content directly with no `<Outlet />`; the router
+ * internally matched the child route correctly (confirmed via its exposed
+ * state during diagnosis), but nothing in the DOM ever displayed it --
+ * clicking "View activities" silently did nothing.
+ *
+ * Unit tests could not catch this: they render `ModuleActivitiesPage` (or
+ * `ModulesDataTable`) in isolation, never through the actual router's
+ * match-and-render pipeline, so a broken parent/Outlet relationship is
+ * invisible to them. Only a real navigation, driven through an actual
+ * built app, exercises the router deeply enough to catch it -- hence this
+ * e2e test instead of a unit test.
+ */
+
+let electronApp: ElectronApplication;
+let page: Page;
+
+test.beforeAll(async () => {
+  const latestBuild = findLatestBuild();
+  const appInfo = parseElectronApp(latestBuild);
+  process.env.CI = "e2e";
+
+  electronApp = await electron.launch({ args: [appInfo.main] });
+  page = await electronApp.firstWindow();
+});
+
+test.afterAll(async () => {
+  await electronApp.close();
+});
+
+test("navigating Programs -> Modules -> Activities renders each page", async () => {
+  const uniqueSuffix = Date.now();
+  const programName = `E2E Program ${uniqueSuffix}`;
+  const moduleName = `E2E Module ${uniqueSuffix}`;
+  const activityName = `E2E Activity ${uniqueSuffix}`;
+
+  await expect(page.getByRole("heading", { name: "Programs" })).toBeVisible();
+
+  await page.getByRole("button", { name: "New program" }).click();
+  await page.getByLabel("Name").fill(programName);
+  await page.getByRole("button", { name: "Save" }).click();
+
+  await page
+    .getByRole("row", { name: new RegExp(programName) })
+    .getByLabel("View modules")
+    .click();
+  await expect(page.getByRole("heading", { name: "Modules" })).toBeVisible();
+
+  await page.getByRole("button", { name: "New module" }).click();
+  await page.getByLabel("Name").fill(moduleName);
+  await page.getByRole("button", { name: "Save" }).click();
+
+  await page
+    .getByRole("row", { name: new RegExp(moduleName) })
+    .getByLabel("View activities")
+    .click();
+
+  // The regression: this heading, and everything below it, never appeared
+  // before the Outlet fix -- the app silently stayed on the Modules page.
+  await expect(page.getByRole("heading", { name: "Activities" })).toBeVisible();
+
+  await page.getByRole("button", { name: "New activity" }).click();
+  await page.getByLabel("Title").fill(activityName);
+  await page.getByRole("button", { name: "Save" }).click();
+
+  await expect(page.getByText(activityName)).toBeVisible();
+});

@@ -13,6 +13,7 @@ import { Route as SecondRouteImport } from './routes/second'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProgramsProgramIdRouteImport } from './routes/programs.$programId'
+import { Route as ProgramsProgramIdIndexRouteImport } from './routes/programs.$programId.index'
 import { Route as ProgramsProgramIdModulesModuleIdRouteImport } from './routes/programs.$programId.modules.$moduleId'
 
 const SecondRoute = SecondRouteImport.update({
@@ -35,6 +36,11 @@ const ProgramsProgramIdRoute = ProgramsProgramIdRouteImport.update({
   path: '/programs/$programId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProgramsProgramIdIndexRoute = ProgramsProgramIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProgramsProgramIdRoute,
+} as any)
 const ProgramsProgramIdModulesModuleIdRoute =
   ProgramsProgramIdModulesModuleIdRouteImport.update({
     id: '/modules/$moduleId',
@@ -47,13 +53,14 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof CalendarRoute
   '/second': typeof SecondRoute
   '/programs/$programId': typeof ProgramsProgramIdRouteWithChildren
+  '/programs/$programId/': typeof ProgramsProgramIdIndexRoute
   '/programs/$programId/modules/$moduleId': typeof ProgramsProgramIdModulesModuleIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
   '/second': typeof SecondRoute
-  '/programs/$programId': typeof ProgramsProgramIdRouteWithChildren
+  '/programs/$programId': typeof ProgramsProgramIdIndexRoute
   '/programs/$programId/modules/$moduleId': typeof ProgramsProgramIdModulesModuleIdRoute
 }
 export interface FileRoutesById {
@@ -62,6 +69,7 @@ export interface FileRoutesById {
   '/calendar': typeof CalendarRoute
   '/second': typeof SecondRoute
   '/programs/$programId': typeof ProgramsProgramIdRouteWithChildren
+  '/programs/$programId/': typeof ProgramsProgramIdIndexRoute
   '/programs/$programId/modules/$moduleId': typeof ProgramsProgramIdModulesModuleIdRoute
 }
 export interface FileRouteTypes {
@@ -71,6 +79,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/second'
     | '/programs/$programId'
+    | '/programs/$programId/'
     | '/programs/$programId/modules/$moduleId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -85,6 +94,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/second'
     | '/programs/$programId'
+    | '/programs/$programId/'
     | '/programs/$programId/modules/$moduleId'
   fileRoutesById: FileRoutesById
 }
@@ -125,6 +135,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProgramsProgramIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/programs/$programId/': {
+      id: '/programs/$programId/'
+      path: '/'
+      fullPath: '/programs/$programId/'
+      preLoaderRoute: typeof ProgramsProgramIdIndexRouteImport
+      parentRoute: typeof ProgramsProgramIdRoute
+    }
     '/programs/$programId/modules/$moduleId': {
       id: '/programs/$programId/modules/$moduleId'
       path: '/modules/$moduleId'
@@ -136,10 +153,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface ProgramsProgramIdRouteChildren {
+  ProgramsProgramIdIndexRoute: typeof ProgramsProgramIdIndexRoute
   ProgramsProgramIdModulesModuleIdRoute: typeof ProgramsProgramIdModulesModuleIdRoute
 }
 
 const ProgramsProgramIdRouteChildren: ProgramsProgramIdRouteChildren = {
+  ProgramsProgramIdIndexRoute: ProgramsProgramIdIndexRoute,
   ProgramsProgramIdModulesModuleIdRoute: ProgramsProgramIdModulesModuleIdRoute,
 }
 
