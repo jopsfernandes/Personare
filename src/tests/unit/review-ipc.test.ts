@@ -529,7 +529,16 @@ describe("review IPC namespace (Issue #16)", () => {
       });
       await reviewClient.ensureReviewItems({ activityId });
 
-      const future = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+      // dueDate is stored via drizzle-orm's integer "timestamp" mode, which
+      // SQLite truncates to whole seconds on write (pre-existing precision
+      // loss across every write since the foundational migration, tracked
+      // separately as Issue #64 -- not something this issue's schema
+      // introduces or should fix). Aligning the fixture to an exact second
+      // up front keeps this assertion about listSchedule's due_date-agnostic
+      // behavior, not about sub-second timestamp precision.
+      const future = new Date(
+        Math.floor((Date.now() + 1000 * 60 * 60 * 24 * 30) / 1000) * 1000
+      );
       db.update(reviewItemsTable)
         .set({ dueDate: future })
         .where(eq(reviewItemsTable.flashcardId, flashcard.id))
