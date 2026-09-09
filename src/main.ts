@@ -1,5 +1,5 @@
 import path from "node:path";
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, Menu, Notification, Tray } from "electron";
 import { ipcMain } from "electron/main";
 import {
   installExtension,
@@ -9,14 +9,25 @@ import { UpdateSourceType, updateElectronApp } from "update-electron-app";
 import { createDatabaseClient } from "@/database/client";
 import { resolveMigrationsFolder, runMigrations } from "@/database/migrate";
 import { ipcContext } from "@/ipc/context";
-import { setDatabaseClient } from "@/ipc/database/state";
+import { getDatabaseClient, setDatabaseClient } from "@/ipc/database/state";
+import { getOrCreateAppSettings } from "@/ipc/settings/handlers";
+import { countDueReviews } from "@/main/due-reviews";
+import { createPlaceholderTrayIcon } from "@/main/tray-icon";
 import { IPC_CHANNELS, inDevelopment } from "./constants";
 import { getBasePath } from "./utils/path";
+
+let mainWindow: BrowserWindow | undefined;
+let tray: Tray | undefined;
+
+// Only true inside the Tray's "Sair" handler, right before app.quit() --
+// distinguishes a real quit from the window's own close button, which
+// should minimize to the Tray instead (docs/specs/issue-20-notificacao-boot.md).
+let isQuitting = false;
 
 function createWindow() {
   const basePath = getBasePath();
   const preload = path.join(basePath, "preload.js");
-  const mainWindow = new BrowserWindow({
+  const window = new BrowserWindow({
     height: 600,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
     trafficLightPosition:
@@ -31,15 +42,86 @@ function createWindow() {
     },
     width: 800,
   });
-  ipcContext.setMainWindow(mainWindow);
+  ipcContext.setMainWindow(window);
+  mainWindow = window;
+
+  window.on("close", (event) => {
+    if (isQuitting) {
+      return;
+    }
+
+    event.preventDefault();
+    window.hide();
+  });
+
+  window.on("closed", () => {
+    mainWindow = undefined;
+  });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
-    mainWindow.loadFile(
+    window.loadFile(
       path.join(basePath, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`)
     );
   }
+
+  return window;
+}
+
+function showMainWindow() {
+  if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
+  } else {
+    createWindow();
+  }
+}
+
+function createTray() {
+  tray = new Tray(createPlaceholderTrayIcon());
+  tray.setToolTip("Personare");
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { click: showMainWindow, label: "Abrir Personare" },
+      {
+        click: () => {
+          isQuitting = true;
+          app.quit();
+        },
+        label: "Sair",
+      },
+    ])
+  );
+  tray.on("click", showMainWindow);
+}
+
+function notifyDueReviewsIfAny() {
+  const db = getDatabaseClient();
+
+  if (!db) {
+    return;
+  }
+
+  const count = countDueReviews(db, new Date());
+
+  if (count > 0) {
+    new Notification({
+      body: `Você tem ${count} revisões pendentes hoje`,
+      title: "Personare",
+    }).show();
+  }
+}
+
+function syncLoginItemSettingsWithSavedPreference() {
+  const db = getDatabaseClient();
+
+  if (!db) {
+    return;
+  }
+
+  const { autoStartEnabled } = getOrCreateAppSettings(db);
+  app.setLoginItemSettings({ openAtLogin: autoStartEnabled });
 }
 
 async function installExtensions() {
@@ -85,10 +167,20 @@ function setupDatabase() {
 
 app.whenReady().then(async () => {
   try {
-    createWindow();
+    const { wasOpenedAtLogin } = app.getLoginItemSettings();
+
+    setupDatabase();
+    syncLoginItemSettingsWithSavedPreference();
+    createTray();
+
+    if (wasOpenedAtLogin) {
+      notifyDueReviewsIfAny();
+    } else {
+      createWindow();
+    }
+
     await installExtensions();
     checkForUpdates();
-    setupDatabase();
     await setupORPC();
   } catch (error) {
     console.error("Error during app initialization:", error);
@@ -105,6 +197,8 @@ app.on("window-all-closed", () => {
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
+  } else {
+    showMainWindow();
   }
 });
 //osX only ends

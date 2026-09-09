@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SecondRouteImport } from './routes/second'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as IndexRouteImport } from './routes/index'
@@ -16,6 +17,11 @@ import { Route as ProgramsProgramIdRouteImport } from './routes/programs.$progra
 import { Route as ProgramsProgramIdIndexRouteImport } from './routes/programs.$programId.index'
 import { Route as ProgramsProgramIdModulesModuleIdRouteImport } from './routes/programs.$programId.modules.$moduleId'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SecondRoute = SecondRouteImport.update({
   id: '/second',
   path: '/second',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
   '/second': typeof SecondRoute
+  '/settings': typeof SettingsRoute
   '/programs/$programId': typeof ProgramsProgramIdRouteWithChildren
   '/programs/$programId/': typeof ProgramsProgramIdIndexRoute
   '/programs/$programId/modules/$moduleId': typeof ProgramsProgramIdModulesModuleIdRoute
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
   '/second': typeof SecondRoute
+  '/settings': typeof SettingsRoute
   '/programs/$programId': typeof ProgramsProgramIdIndexRoute
   '/programs/$programId/modules/$moduleId': typeof ProgramsProgramIdModulesModuleIdRoute
 }
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
   '/second': typeof SecondRoute
+  '/settings': typeof SettingsRoute
   '/programs/$programId': typeof ProgramsProgramIdRouteWithChildren
   '/programs/$programId/': typeof ProgramsProgramIdIndexRoute
   '/programs/$programId/modules/$moduleId': typeof ProgramsProgramIdModulesModuleIdRoute
@@ -78,6 +87,7 @@ export interface FileRouteTypes {
     | '/'
     | '/calendar'
     | '/second'
+    | '/settings'
     | '/programs/$programId'
     | '/programs/$programId/'
     | '/programs/$programId/modules/$moduleId'
@@ -86,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/calendar'
     | '/second'
+    | '/settings'
     | '/programs/$programId'
     | '/programs/$programId/modules/$moduleId'
   id:
@@ -93,6 +104,7 @@ export interface FileRouteTypes {
     | '/'
     | '/calendar'
     | '/second'
+    | '/settings'
     | '/programs/$programId'
     | '/programs/$programId/'
     | '/programs/$programId/modules/$moduleId'
@@ -102,11 +114,19 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CalendarRoute: typeof CalendarRoute
   SecondRoute: typeof SecondRoute
+  SettingsRoute: typeof SettingsRoute
   ProgramsProgramIdRoute: typeof ProgramsProgramIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/second': {
       id: '/second'
       path: '/second'
@@ -169,6 +189,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CalendarRoute: CalendarRoute,
   SecondRoute: SecondRoute,
+  SettingsRoute: SettingsRoute,
   ProgramsProgramIdRoute: ProgramsProgramIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport

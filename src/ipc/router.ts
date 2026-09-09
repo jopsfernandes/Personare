@@ -7,6 +7,7 @@ import { modules } from "./modules";
 import { programs } from "./programs";
 import { quiz } from "./quiz";
 import { review } from "./review";
+import { settings } from "./settings";
 import { shell } from "./shell";
 import { theme } from "./theme";
 import { window } from "./window";
@@ -21,6 +22,7 @@ export const router = {
   programs,
   quiz,
   review,
+  settings,
   shell,
   theme,
   window,
