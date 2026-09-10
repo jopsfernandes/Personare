@@ -22,6 +22,17 @@ i18n.use(initReactI18next).init({
         autoStartDescription:
           "When enabled, Personare starts automatically and minimized in the system tray when you turn on your computer, calculating and notifying you of your pending reviews for the day. You can open the app at any time from the tray icon.",
         autoStartToggleLabel: "Start automatically",
+        backupConfirmPassphraseLabel: "Confirm passphrase",
+        backupExportErrorMessage: "Failed to export backup. Please try again.",
+        backupImportConfirmAction: "Erase current data and import",
+        backupImportErrorMessage:
+          "Incorrect passphrase or corrupted backup file.",
+        backupImportWarningMessage:
+          "This will erase all current data and replace it with the content of the selected file. This action cannot be undone.",
+        backupPassphraseLabel: "Passphrase",
+        backupSectionDescription:
+          "Export all your data to an encrypted local file, or restore a previously exported one. Works independently of Google login. Importing a backup replaces all current data.",
+        backupSectionTitle: "Local backup",
         cancelAction: "Cancel",
         confirmDeleteAction: "Delete",
         createActivityAction: "New activity",
@@ -53,10 +64,12 @@ i18n.use(initReactI18next).init({
         editProgramAction: "Edit program",
         editProgramTitle: "Edit program",
         editQuizQuestionAction: "Edit question",
+        exportBackupAction: "Export backup",
         finishQuizAction: "Finish quiz",
         flashcardBackLabel: "Back",
         flashcardFrontLabel: "Front",
         flashcardsEmptyMessage: "No flashcards yet.",
+        importBackupAction: "Import backup",
         madeBy: "Made by Personare",
         manageFlashcardsAction: "Manage flashcards",
         manageQuizQuestionsAction: "Manage questions",
@@ -113,6 +126,18 @@ i18n.use(initReactI18next).init({
         autoStartDescription:
           "Quando ativado, o Personare inicia automaticamente e minimizado na bandeja do sistema ao ligar o computador, calculando e notificando suas revisões pendentes do dia. Você pode abrir o app a qualquer momento pelo ícone na bandeja.",
         autoStartToggleLabel: "Iniciar automaticamente",
+        backupConfirmPassphraseLabel: "Confirmar senha",
+        backupExportErrorMessage:
+          "Falha ao exportar o backup. Tente novamente.",
+        backupImportConfirmAction: "Apagar dados atuais e importar",
+        backupImportErrorMessage:
+          "Senha incorreta ou arquivo de backup corrompido.",
+        backupImportWarningMessage:
+          "Isso vai apagar todo o conteúdo atual do app e substituir pelo conteúdo do arquivo selecionado. Essa ação não pode ser desfeita.",
+        backupPassphraseLabel: "Senha",
+        backupSectionDescription:
+          "Exporte todos os seus dados para um arquivo local criptografado, ou restaure um arquivo exportado anteriormente. Funciona independente de login Google. Importar um backup substitui todos os dados atuais.",
+        backupSectionTitle: "Backup local",
         cancelAction: "Cancelar",
         confirmDeleteAction: "Excluir",
         createActivityAction: "Nova atividade",
@@ -144,10 +169,12 @@ i18n.use(initReactI18next).init({
         editProgramAction: "Editar programa",
         editProgramTitle: "Editar programa",
         editQuizQuestionAction: "Editar pergunta",
+        exportBackupAction: "Exportar backup",
         finishQuizAction: "Finalizar quiz",
         flashcardBackLabel: "Verso",
         flashcardFrontLabel: "Frente",
         flashcardsEmptyMessage: "Nenhum flashcard ainda.",
+        importBackupAction: "Importar backup",
         madeBy: "Feito por Personare",
         manageFlashcardsAction: "Gerenciar flashcards",
         manageQuizQuestionsAction: "Gerenciar perguntas",

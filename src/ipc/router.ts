@@ -1,5 +1,6 @@
 import { activities } from "./activities";
 import { app } from "./app";
+import { backup } from "./backup";
 import { database } from "./database";
 import { dialog } from "./dialog";
 import { flashcards } from "./flashcards";
@@ -15,6 +16,7 @@ import { window } from "./window";
 export const router = {
   activities,
   app,
+  backup,
   database,
   dialog,
   flashcards,
