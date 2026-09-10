@@ -3,6 +3,7 @@ import { useCallback, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { selectBackupImportFile } from "@/actions/dialog";
 import { getSettings, setAutoStart } from "@/actions/settings";
+import AccountSection from "@/components/account-section";
 import BackupExportDialog from "@/components/backup-export-dialog";
 import BackupImportDialog from "@/components/backup-import-dialog";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ export function SettingsPage() {
           {t("autoStartDescription")}
         </p>
       </div>
+      <AccountSection />
       <div className="flex flex-col gap-2">
         <h2 className="font-semibold text-lg">{t("backupSectionTitle")}</h2>
         <p className="text-muted-foreground text-sm">

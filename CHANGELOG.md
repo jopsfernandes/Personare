@@ -8,6 +8,38 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Added
 
+- **Login com Google via OAuth no Electron** ([#25](https://github.com/jopsfernandes/Personare/issues/25)).
+  Adiciona uma seção "Conta" em Configurações para entrar/sair com uma conta Google, contra o backend
+  compartilhado `Study-Butler-Backend` (repositório separado, `jopsfernandes/study-butler-backend`), que
+  já expõe o fluxo OAuth2 + emissão de JWT. O app continua funcionando totalmente sem login -- esta issue
+  é só autenticação, nenhuma sincronização de conteúdo (Calendar/Drive) foi implementada ainda.
+  - **⚠️ Mudança de comportamento visível a toda sessão**: o app agora exige instância única
+    (`app.requestSingleInstanceLock()`) -- abrir o Personare uma segunda vez foca a janela já aberta em
+    vez de iniciar um processo novo. Necessário para capturar a URL do protocolo customizado quando o app
+    já está rodando (evento `second-instance`).
+  - **Fluxo**: "Entrar com Google" chama `shell.openExternal` para abrir o navegador do sistema contra
+    `GET /auth/google` do backend (nunca uma `BrowserWindow` embutida carregando o login do Google -- o
+    app nunca vê a senha); o backend redireciona para `personare://oauth-callback?token=<jwt>` (protocolo
+    customizado registrado via `app.setAsDefaultProtocolClient`); `src/main.ts` captura essa URL via
+    `open-url` (macOS) ou `second-instance`/`process.argv` (Windows/Linux), valida o token contra
+    `GET /auth/me` do backend (`src/main/backend-client.ts`) e guarda a sessão em memória.
+  - **Token persistido via `safeStorage`** (`src/main/auth-token-storage.ts`), nunca em texto plano e
+    nunca no SQLite local (é credencial, não dado de conteúdo); se o keychain/credential manager do SO
+    não estiver disponível, a sessão simplesmente não persiste entre reinícios, sem fallback insegredo.
+  - **Novo namespace de IPC/oRPC `auth`** (`src/ipc/auth/`): `login()`, `getSession()`, `logout()`. A UI
+    (`src/components/account-section.tsx`) faz polling de `getSession()` a cada 2s por até 2 minutos após
+    clicar em "Entrar com Google" -- não foi introduzido nenhum canal de push main→renderer novo só para
+    este caso único.
+  - **Validação manual documentada** (a orquestração de protocolo/single-instance em `main.ts` não é
+    testável de forma automatizada com o stack atual, mesmo padrão já estabelecido pelo Tray da Issue
+    #20): RED/GREEN cobrem toda a lógica extraível e pura (`src/main/oauth-callback.ts`,
+    `auth-token-storage.ts`, `backend-client.ts`, namespace `auth`, seção "Conta"); o fluxo ponta a ponta
+    completo (navegador real, callback do protocolo, restauração de sessão no boot) depende de
+    credenciais reais do Google Cloud Console e é validado manualmente antes de distribuir.
+  - Cobertura de testes em `src/tests/unit/auth-token-storage.test.ts`, `backend-client.test.ts`,
+    `auth-ipc.test.ts`, `oauth-callback.test.ts` (novos) e `settings-page.test.tsx` (estendido). 440/440
+    testes passando, sem regressão.
+
 - **Backup local (exportação/importação criptografada)** ([#21](https://github.com/jopsfernandes/Personare/issues/21)).
   Adiciona uma seção "Backup local" na tela de Configurações para exportar todos os dados do usuário para um arquivo local criptografado e restaurá-los depois, funcionando independente de login Google:
   - **Criptografia via `node:crypto` nativo, sem dependência nova**: `src/utils/backup-crypto.ts` cifra com AES-256-GCM (autenticado, detecta arquivo corrompido/adulterado), derivando a chave de uma passphrase via `scryptSync`. O arquivo (extensão `.personare-backup`) é um envelope binário `MAGIC + salt + iv + authTag + ciphertext`; a passphrase nunca é persistida, é pedida a cada exportação/importação.

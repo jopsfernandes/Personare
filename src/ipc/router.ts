@@ -1,5 +1,6 @@
 import { activities } from "./activities";
 import { app } from "./app";
+import { auth } from "./auth";
 import { backup } from "./backup";
 import { database } from "./database";
 import { dialog } from "./dialog";
@@ -16,6 +17,7 @@ import { window } from "./window";
 export const router = {
   activities,
   app,
+  auth,
   backup,
   database,
   dialog,
