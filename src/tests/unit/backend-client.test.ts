@@ -174,3 +174,105 @@ describe("syncCalendarEvents (Issue #26)", () => {
     expect(result).toEqual({ error: "unreachable" });
   });
 });
+
+describe("fetchAccountExport (Issue #28)", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the export payload when the backend accepts the token", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          googleCalendarConnected: true,
+          profile: {
+            avatarUrl: null,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            email: "aluno@example.com",
+            id: "user-1",
+            name: "Aluno",
+          },
+        }),
+        { status: 200 }
+      )
+    );
+    const { fetchAccountExport } = await import("@/main/backend-client");
+
+    const result = await fetchAccountExport("the-jwt-token");
+
+    expect(result).toEqual({
+      googleCalendarConnected: true,
+      profile: {
+        avatarUrl: null,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        email: "aluno@example.com",
+        id: "user-1",
+        name: "Aluno",
+      },
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/auth/me/export"),
+      { headers: { Authorization: "Bearer the-jwt-token" } }
+    );
+  });
+
+  it("returns null when the backend rejects the token", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("", { status: 401 }));
+    const { fetchAccountExport } = await import("@/main/backend-client");
+
+    await expect(fetchAccountExport("expired-token")).resolves.toBeNull();
+  });
+
+  it("returns null instead of throwing when the backend is unreachable", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network error"));
+    const { fetchAccountExport } = await import("@/main/backend-client");
+
+    await expect(fetchAccountExport("any-token")).resolves.toBeNull();
+  });
+});
+
+describe("deleteAccount (Issue #28)", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns true when the backend confirms deletion", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(null, { status: 204 }));
+    const { deleteAccount } = await import("@/main/backend-client");
+
+    const result = await deleteAccount("the-jwt-token");
+
+    expect(result).toBe(true);
+    const [requestUrl, options] = vi.mocked(fetch).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
+    expect(requestUrl).toContain("/auth/me");
+    expect(options.method).toBe("DELETE");
+    expect(options.headers).toMatchObject({
+      Authorization: "Bearer the-jwt-token",
+    });
+  });
+
+  it("returns false when the backend rejects the request", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("", { status: 401 }));
+    const { deleteAccount } = await import("@/main/backend-client");
+
+    await expect(deleteAccount("expired-token")).resolves.toBe(false);
+  });
+
+  it("returns false instead of throwing when the backend is unreachable", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network error"));
+    const { deleteAccount } = await import("@/main/backend-client");
+
+    await expect(deleteAccount("any-token")).resolves.toBe(false);
+  });
+});

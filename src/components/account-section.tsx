@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getSession, login, logout } from "@/actions/auth";
+import { exportAccountData, getSession, login, logout } from "@/actions/auth";
 import {
   connectCalendar,
   getCalendarConnectionStatus,
 } from "@/actions/calendar-sync";
+import { selectAccountExportPath } from "@/actions/dialog";
+import DeleteAccountDialog from "@/components/delete-account-dialog";
+import ScopeConsentDialog from "@/components/scope-consent-dialog";
 import { Button } from "@/components/ui/button";
 
 const POLL_INTERVAL_MS = 2000;
@@ -24,6 +27,9 @@ export default function AccountSection() {
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const [isAwaitingCalendarConnect, setIsAwaitingCalendarConnect] =
     useState(false);
+  const [isCalendarConsentOpen, setIsCalendarConsentOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
 
   useEffect(() => {
     getSession().then(setSession);
@@ -96,8 +102,44 @@ export default function AccountSection() {
   }, []);
 
   const handleConnectCalendarClick = useCallback(() => {
+    setIsCalendarConsentOpen(true);
+  }, []);
+
+  const handleCalendarConsentCancel = useCallback(() => {
+    setIsCalendarConsentOpen(false);
+  }, []);
+
+  const handleCalendarConsentConfirm = useCallback(() => {
+    setIsCalendarConsentOpen(false);
     connectCalendar();
     setIsAwaitingCalendarConnect(true);
+  }, []);
+
+  const handleExportClick = useCallback(async () => {
+    setExportMessage(null);
+
+    const filePath = await selectAccountExportPath();
+
+    if (!filePath) {
+      return;
+    }
+
+    const success = await exportAccountData(filePath);
+    setExportMessage(
+      success
+        ? t("accountExportSuccessMessage")
+        : t("accountExportErrorMessage")
+    );
+  }, [t]);
+
+  const handleDeleteClick = useCallback(() => {
+    setIsDeleteDialogOpen(true);
+  }, []);
+
+  const handleAccountDeleted = useCallback(() => {
+    setIsDeleteDialogOpen(false);
+    setSession(null);
+    setIsCalendarConnected(false);
   }, []);
 
   return (
@@ -139,6 +181,17 @@ export default function AccountSection() {
               ) : null}
             </div>
           )}
+          <div className="flex gap-2">
+            <Button onClick={handleExportClick} variant="outline">
+              {t("exportAccountDataAction")}
+            </Button>
+            <Button onClick={handleDeleteClick} variant="destructive">
+              {t("deleteAccountAction")}
+            </Button>
+          </div>
+          {exportMessage ? (
+            <p className="text-muted-foreground text-sm">{exportMessage}</p>
+          ) : null}
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -152,6 +205,18 @@ export default function AccountSection() {
           ) : null}
         </div>
       )}
+      <ScopeConsentDialog
+        descriptionKey="calendarScopeConsentDescription"
+        onCancel={handleCalendarConsentCancel}
+        onConfirm={handleCalendarConsentConfirm}
+        open={isCalendarConsentOpen}
+        titleKey="connectGoogleCalendarAction"
+      />
+      <DeleteAccountDialog
+        onDeleted={handleAccountDeleted}
+        onOpenChange={setIsDeleteDialogOpen}
+        open={isDeleteDialogOpen}
+      />
     </div>
   );
 }

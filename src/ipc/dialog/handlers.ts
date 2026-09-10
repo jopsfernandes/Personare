@@ -43,3 +43,16 @@ export const selectBackupImportFile = os.handler(async () => {
 
   return filePaths[0];
 });
+
+export const selectAccountExportPath = os.handler(async () => {
+  const { canceled, filePath } = await electronDialog.showSaveDialog({
+    defaultPath: `personare-account-${new Date().toISOString().slice(0, 10)}.json`,
+    filters: [{ extensions: ["json"], name: "JSON" }],
+  });
+
+  if (canceled || !filePath) {
+    return null;
+  }
+
+  return filePath;
+});

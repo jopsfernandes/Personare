@@ -192,4 +192,53 @@ describe("dialog IPC namespace (Issue #13)", () => {
       await expect(dialogClient.selectBackupImportFile()).resolves.toBeNull();
     });
   });
+
+  describe("selectAccountExportPath (Issue #28)", () => {
+    it("exposes a selectAccountExportPath procedure", async () => {
+      const { dialog } = await import("@/ipc/dialog");
+
+      expect(dialog.selectAccountExportPath).toBeDefined();
+    });
+
+    it("opens a native save dialog restricted to the .json extension", async () => {
+      showSaveDialogMock.mockResolvedValue({
+        canceled: false,
+        filePath: "C:\\Users\\aluno\\Documents\\account.json",
+      });
+      const { dialog } = await import("@/ipc/dialog");
+      const dialogClient = createRouterClient(dialog);
+
+      await dialogClient.selectAccountExportPath();
+
+      expect(showSaveDialogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filters: [{ extensions: ["json"], name: "JSON" }],
+        })
+      );
+    });
+
+    it("returns the chosen path when the user picks a location", async () => {
+      showSaveDialogMock.mockResolvedValue({
+        canceled: false,
+        filePath: "C:\\Users\\aluno\\Documents\\account.json",
+      });
+      const { dialog } = await import("@/ipc/dialog");
+      const dialogClient = createRouterClient(dialog);
+
+      await expect(dialogClient.selectAccountExportPath()).resolves.toBe(
+        "C:\\Users\\aluno\\Documents\\account.json"
+      );
+    });
+
+    it("returns null when the user cancels the dialog", async () => {
+      showSaveDialogMock.mockResolvedValue({
+        canceled: true,
+        filePath: undefined,
+      });
+      const { dialog } = await import("@/ipc/dialog");
+      const dialogClient = createRouterClient(dialog);
+
+      await expect(dialogClient.selectAccountExportPath()).resolves.toBeNull();
+    });
+  });
 });

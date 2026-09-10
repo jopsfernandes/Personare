@@ -28,6 +28,24 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
     do `ts-fsrs` (pensado pra revisão de Flashcard na mesma sessão), agendando a próxima revisão minutos
     depois em vez de um intervalo real em dias -- `markActivityDifficulty` agora usa
     `enable_short_term: false`, então mesmo a primeira marcação já agenda um intervalo real.
+- **Requisitos de LGPD: exclusão de conta, exportação de dados, consentimento explícito** ([#28](https://github.com/jopsfernandes/Personare/issues/28)).
+  Implementado contra o backend compartilhado, escopado à **conta** (identidade no backend + conexão do
+  Google Calendar), não ao conteúdo de estudo local -- que já tem seu próprio CRUD/soft-delete por
+  entidade e exportação completa via Backup local (Issue #21).
+  - **"Exportar dados da conta"** (Configurações → Conta, visível só logado): salva um JSON com o perfil
+    e o status da conexão de Calendar mantidos pelo backend -- nunca inclui nenhum token. Deixa explícito
+    na UI que isso é diferente do Backup local.
+  - **"Excluir minha conta"**: diálogo de confirmação destrutiva (mesmo padrão da Issue #21) explicando
+    claramente o que é apagado (perfil e conexão do Calendar no backend) e o que **não** é apagado (todo
+    o conteúdo de estudo local). Ao confirmar, a sessão local é limpa exatamente como no logout.
+  - **`src/components/scope-consent-dialog.tsx` (novo, genérico)**: antes de abrir o OAuth do Google para
+    conectar o Calendar, o Personare agora mostra sua própria tela de consentimento, na própria
+    linguagem do produto, explicando o que o escopo faz e por quê -- distinta da tela de consentimento do
+    próprio Google (Issue #24), que está fora do nosso controle visual. Já preparado para a Issue #27
+    (Drive) reaproveitar com outra descrição quando existir.
+  - Cobertura de testes em `auth-ipc.test.ts`, `backend-client.test.ts`, `dialog-ipc.test.ts` e
+    `settings-page.test.tsx` (estendidos). 489/489 testes passando, sem regressão.
+
 - **Sincronização com Google Calendar (unidirecional)** ([#26](https://github.com/jopsfernandes/Personare/issues/26)).
   Adiciona sincronização unidirecional Personare → Google Calendar: cada `ReviewItem` pendente passa a
   poder aparecer como evento no Google Calendar do usuário. Nada vem de volta do Google Calendar para o
