@@ -505,6 +505,36 @@ describe("database schema (Issue #4)", () => {
       expect(found?.lastRating).toBe("again");
     });
 
+    /**
+     * RED phase (Issue #64, Spec Driven TDD): dueDate/lastReviewedAt use
+     * drizzle-orm's integer "timestamp" mode, which truncates to whole
+     * seconds on write. This test is expected to fail until the mode is
+     * switched to "timestamp_ms" in src/database/schema.ts.
+     */
+    it("preserves sub-second precision on dueDate and lastReviewedAt round-trips", () => {
+      const program = insertProgram(db);
+      const module_ = insertModule(db, program.id);
+      const deck = insertActivity(db, module_.id, { type: "flashcard_deck" });
+      const flashcard = insertFlashcard(db, deck.id);
+      const dueDate = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30 + 680);
+      const lastReviewedAt = new Date(Date.now() - 680);
+      const reviewItem = insertReviewItem(db, flashcard.id, { dueDate });
+
+      db.update(reviewItems)
+        .set({ lastReviewedAt })
+        .where(eq(reviewItems.id, reviewItem.id))
+        .run();
+
+      const found = db
+        .select()
+        .from(reviewItems)
+        .where(eq(reviewItems.id, reviewItem.id))
+        .get();
+
+      expect(found?.dueDate?.getTime()).toBe(dueDate.getTime());
+      expect(found?.lastReviewedAt?.getTime()).toBe(lastReviewedAt.getTime());
+    });
+
     it("does not require a Module or Program to exist directly on the row (decoupled from the content hierarchy)", () => {
       const columnNames = (
         db.$client.prepare("PRAGMA table_info(review_items)").all() as {
