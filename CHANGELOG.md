@@ -8,6 +8,29 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Added
 
+- **Sincronização com Google Calendar (unidirecional)** ([#26](https://github.com/jopsfernandes/Personare/issues/26)).
+  Adiciona sincronização unidirecional Personare → Google Calendar: cada `ReviewItem` pendente passa a
+  poder aparecer como evento no Google Calendar do usuário. Nada vem de volta do Google Calendar para o
+  Personare -- decisão de produto confirmada com o usuário antes do spec, sem merge/conflito (o
+  protocolo de sync multi-dispositivo continua formalmente em aberto, Fase 4).
+  - **Autorização separada do login** (Issue #25): novo botão "Conectar Google Calendar" em
+    Configurações → Conta, visível só quando logado, pedindo o escopo `calendar.events` (não o escopo
+    `calendar` completo) contra um segundo fluxo OAuth do backend compartilhado
+    (`jopsfernandes/study-butler-backend`, mesmo protocolo `personare://`, host diferente
+    `calendar-connect-callback`). `src/main.ts` agora despacha a URL de callback por hostname
+    (`getProtocolCallbackHost`) entre o fluxo de login e o de conexão do Calendar, mantendo os dois
+    handlers isolados.
+  - **Novo namespace de IPC/oRPC `calendarSync`** (`src/ipc/calendar-sync/`): `connect()`,
+    `getConnectionStatus()`, `sync(reviewItems)`. O JWT da sessão atual fica em memória
+    (`src/ipc/auth/state.ts`, `getAuthToken`/`setAuthToken`, novo) para ser anexado como Bearer nas
+    chamadas ao backend sem reler o arquivo criptografado a cada ação.
+  - **Botão "Sincronizar agora" na página Calendário**: reconcilia sob demanda contra o backend (cria,
+    atualiza ou remove eventos do Google Calendar refletindo a lista atual de revisões pendentes) --
+    sem sincronização automática em background, a issue pede só sob demanda.
+  - Cobertura de testes em `src/tests/unit/oauth-callback.test.ts`, `backend-client.test.ts`,
+    `calendar-sync-ipc.test.ts` (novo), `settings-page.test.tsx` e `calendar-page.test.tsx` (estendidos).
+    465/465 testes passando, sem regressão.
+
 - **Login com Google via OAuth no Electron** ([#25](https://github.com/jopsfernandes/Personare/issues/25)).
   Adiciona uma seção "Conta" em Configurações para entrar/sair com uma conta Google, contra o backend
   compartilhado `Study-Butler-Backend` (repositório separado, `jopsfernandes/study-butler-backend`), que

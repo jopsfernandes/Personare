@@ -24,3 +24,42 @@ export function parseOAuthCallback(url: string): OAuthCallbackResult | null {
     return null;
   }
 }
+
+/**
+ * Login (oauth-callback) and Calendar authorization
+ * (calendar-connect-callback, Issue #26) share the same registered
+ * protocol, so main.ts dispatches on this host to keep each flow's
+ * handler isolated.
+ */
+export function getProtocolCallbackHost(url: string): string | null {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+export type CalendarConnectCallbackResult =
+  | { connected: true }
+  | { error: string };
+
+export function parseCalendarConnectCallback(
+  url: string
+): CalendarConnectCallbackResult | null {
+  try {
+    const parsed = new URL(url);
+    const connected = parsed.searchParams.get("calendarConnected");
+    const error = parsed.searchParams.get("error");
+
+    if (connected === "true") {
+      return { connected: true };
+    }
+    if (error) {
+      return { error };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}

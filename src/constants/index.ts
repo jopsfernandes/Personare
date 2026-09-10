@@ -21,3 +21,4 @@ export const BACKEND_BASE_URL = "http://localhost:3333";
 
 export const OAUTH_PROTOCOL = "personare";
 export const OAUTH_REDIRECT_URI = `${OAUTH_PROTOCOL}://oauth-callback`;
+export const CALENDAR_CONNECT_REDIRECT_URI = `${OAUTH_PROTOCOL}://calendar-connect-callback`;

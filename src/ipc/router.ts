@@ -2,6 +2,7 @@ import { activities } from "./activities";
 import { app } from "./app";
 import { auth } from "./auth";
 import { backup } from "./backup";
+import { calendarSync } from "./calendar-sync";
 import { database } from "./database";
 import { dialog } from "./dialog";
 import { flashcards } from "./flashcards";
@@ -19,6 +20,7 @@ export const router = {
   app,
   auth,
   backup,
+  calendarSync,
   database,
   dialog,
   flashcards,
