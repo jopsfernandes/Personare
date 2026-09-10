@@ -8,12 +8,19 @@ import {
 import { UpdateSourceType, updateElectronApp } from "update-electron-app";
 import { createDatabaseClient } from "@/database/client";
 import { resolveMigrationsFolder, runMigrations } from "@/database/migrate";
+import { setAuthSession, setAuthTokenFilePath } from "@/ipc/auth/state";
 import { ipcContext } from "@/ipc/context";
 import { getDatabaseClient, setDatabaseClient } from "@/ipc/database/state";
 import { getOrCreateAppSettings } from "@/ipc/settings/handlers";
+import { loadToken, saveToken } from "@/main/auth-token-storage";
+import { fetchCurrentUser } from "@/main/backend-client";
 import { countDueReviews } from "@/main/due-reviews";
+import {
+  findOAuthCallbackUrl,
+  parseOAuthCallback,
+} from "@/main/oauth-callback";
 import { createPlaceholderTrayIcon } from "@/main/tray-icon";
-import { IPC_CHANNELS, inDevelopment } from "./constants";
+import { IPC_CHANNELS, inDevelopment, OAUTH_PROTOCOL } from "./constants";
 import { getBasePath } from "./utils/path";
 
 let mainWindow: BrowserWindow | undefined;
@@ -23,6 +30,16 @@ let tray: Tray | undefined;
 // distinguishes a real quit from the window's own close button, which
 // should minimize to the Tray instead (docs/specs/issue-20-notificacao-boot.md).
 let isQuitting = false;
+
+// Deep-linking (Issue #25, personare:// OAuth callback) requires a single
+// instance: on Windows/Linux, the OS launches a *second* process to deliver
+// the URL to an already-running app, which must hand it off to the first
+// instance via "second-instance" and then exit immediately.
+const gotTheSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!gotTheSingleInstanceLock) {
+  app.quit();
+}
 
 function createWindow() {
   const basePath = getBasePath();
@@ -165,40 +182,124 @@ function setupDatabase() {
   setDatabaseClient(db);
 }
 
-app.whenReady().then(async () => {
-  try {
-    const { wasOpenedAtLogin } = app.getLoginItemSettings();
+function getAuthTokenStoragePath() {
+  return path.join(app.getPath("userData"), "auth-token.enc");
+}
 
-    setupDatabase();
-    syncLoginItemSettingsWithSavedPreference();
-    createTray();
-
-    if (wasOpenedAtLogin) {
-      notifyDueReviewsIfAny();
-    } else {
-      createWindow();
+/**
+ * Per Electron's own documented pattern: when launched via `electron .`
+ * (dev), the real executable is the generic Electron binary, so the OS
+ * must be told to also pass the app's entry script back as an argument;
+ * when packaged, the app's own exe already is the thing to register.
+ */
+function registerOAuthProtocolClient() {
+  if (process.defaultApp) {
+    if (process.argv.length >= 2) {
+      app.setAsDefaultProtocolClient(OAUTH_PROTOCOL, process.execPath, [
+        path.resolve(process.argv[1]),
+      ]);
     }
-
-    await installExtensions();
-    checkForUpdates();
-    await setupORPC();
-  } catch (error) {
-    console.error("Error during app initialization:", error);
-  }
-});
-
-//osX only
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
-});
-
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
   } else {
-    showMainWindow();
+    app.setAsDefaultProtocolClient(OAUTH_PROTOCOL);
   }
-});
-//osX only ends
+}
+
+async function handleAuthCallbackUrl(url: string) {
+  const result = parseOAuthCallback(url);
+
+  if (!result || "error" in result) {
+    showMainWindow();
+    return;
+  }
+
+  const user = await fetchCurrentUser(result.token);
+
+  if (user) {
+    setAuthSession(user);
+    saveToken(getAuthTokenStoragePath(), result.token);
+  }
+
+  showMainWindow();
+}
+
+async function restoreSavedAuthSession() {
+  const tokenFilePath = getAuthTokenStoragePath();
+  setAuthTokenFilePath(tokenFilePath);
+
+  const token = loadToken(tokenFilePath);
+
+  if (!token) {
+    return;
+  }
+
+  const user = await fetchCurrentUser(token);
+
+  if (user) {
+    setAuthSession(user);
+  }
+}
+
+if (gotTheSingleInstanceLock) {
+  app.on("second-instance", (_event, argv) => {
+    showMainWindow();
+
+    const url = findOAuthCallbackUrl(argv);
+    if (url) {
+      handleAuthCallbackUrl(url);
+    }
+  });
+
+  // macOS delivers the personare:// URL via this event instead of argv.
+  app.on("open-url", (event, url) => {
+    event.preventDefault();
+    handleAuthCallbackUrl(url);
+  });
+
+  app.whenReady().then(async () => {
+    try {
+      const { wasOpenedAtLogin } = app.getLoginItemSettings();
+
+      registerOAuthProtocolClient();
+      setupDatabase();
+      syncLoginItemSettingsWithSavedPreference();
+      await restoreSavedAuthSession();
+      createTray();
+
+      if (wasOpenedAtLogin) {
+        notifyDueReviewsIfAny();
+      } else {
+        createWindow();
+      }
+
+      // Cold start on Windows/Linux: the OS launched this very instance
+      // because of a personare:// link, there is no "second-instance" event
+      // in that case since no instance was running yet.
+      const initialUrl = findOAuthCallbackUrl(process.argv);
+      if (initialUrl) {
+        await handleAuthCallbackUrl(initialUrl);
+      }
+
+      await installExtensions();
+      checkForUpdates();
+      await setupORPC();
+    } catch (error) {
+      console.error("Error during app initialization:", error);
+    }
+  });
+
+  //osX only
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") {
+      app.quit();
+    }
+  });
+
+  app.on("activate", () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    } else {
+      showMainWindow();
+    }
+  });
+  //osX only ends
+}

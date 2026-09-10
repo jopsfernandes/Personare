@@ -6,6 +6,9 @@ i18n.use(initReactI18next).init({
   resources: {
     en: {
       translation: {
+        accountSectionDescription:
+          "Sign in with your Google account to use features that depend on it (Calendar sync, Drive backup). The app continues to work fully without signing in.",
+        accountSectionTitle: "Account",
         activitiesPageTitle: "Activities",
         activitiesTableEmptyMessage: "No activities found.",
         activityTitleLabel: "Title",
@@ -70,6 +73,8 @@ i18n.use(initReactI18next).init({
         flashcardFrontLabel: "Front",
         flashcardsEmptyMessage: "No flashcards yet.",
         importBackupAction: "Import backup",
+        loginWithGoogleAction: "Sign in with Google",
+        logoutAction: "Sign out",
         madeBy: "Made by Personare",
         manageFlashcardsAction: "Manage flashcards",
         manageQuizQuestionsAction: "Manage questions",
@@ -106,10 +111,15 @@ i18n.use(initReactI18next).init({
         viewActivitiesAction: "View activities",
         viewModulesAction: "View modules",
         viewPdfAction: "View PDF",
+        waitingForGoogleLoginMessage:
+          "Waiting for you to finish signing in with Google in your browser...",
       },
     },
     "pt-BR": {
       translation: {
+        accountSectionDescription:
+          "Entre com sua conta Google para usar funcionalidades que dependem dela (sincronização de Calendário, backup no Drive). O app continua funcionando normalmente sem entrar.",
+        accountSectionTitle: "Conta",
         activitiesPageTitle: "Atividades",
         activitiesTableEmptyMessage: "Nenhuma atividade encontrada.",
         activityTitleLabel: "Título",
@@ -175,6 +185,8 @@ i18n.use(initReactI18next).init({
         flashcardFrontLabel: "Frente",
         flashcardsEmptyMessage: "Nenhum flashcard ainda.",
         importBackupAction: "Importar backup",
+        loginWithGoogleAction: "Entrar com Google",
+        logoutAction: "Sair da conta",
         madeBy: "Feito por Personare",
         manageFlashcardsAction: "Gerenciar flashcards",
         manageQuizQuestionsAction: "Gerenciar perguntas",
@@ -211,6 +223,8 @@ i18n.use(initReactI18next).init({
         viewActivitiesAction: "Ver atividades",
         viewModulesAction: "Ver módulos",
         viewPdfAction: "Ver PDF",
+        waitingForGoogleLoginMessage:
+          "Aguardando você concluir o login com o Google no navegador...",
       },
     },
   },

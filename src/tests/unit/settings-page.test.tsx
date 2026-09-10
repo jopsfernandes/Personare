@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import i18n from "i18next";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@/localization/i18n";
 
 /**
@@ -9,6 +9,10 @@ import "@/localization/i18n";
  * yet render a "Backup local" section, nor the export/import dialogs. Every
  * test below is expected to fail until the Developer implements
  * docs/specs/issue-21-backup-local.md AC-6.
+ *
+ * RED phase (Issue #25, Spec Driven TDD): the "Conta" section (Google
+ * login/logout) does not exist yet either -- see
+ * docs/specs/issue-25-oauth-login-electron.md.
  */
 
 vi.mock("@/actions/settings", () => ({
@@ -27,16 +31,24 @@ vi.mock("@/actions/backup", () => ({
   importBackup: vi.fn(),
 }));
 
+vi.mock("@/actions/auth", () => ({
+  getSession: vi.fn(),
+  login: vi.fn(),
+  logout: vi.fn(),
+}));
+
 const { getSettings } = await import("@/actions/settings");
 const { selectBackupExportPath, selectBackupImportFile } = await import(
   "@/actions/dialog"
 );
 const { exportBackup, importBackup } = await import("@/actions/backup");
+const { getSession, login, logout } = await import("@/actions/auth");
 const { SettingsPage } = await import("@/routes/settings");
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getSettings).mockResolvedValue({ autoStartEnabled: false });
+  vi.mocked(getSession).mockResolvedValue(null);
 });
 
 describe("SettingsPage backup section (Issue #21)", () => {
@@ -308,5 +320,96 @@ describe("SettingsPage backup section (Issue #21)", () => {
         screen.getByText(i18n.t("backupImportWarningMessage"))
       ).toBeInTheDocument();
     });
+  });
+});
+
+describe("SettingsPage account section (Issue #25)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows a login action when no one is logged in", async () => {
+    render(<SettingsPage />);
+
+    expect(
+      await screen.findByRole("button", {
+        name: i18n.t("loginWithGoogleAction"),
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("shows the logged-in user's profile and a logout action when a session exists", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      avatarUrl: null,
+      email: "aluno@example.com",
+      id: "user-1",
+      name: "Aluno",
+    });
+
+    render(<SettingsPage />);
+
+    expect(await screen.findByText("Aluno")).toBeInTheDocument();
+    expect(screen.getByText("aluno@example.com")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: i18n.t("logoutAction") })
+    ).toBeInTheDocument();
+  });
+
+  it("calls login() and then polls getSession() until a session appears", async () => {
+    const user = userEvent.setup({
+      advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
+    });
+    vi.mocked(getSession).mockResolvedValueOnce(null);
+    vi.mocked(login).mockResolvedValue(undefined);
+    render(<SettingsPage />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: i18n.t("loginWithGoogleAction"),
+      })
+    );
+
+    expect(login).toHaveBeenCalledTimes(1);
+
+    vi.mocked(getSession).mockResolvedValue({
+      avatarUrl: null,
+      email: "aluno@example.com",
+      id: "user-1",
+      name: "Aluno",
+    });
+
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
+
+    expect(await screen.findByText("Aluno")).toBeInTheDocument();
+  });
+
+  it("calls logout() and returns to the logged-out state", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      avatarUrl: null,
+      email: "aluno@example.com",
+      id: "user-1",
+      name: "Aluno",
+    });
+    vi.mocked(logout).mockResolvedValue(undefined);
+    const user = userEvent.setup({
+      advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
+    });
+    render(<SettingsPage />);
+    await screen.findByText("Aluno");
+
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("logoutAction") })
+    );
+
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(
+      await screen.findByRole("button", {
+        name: i18n.t("loginWithGoogleAction"),
+      })
+    ).toBeInTheDocument();
   });
 });
