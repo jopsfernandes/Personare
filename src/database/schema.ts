@@ -106,7 +106,7 @@ export const flashcards = sqliteTable("flashcards", {
 export const reviewItems = sqliteTable("review_items", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   difficulty: real("difficulty").notNull(),
-  dueDate: integer("due_date", { mode: "timestamp" }).notNull(),
+  dueDate: integer("due_date", { mode: "timestamp_ms" }).notNull(),
   flashcardId: text("flashcard_id")
     .notNull()
     .references(() => flashcards.id),
@@ -115,7 +115,7 @@ export const reviewItems = sqliteTable("review_items", {
     .$defaultFn(() => randomUUID()),
   lapses: integer("lapses").notNull().default(0),
   lastRating: text("last_rating").notNull(),
-  lastReviewedAt: integer("last_reviewed_at", { mode: "timestamp" }),
+  lastReviewedAt: integer("last_reviewed_at", { mode: "timestamp_ms" }),
   learningSteps: integer("learning_steps").notNull().default(0),
   ratingHistory: text("rating_history").notNull(),
   reps: integer("reps").notNull().default(0),

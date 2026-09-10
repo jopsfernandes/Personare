@@ -149,6 +149,12 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Fixed
 
+- **`review_items.due_date`/`last_reviewed_at` perdiam precisão de milissegundos** ([#64](https://github.com/jopsfernandes/Personare/issues/64)).
+  `src/database/schema.ts` usava `integer(..., { mode: "timestamp" })` do drizzle-orm para essas duas colunas, que trunca para segundos inteiros em todo round-trip via SQLite — bug pré-existente desde a migration fundacional, exposto pela primeira vez pela Issue #16 (FSRS, que escreve timestamps com precisão sub-segundo via `ts-fsrs`) e descoberto incidentalmente durante a Issue #18 (Calendário).
+  - Corrigido trocando o modo para `{ mode: "timestamp_ms" }` nas duas colunas — reinterpretação pura na camada do driver (o integer bruto já armazenado no SQLite não muda), sem impacto de DDL: `drizzle-kit generate` confirma que nenhuma migration nova é necessária.
+  - Novo teste de regressão em `src/tests/unit/schema.test.ts` (`review_items`), gravando e relendo `dueDate`/`lastReviewedAt` com milissegundos não-alinhados e conferindo o round-trip exato.
+  - 378/378 testes passando, sem regressão.
+
 - **Cascata de soft-delete ao excluir Programa/Módulo/Atividade** ([#22](https://github.com/jopsfernandes/Personare/issues/22)).
   Corrige um bug real: todo `softDelete` do app (`programs`, `modules`, `activities`, `flashcards`, `quiz.softDeleteQuestion`) setava `deletedAt` só na própria linha, sem propagar para as tabelas filhas. Isso já causava um efeito visível na Issue #18 (Calendário) — excluir um Módulo (ou Atividade, ou Programa) inteiro não removia seus Flashcards pendentes do Calendário, que continuavam aparecendo indefinidamente mesmo sem nenhum caminho de navegação de volta a eles na UI.
   - Novo módulo compartilhado `src/ipc/shared/cascade-soft-delete.ts`, com funções reaproveitáveis entre os handlers: excluir um **Programa** cascateia para seus Módulos → Atividades desses Módulos → Flashcards dessas Atividades; excluir um **Módulo** cascateia para suas Atividades → Flashcards; excluir uma **Atividade** cascateia para seus Flashcards (`flashcard_deck`) ou, no caso de `quiz`, para suas `quiz_questions` → `quiz_options`. Toda a cascata de uma mesma chamada usa o mesmo timestamp.
