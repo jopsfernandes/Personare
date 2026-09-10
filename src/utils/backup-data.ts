@@ -1,0 +1,68 @@
+import type { DatabaseClient } from "@/database/client";
+import {
+  activities,
+  appSettings,
+  flashcards,
+  modules,
+  programs,
+  quizOptions,
+  quizQuestions,
+  reviewItems,
+} from "@/database/schema";
+import type { BackupData } from "@/utils/backup-codec";
+
+export function collectBackupData(
+  db: DatabaseClient
+): Omit<BackupData, "exportedAt" | "version"> {
+  return {
+    activities: db.select().from(activities).all(),
+    appSettings: db.select().from(appSettings).all(),
+    flashcards: db.select().from(flashcards).all(),
+    modules: db.select().from(modules).all(),
+    programs: db.select().from(programs).all(),
+    quizOptions: db.select().from(quizOptions).all(),
+    quizQuestions: db.select().from(quizQuestions).all(),
+    reviewItems: db.select().from(reviewItems).all(),
+  };
+}
+
+export function restoreBackupData(
+  db: DatabaseClient,
+  data: Omit<BackupData, "exportedAt" | "version">
+): void {
+  db.transaction((tx) => {
+    tx.delete(reviewItems).run();
+    tx.delete(quizOptions).run();
+    tx.delete(quizQuestions).run();
+    tx.delete(flashcards).run();
+    tx.delete(activities).run();
+    tx.delete(modules).run();
+    tx.delete(programs).run();
+    tx.delete(appSettings).run();
+
+    if (data.programs.length > 0) {
+      tx.insert(programs).values(data.programs).run();
+    }
+    if (data.modules.length > 0) {
+      tx.insert(modules).values(data.modules).run();
+    }
+    if (data.activities.length > 0) {
+      tx.insert(activities).values(data.activities).run();
+    }
+    if (data.flashcards.length > 0) {
+      tx.insert(flashcards).values(data.flashcards).run();
+    }
+    if (data.quizQuestions.length > 0) {
+      tx.insert(quizQuestions).values(data.quizQuestions).run();
+    }
+    if (data.quizOptions.length > 0) {
+      tx.insert(quizOptions).values(data.quizOptions).run();
+    }
+    if (data.reviewItems.length > 0) {
+      tx.insert(reviewItems).values(data.reviewItems).run();
+    }
+    if (data.appSettings.length > 0) {
+      tx.insert(appSettings).values(data.appSettings).run();
+    }
+  });
+}
