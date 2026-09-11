@@ -24,6 +24,10 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
     (Flashcard-scoped e Activity-scoped), então essas Atividades também aparecem no Calendário.
   - `flashcard_deck` fica inalterado -- continua com um `ReviewItem` por Flashcard, sem `ReviewItem` no
     nível da Atividade.
+  - Corrigido durante validação manual: a primeira marcação de uma Atividade usava o scheduler default
+    do `ts-fsrs` (pensado pra revisão de Flashcard na mesma sessão), agendando a próxima revisão minutos
+    depois em vez de um intervalo real em dias -- `markActivityDifficulty` agora usa
+    `enable_short_term: false`, então mesmo a primeira marcação já agenda um intervalo real.
 - **Sincronização com Google Calendar (unidirecional)** ([#26](https://github.com/jopsfernandes/Personare/issues/26)).
   Adiciona sincronização unidirecional Personare → Google Calendar: cada `ReviewItem` pendente passa a
   poder aparecer como evento no Google Calendar do usuário. Nada vem de volta do Google Calendar para o

@@ -556,6 +556,28 @@ describe("review IPC namespace (Issue #16)", () => {
       expect(updated.lastReviewedAt).not.toBeNull();
     });
 
+    /**
+     * Regression: the default ts-fsrs scheduler (enable_short_term: true,
+     * used by Flashcard review) treats a first "good"/"easy" rating as a
+     * short-term learning step, scheduling the next due date minutes away
+     * -- confusing for a one-shot "I just finished this Activity" rating,
+     * reported as a strange same-day/2-day reschedule on a second mark.
+     * markActivityDifficulty passes shortTermEnabled: false so even the
+     * very first rating graduates straight to a real, whole-day interval.
+     */
+    it("schedules a real multi-day interval on the very first mark, not a short-term learning step minutes away", async () => {
+      const quiz = await createQuizActivity();
+
+      const updated = await reviewClient.markActivityDifficulty({
+        activityId: quiz.id,
+        rating: "good",
+      });
+
+      const hoursUntilDue =
+        (updated.dueDate.getTime() - Date.now()) / (1000 * 60 * 60);
+      expect(hoursUntilDue).toBeGreaterThanOrEqual(24);
+    });
+
     it("reuses the same review_item on a second call, applying the new rating on top of the FSRS state instead of creating a duplicate", async () => {
       const quiz = await createQuizActivity();
 

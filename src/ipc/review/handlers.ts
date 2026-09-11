@@ -53,11 +53,12 @@ function applyRatingToReviewItem(
   db: DatabaseClient,
   row: typeof reviewItemsTable.$inferSelect,
   rating: "again" | "hard" | "good" | "easy",
-  now: Date
+  now: Date,
+  options?: { shortTermEnabled?: boolean }
 ) {
   const reviewRow: ReviewItemRow = { ...row, state: row.state as StateType };
   const grade = RATING_TO_GRADE[rating];
-  const { card } = applyRating(reviewRow, grade, now);
+  const { card } = applyRating(reviewRow, grade, now, options);
   const fields = fromFsrsCard(card);
 
   const history = JSON.parse(row.ratingHistory) as {
@@ -293,7 +294,9 @@ export const markActivityDifficulty = os
         .get();
     }
 
-    return applyRatingToReviewItem(db, row, input.rating, now);
+    return applyRatingToReviewItem(db, row, input.rating, now, {
+      shortTermEnabled: false,
+    });
   });
 
 export const listActivityReviewState = os
