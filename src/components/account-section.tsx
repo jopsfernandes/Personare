@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getSession, login, logout } from "@/actions/auth";
+import {
+  connectCalendar,
+  getCalendarConnectionStatus,
+} from "@/actions/calendar-sync";
 import { Button } from "@/components/ui/button";
 
 const POLL_INTERVAL_MS = 2000;
@@ -17,10 +21,21 @@ export default function AccountSection() {
   const { t } = useTranslation();
   const [session, setSession] = useState<Session | null>(null);
   const [isAwaitingLogin, setIsAwaitingLogin] = useState(false);
+  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
+  const [isAwaitingCalendarConnect, setIsAwaitingCalendarConnect] =
+    useState(false);
 
   useEffect(() => {
     getSession().then(setSession);
   }, []);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    getCalendarConnectionStatus().then(setIsCalendarConnected);
+  }, [session]);
 
   useEffect(() => {
     if (!isAwaitingLogin) {
@@ -45,6 +60,29 @@ export default function AccountSection() {
     };
   }, [isAwaitingLogin]);
 
+  useEffect(() => {
+    if (!isAwaitingCalendarConnect) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      getCalendarConnectionStatus().then((connected) => {
+        if (connected) {
+          setIsCalendarConnected(true);
+          setIsAwaitingCalendarConnect(false);
+        }
+      });
+    }, POLL_INTERVAL_MS);
+    const timeout = setTimeout(() => {
+      setIsAwaitingCalendarConnect(false);
+    }, POLL_TIMEOUT_MS);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [isAwaitingCalendarConnect]);
+
   const handleLoginClick = useCallback(() => {
     login();
     setIsAwaitingLogin(true);
@@ -53,7 +91,13 @@ export default function AccountSection() {
   const handleLogoutClick = useCallback(() => {
     logout().then(() => {
       setSession(null);
+      setIsCalendarConnected(false);
     });
+  }, []);
+
+  const handleConnectCalendarClick = useCallback(() => {
+    connectCalendar();
+    setIsAwaitingCalendarConnect(true);
   }, []);
 
   return (
@@ -63,16 +107,38 @@ export default function AccountSection() {
         {t("accountSectionDescription")}
       </p>
       {session ? (
-        <div className="flex items-center gap-2">
-          <div className="flex flex-col">
-            <span>{session.name}</span>
-            <span className="text-muted-foreground text-sm">
-              {session.email}
-            </span>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex flex-col">
+              <span>{session.name}</span>
+              <span className="text-muted-foreground text-sm">
+                {session.email}
+              </span>
+            </div>
+            <Button onClick={handleLogoutClick} variant="outline">
+              {t("logoutAction")}
+            </Button>
           </div>
-          <Button onClick={handleLogoutClick} variant="outline">
-            {t("logoutAction")}
-          </Button>
+          {isCalendarConnected ? (
+            <p className="text-muted-foreground text-sm">
+              {t("calendarConnectedLabel")}
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Button
+                disabled={isAwaitingCalendarConnect}
+                onClick={handleConnectCalendarClick}
+                variant="outline"
+              >
+                {t("connectGoogleCalendarAction")}
+              </Button>
+              {isAwaitingCalendarConnect ? (
+                <p className="text-muted-foreground text-sm">
+                  {t("waitingForCalendarConnectMessage")}
+                </p>
+              ) : null}
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-2">

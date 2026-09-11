@@ -7,6 +7,8 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import i18n from "i18next";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@/localization/i18n";
@@ -53,10 +55,18 @@ vi.mock("@/components/reui/event-calendar", () => ({
   EventCalendarNav: () => <div data-testid="event-calendar-nav" />,
 }));
 
+vi.mock("@/actions/calendar-sync", () => ({
+  getCalendarConnectionStatus: vi.fn(),
+  syncCalendar: vi.fn(),
+}));
+
 const { ensureReviewItems, listSchedule, toCalendarEvents } = await import(
   "@/actions/calendar"
 );
 const { EventCalendar } = await import("@/components/reui/event-calendar");
+const { getCalendarConnectionStatus, syncCalendar } = await import(
+  "@/actions/calendar-sync"
+);
 const { CalendarPage } = await import("@/routes/calendar");
 
 const SCHEDULE_ROWS = [
@@ -104,6 +114,7 @@ beforeEach(() => {
   vi.mocked(ensureReviewItems).mockResolvedValue(undefined);
   vi.mocked(listSchedule).mockResolvedValue(SCHEDULE_ROWS);
   vi.mocked(toCalendarEvents).mockReturnValue(MAPPED_EVENTS);
+  vi.mocked(getCalendarConnectionStatus).mockResolvedValue(false);
 });
 
 describe("CalendarPage (Issue #18)", () => {
@@ -144,5 +155,98 @@ describe("CalendarPage (Issue #18)", () => {
     expect(await screen.findByTestId("event-calendar")).toBeInTheDocument();
     expect(screen.getByTestId("event-calendar-nav")).toBeInTheDocument();
     expect(screen.getByTestId("event-calendar-content")).toBeInTheDocument();
+  });
+});
+
+describe("CalendarPage Google Calendar sync (Issue #26)", () => {
+  it("disables the sync action until the calendar is connected", async () => {
+    renderCalendarPage();
+
+    expect(
+      await screen.findByRole("button", { name: i18n.t("syncCalendarAction") })
+    ).toBeDisabled();
+  });
+
+  it("enables the sync action once the calendar is connected", async () => {
+    vi.mocked(getCalendarConnectionStatus).mockResolvedValue(true);
+    renderCalendarPage();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: i18n.t("syncCalendarAction") })
+      ).not.toBeDisabled();
+    });
+  });
+
+  it("syncs the currently loaded schedule rows and shows the reconciliation counts", async () => {
+    vi.mocked(getCalendarConnectionStatus).mockResolvedValue(true);
+    vi.mocked(syncCalendar).mockResolvedValue({
+      created: 1,
+      deleted: 0,
+      updated: 2,
+    });
+    const user = userEvent.setup();
+    renderCalendarPage();
+    const button = await screen.findByRole("button", {
+      name: i18n.t("syncCalendarAction"),
+    });
+    await waitFor(() => expect(button).not.toBeDisabled());
+
+    await user.click(button);
+
+    await waitFor(() => {
+      expect(syncCalendar).toHaveBeenCalledWith([
+        {
+          dueDate: "2026-02-01T00:00:00.000Z",
+          front: "Brasilia",
+          id: "r1",
+        },
+      ]);
+    });
+    expect(
+      await screen.findByText(
+        i18n.t("calendarSyncResultMessage", {
+          created: 1,
+          deleted: 0,
+          updated: 2,
+        })
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("shows a not-connected message when the backend reports calendar_not_connected", async () => {
+    vi.mocked(getCalendarConnectionStatus).mockResolvedValue(true);
+    vi.mocked(syncCalendar).mockResolvedValue({
+      error: "calendar_not_connected",
+    });
+    const user = userEvent.setup();
+    renderCalendarPage();
+    const button = await screen.findByRole("button", {
+      name: i18n.t("syncCalendarAction"),
+    });
+    await waitFor(() => expect(button).not.toBeDisabled());
+
+    await user.click(button);
+
+    expect(
+      await screen.findByText(i18n.t("calendarNotConnectedErrorMessage"))
+    ).toBeInTheDocument();
+  });
+
+  it("shows a generic error message when syncCalendar rejects", async () => {
+    vi.mocked(getCalendarConnectionStatus).mockResolvedValue(true);
+    vi.mocked(syncCalendar).mockRejectedValue(new Error("network error"));
+    const user = userEvent.setup();
+    renderCalendarPage();
+    const button = await screen.findByRole("button", {
+      name: i18n.t("syncCalendarAction"),
+    });
+    await waitFor(() => expect(button).not.toBeDisabled());
+
+    await user.click(button);
+
+    expect(
+      await screen.findByText(i18n.t("calendarSyncErrorMessage"))
+    ).toBeInTheDocument();
   });
 });

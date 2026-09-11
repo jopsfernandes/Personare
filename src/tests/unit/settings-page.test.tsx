@@ -37,17 +37,27 @@ vi.mock("@/actions/auth", () => ({
   logout: vi.fn(),
 }));
 
+vi.mock("@/actions/calendar-sync", () => ({
+  connectCalendar: vi.fn(),
+  getCalendarConnectionStatus: vi.fn(),
+  syncCalendar: vi.fn(),
+}));
+
 const { getSettings } = await import("@/actions/settings");
 const { selectBackupExportPath, selectBackupImportFile } = await import(
   "@/actions/dialog"
 );
 const { exportBackup, importBackup } = await import("@/actions/backup");
 const { getSession, login, logout } = await import("@/actions/auth");
+const { connectCalendar, getCalendarConnectionStatus } = await import(
+  "@/actions/calendar-sync"
+);
 const { SettingsPage } = await import("@/routes/settings");
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getSettings).mockResolvedValue({ autoStartEnabled: false });
+  vi.mocked(getCalendarConnectionStatus).mockResolvedValue(false);
   vi.mocked(getSession).mockResolvedValue(null);
 });
 
@@ -410,6 +420,73 @@ describe("SettingsPage account section (Issue #25)", () => {
       await screen.findByRole("button", {
         name: i18n.t("loginWithGoogleAction"),
       })
+    ).toBeInTheDocument();
+  });
+
+  it("shows a connect-calendar action when logged in but not connected", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      avatarUrl: null,
+      email: "aluno@example.com",
+      id: "user-1",
+      name: "Aluno",
+    });
+
+    render(<SettingsPage />);
+
+    expect(
+      await screen.findByRole("button", {
+        name: i18n.t("connectGoogleCalendarAction"),
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("shows the connected label instead of the action once the calendar is connected", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      avatarUrl: null,
+      email: "aluno@example.com",
+      id: "user-1",
+      name: "Aluno",
+    });
+    vi.mocked(getCalendarConnectionStatus).mockResolvedValue(true);
+
+    render(<SettingsPage />);
+
+    expect(
+      await screen.findByText(i18n.t("calendarConnectedLabel"))
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: i18n.t("connectGoogleCalendarAction"),
+      })
+    ).not.toBeInTheDocument();
+  });
+
+  it("calls connectCalendar() and then polls the connection status until connected", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      avatarUrl: null,
+      email: "aluno@example.com",
+      id: "user-1",
+      name: "Aluno",
+    });
+    vi.mocked(connectCalendar).mockResolvedValue(undefined);
+    const user = userEvent.setup({
+      advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
+    });
+    render(<SettingsPage />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: i18n.t("connectGoogleCalendarAction"),
+      })
+    );
+
+    expect(connectCalendar).toHaveBeenCalledTimes(1);
+
+    vi.mocked(getCalendarConnectionStatus).mockResolvedValue(true);
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
+
+    expect(
+      await screen.findByText(i18n.t("calendarConnectedLabel"))
     ).toBeInTheDocument();
   });
 });

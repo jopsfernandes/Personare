@@ -36,8 +36,15 @@ i18n.use(initReactI18next).init({
         backupSectionDescription:
           "Export all your data to an encrypted local file, or restore a previously exported one. Works independently of Google login. Importing a backup replaces all current data.",
         backupSectionTitle: "Local backup",
+        calendarConnectedLabel: "Google Calendar connected",
+        calendarNotConnectedErrorMessage:
+          "Connect Google Calendar in Settings first.",
+        calendarSyncErrorMessage: "Failed to sync with Google Calendar.",
+        calendarSyncResultMessage:
+          "{{created}} created, {{updated}} updated, {{deleted}} removed",
         cancelAction: "Cancel",
         confirmDeleteAction: "Delete",
+        connectGoogleCalendarAction: "Connect Google Calendar",
         createActivityAction: "New activity",
         createActivityTitle: "New activity",
         createModuleAction: "New module",
@@ -105,12 +112,15 @@ i18n.use(initReactI18next).init({
         selectPdfFileAction: "Select PDF file",
         settingsPageTitle: "Settings",
         startReviewAction: "Start review",
+        syncCalendarAction: "Sync now",
         takeQuizAction: "Take quiz",
         titleHomePage: "Home Page",
         titleSecondPage: "Second Page",
         viewActivitiesAction: "View activities",
         viewModulesAction: "View modules",
         viewPdfAction: "View PDF",
+        waitingForCalendarConnectMessage:
+          "Waiting for you to finish connecting Google Calendar in your browser...",
         waitingForGoogleLoginMessage:
           "Waiting for you to finish signing in with Google in your browser...",
       },
@@ -148,8 +158,15 @@ i18n.use(initReactI18next).init({
         backupSectionDescription:
           "Exporte todos os seus dados para um arquivo local criptografado, ou restaure um arquivo exportado anteriormente. Funciona independente de login Google. Importar um backup substitui todos os dados atuais.",
         backupSectionTitle: "Backup local",
+        calendarConnectedLabel: "Google Calendar conectado",
+        calendarNotConnectedErrorMessage:
+          "Conecte o Google Calendar em Configurações primeiro.",
+        calendarSyncErrorMessage: "Falha ao sincronizar com o Google Calendar.",
+        calendarSyncResultMessage:
+          "{{created}} criados, {{updated}} atualizados, {{deleted}} removidos",
         cancelAction: "Cancelar",
         confirmDeleteAction: "Excluir",
+        connectGoogleCalendarAction: "Conectar Google Calendar",
         createActivityAction: "Nova atividade",
         createActivityTitle: "Nova atividade",
         createModuleAction: "Novo módulo",
@@ -217,12 +234,15 @@ i18n.use(initReactI18next).init({
         selectPdfFileAction: "Selecionar arquivo PDF",
         settingsPageTitle: "Configurações",
         startReviewAction: "Iniciar revisão",
+        syncCalendarAction: "Sincronizar agora",
         takeQuizAction: "Responder quiz",
         titleHomePage: "Página Inicial",
         titleSecondPage: "Segunda Página",
         viewActivitiesAction: "Ver atividades",
         viewModulesAction: "Ver módulos",
         viewPdfAction: "Ver PDF",
+        waitingForCalendarConnectMessage:
+          "Aguardando você concluir a conexão do Google Calendar no navegador...",
         waitingForGoogleLoginMessage:
           "Aguardando você concluir o login com o Google no navegador...",
       },

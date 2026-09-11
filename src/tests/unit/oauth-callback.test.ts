@@ -66,3 +66,68 @@ describe("parseOAuthCallback", () => {
     expect(parseOAuthCallback("not a url at all")).toBeNull();
   });
 });
+
+describe("getProtocolCallbackHost (Issue #26)", () => {
+  it("returns the hostname of a personare:// callback URL", async () => {
+    const { getProtocolCallbackHost } = await import("@/main/oauth-callback");
+
+    expect(
+      getProtocolCallbackHost(
+        "personare://calendar-connect-callback?calendarConnected=true"
+      )
+    ).toBe("calendar-connect-callback");
+    expect(
+      getProtocolCallbackHost("personare://oauth-callback?token=abc")
+    ).toBe("oauth-callback");
+  });
+
+  it("returns null for an unparseable URL", async () => {
+    const { getProtocolCallbackHost } = await import("@/main/oauth-callback");
+
+    expect(getProtocolCallbackHost("not a url at all")).toBeNull();
+  });
+});
+
+describe("parseCalendarConnectCallback (Issue #26)", () => {
+  it("extracts success from a successful callback URL", async () => {
+    const { parseCalendarConnectCallback } = await import(
+      "@/main/oauth-callback"
+    );
+
+    expect(
+      parseCalendarConnectCallback(
+        "personare://calendar-connect-callback?calendarConnected=true"
+      )
+    ).toEqual({ connected: true });
+  });
+
+  it("extracts the error from a failed callback URL", async () => {
+    const { parseCalendarConnectCallback } = await import(
+      "@/main/oauth-callback"
+    );
+
+    expect(
+      parseCalendarConnectCallback(
+        "personare://calendar-connect-callback?error=no_refresh_token"
+      )
+    ).toEqual({ error: "no_refresh_token" });
+  });
+
+  it("returns null for a URL with neither calendarConnected nor error", async () => {
+    const { parseCalendarConnectCallback } = await import(
+      "@/main/oauth-callback"
+    );
+
+    expect(
+      parseCalendarConnectCallback("personare://calendar-connect-callback")
+    ).toBeNull();
+  });
+
+  it("returns null for an unparseable URL instead of throwing", async () => {
+    const { parseCalendarConnectCallback } = await import(
+      "@/main/oauth-callback"
+    );
+
+    expect(parseCalendarConnectCallback("not a url at all")).toBeNull();
+  });
+});

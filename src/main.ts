@@ -8,7 +8,12 @@ import {
 import { UpdateSourceType, updateElectronApp } from "update-electron-app";
 import { createDatabaseClient } from "@/database/client";
 import { resolveMigrationsFolder, runMigrations } from "@/database/migrate";
-import { setAuthSession, setAuthTokenFilePath } from "@/ipc/auth/state";
+import {
+  setAuthSession,
+  setAuthToken,
+  setAuthTokenFilePath,
+} from "@/ipc/auth/state";
+import { setCalendarConnected } from "@/ipc/calendar-sync/state";
 import { ipcContext } from "@/ipc/context";
 import { getDatabaseClient, setDatabaseClient } from "@/ipc/database/state";
 import { getOrCreateAppSettings } from "@/ipc/settings/handlers";
@@ -17,6 +22,8 @@ import { fetchCurrentUser } from "@/main/backend-client";
 import { countDueReviews } from "@/main/due-reviews";
 import {
   findOAuthCallbackUrl,
+  getProtocolCallbackHost,
+  parseCalendarConnectCallback,
   parseOAuthCallback,
 } from "@/main/oauth-callback";
 import { createPlaceholderTrayIcon } from "@/main/tray-icon";
@@ -204,7 +211,7 @@ function registerOAuthProtocolClient() {
   }
 }
 
-async function handleAuthCallbackUrl(url: string) {
+async function handleLoginCallback(url: string) {
   const result = parseOAuthCallback(url);
 
   if (!result || "error" in result) {
@@ -216,10 +223,36 @@ async function handleAuthCallbackUrl(url: string) {
 
   if (user) {
     setAuthSession(user);
+    setAuthToken(result.token);
     saveToken(getAuthTokenStoragePath(), result.token);
   }
 
   showMainWindow();
+}
+
+function handleCalendarConnectCallback(url: string) {
+  const result = parseCalendarConnectCallback(url);
+
+  if (result && "connected" in result) {
+    setCalendarConnected(true);
+  }
+
+  showMainWindow();
+}
+
+/**
+ * Login (Issue #25) and Calendar authorization (Issue #26) share the same
+ * registered personare:// protocol but land on different hosts
+ * (oauth-callback vs calendar-connect-callback) -- dispatch keeps each
+ * flow's handler isolated rather than overloading one function with both.
+ */
+function handleProtocolCallback(url: string) {
+  if (getProtocolCallbackHost(url) === "calendar-connect-callback") {
+    handleCalendarConnectCallback(url);
+    return;
+  }
+
+  handleLoginCallback(url);
 }
 
 async function restoreSavedAuthSession() {
@@ -236,6 +269,7 @@ async function restoreSavedAuthSession() {
 
   if (user) {
     setAuthSession(user);
+    setAuthToken(token);
   }
 }
 
@@ -245,14 +279,14 @@ if (gotTheSingleInstanceLock) {
 
     const url = findOAuthCallbackUrl(argv);
     if (url) {
-      handleAuthCallbackUrl(url);
+      handleProtocolCallback(url);
     }
   });
 
   // macOS delivers the personare:// URL via this event instead of argv.
   app.on("open-url", (event, url) => {
     event.preventDefault();
-    handleAuthCallbackUrl(url);
+    handleProtocolCallback(url);
   });
 
   app.whenReady().then(async () => {
@@ -276,7 +310,7 @@ if (gotTheSingleInstanceLock) {
       // in that case since no instance was running yet.
       const initialUrl = findOAuthCallbackUrl(process.argv);
       if (initialUrl) {
-        await handleAuthCallbackUrl(initialUrl);
+        handleProtocolCallback(initialUrl);
       }
 
       await installExtensions();
