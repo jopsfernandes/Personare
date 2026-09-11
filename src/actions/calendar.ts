@@ -1,4 +1,4 @@
-import { addDays } from "date-fns";
+import { addDays, startOfDay } from "date-fns";
 import type { CalendarEvent } from "@/components/reui/event-calendar";
 import { ipc } from "@/ipc/manager";
 
@@ -24,13 +24,23 @@ export function listSchedule() {
 export function toCalendarEvents(
   rows: ScheduleRow[]
 ): CalendarEvent<{ moduleId: string; programId: string }>[] {
-  return rows.map((row) => ({
-    allDay: true,
-    data: { moduleId: row.moduleId, programId: row.programId },
-    end: addDays(row.dueDate, 1),
-    id: row.id,
-    readOnly: true,
-    start: row.dueDate,
-    title: row.front ?? row.activityTitle,
-  }));
+  return rows.map((row) => {
+    // allDay bounds must already be display-zone midnights, or the
+    // calendar's own day-segmentation walks past the day it's stored on and
+    // paints the bar into the next day too (event-calendar-lib.tsx's
+    // segmentOccurrence contract) -- dueDate carries whatever time-of-day
+    // the review happened at, so it has to be floored to the local day
+    // first.
+    const day = startOfDay(row.dueDate);
+
+    return {
+      allDay: true,
+      data: { moduleId: row.moduleId, programId: row.programId },
+      end: addDays(day, 1),
+      id: row.id,
+      readOnly: true,
+      start: day,
+      title: row.front ?? row.activityTitle,
+    };
+  });
 }
