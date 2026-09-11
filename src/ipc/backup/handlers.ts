@@ -43,6 +43,13 @@ export const importBackup = os
 
     restoreBackupData(db, data);
 
+    /**
+     * Without this, the new process's own requestSingleInstanceLock() can
+     * lose the race against this process still holding it (Windows in
+     * particular), silently quitting itself with no window ever shown --
+     * the app looks like it "didn't reopen" after import.
+     */
+    app.releaseSingleInstanceLock();
     app.relaunch();
     app.exit(0);
   });

@@ -23,11 +23,14 @@ import { setDatabaseClient } from "@/ipc/database/state";
 
 const relaunchMock = vi.fn();
 const exitMock = vi.fn();
+const releaseSingleInstanceLockMock = vi.fn();
 
 vi.mock("electron", () => ({
   app: {
     exit: (...args: unknown[]) => exitMock(...args),
     relaunch: (...args: unknown[]) => relaunchMock(...args),
+    releaseSingleInstanceLock: (...args: unknown[]) =>
+      releaseSingleInstanceLockMock(...args),
   },
 }));
 
@@ -54,6 +57,7 @@ describe("backup IPC namespace (Issue #21)", () => {
     setDatabaseClient(db);
     relaunchMock.mockReset();
     exitMock.mockReset();
+    releaseSingleInstanceLockMock.mockReset();
     client = await loadClient();
   });
 
@@ -138,6 +142,17 @@ describe("backup IPC namespace (Issue #21)", () => {
 
       expect(relaunchMock).toHaveBeenCalledTimes(1);
       expect(exitMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("releases the single-instance lock before relaunching, so the new process can acquire it", async () => {
+      await client.exportBackup({ filePath: backupPath, passphrase: "abc123" });
+
+      await client.importBackup({ filePath: backupPath, passphrase: "abc123" });
+
+      expect(releaseSingleInstanceLockMock).toHaveBeenCalledTimes(1);
+      expect(releaseSingleInstanceLockMock.mock.invocationCallOrder[0]).toBeLessThan(
+        relaunchMock.mock.invocationCallOrder[0]
+      );
     });
 
     it("does not relaunch when the import fails", async () => {
