@@ -74,6 +74,19 @@ function createWindow() {
       return;
     }
 
+    /**
+     * Minimize-to-tray on close is a production-only UX choice (Issue #20).
+     * In development it hid the window while leaving `npm start`'s Electron
+     * process (and the Vite dev server it owns) running -- a stale process
+     * silently holding the single-instance lock for every future launch.
+     * Closing the window in dev should be a real quit instead.
+     */
+    if (inDevelopment) {
+      isQuitting = true;
+      app.quit();
+      return;
+    }
+
     event.preventDefault();
     window.hide();
   });
