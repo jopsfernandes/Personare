@@ -544,7 +544,6 @@ describe("database schema (Issue #4)", () => {
 
       expect(columnNames).not.toContain("module_id");
       expect(columnNames).not.toContain("program_id");
-      expect(columnNames).not.toContain("activity_id");
     });
 
     it("preserves its review history even after the underlying flashcard content changes", () => {

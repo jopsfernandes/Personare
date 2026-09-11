@@ -6,7 +6,8 @@ export interface ScheduleRow {
   activityId: string;
   activityTitle: string;
   dueDate: Date;
-  front: string;
+  /** Only set for a Flashcard-scoped row -- null for an Activity-scoped one (Issue #77). */
+  front: string | null;
   id: string;
   moduleId: string;
   programId: string;
@@ -30,6 +31,6 @@ export function toCalendarEvents(
     id: row.id,
     readOnly: true,
     start: row.dueDate,
-    title: row.front,
+    title: row.front ?? row.activityTitle,
   }));
 }

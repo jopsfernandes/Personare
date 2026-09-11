@@ -1,11 +1,15 @@
 import type { Card, Grade, ReviewLog, StateType } from "ts-fsrs";
 import { createEmptyCard, fsrs, State } from "ts-fsrs";
 
+/**
+ * Agnostic of which content it schedules (Flashcard or, since Issue #77, a
+ * whole quiz/pdf/link Activity) -- none of the FSRS math below reads a
+ * foreign key, only the FSRS state fields themselves.
+ */
 export interface ReviewItemRow {
   createdAt: Date;
   difficulty: number;
   dueDate: Date;
-  flashcardId: string;
   id: string;
   lapses: number;
   lastRating: string;

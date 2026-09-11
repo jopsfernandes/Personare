@@ -87,4 +87,20 @@ describe("toCalendarEvents (Issue #18)", () => {
   it("returns an empty array for an empty schedule", () => {
     expect(toCalendarEvents([])).toEqual([]);
   });
+
+  it("falls back to the activityTitle when front is null (Activity-scoped row, Issue #77)", () => {
+    const events = toCalendarEvents([
+      {
+        activityId: "a3",
+        activityTitle: "Quiz de Historia",
+        dueDate: new Date("2026-02-05T10:00:00Z"),
+        front: null,
+        id: "r3",
+        moduleId: "m3",
+        programId: "p3",
+      },
+    ]);
+
+    expect(events[0].title).toBe("Quiz de Historia");
+  });
 });

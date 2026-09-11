@@ -39,6 +39,7 @@ describe("backup-codec (Issue #21)", () => {
       quizQuestions: [],
       reviewItems: [
         {
+          activityId: null,
           createdAt: new Date("2025-06-01T00:00:00.000Z"),
           difficulty: 5,
           dueDate,

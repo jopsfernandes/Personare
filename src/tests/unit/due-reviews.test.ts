@@ -137,6 +137,58 @@ describe("countDueReviews (Issue #20)", () => {
     expect(countDueReviews(db, new Date())).toBe(0);
   });
 
+  /**
+   * RED phase (Issue #77, Spec Driven TDD): countDueReviews only counted
+   * the Flashcard-scoped branch (inner join on flashcards) so far, which by
+   * construction excludes any review_item whose flashcardId is null --
+   * these cover the new Activity-scoped branch (quiz/pdf/link review_items,
+   * created via review.markActivityDifficulty).
+   */
+  it("counts a due Activity-scoped review_item (quiz/pdf/link), not just Flashcard-scoped ones", async () => {
+    const module_ = await modulesClient.create({
+      name: "Modulo do Quiz",
+      programId: (await programsClient.create({ name: "Prog Q" })).id,
+    });
+    const quiz = await activitiesClient.create({
+      moduleId: module_.id,
+      title: "Quiz",
+      type: "quiz",
+    });
+    await reviewClient.markActivityDifficulty({
+      activityId: quiz.id,
+      rating: "good",
+    });
+    // markActivityDifficulty applies an FSRS rating immediately, which
+    // schedules dueDate ahead -- push it back to "now" to isolate what
+    // this test actually covers (the Activity-scoped join/filter), not
+    // ts-fsrs's own scheduling interval for a first "good" review.
+    db.update(reviewItemsTable)
+      .set({ dueDate: new Date() })
+      .where(eq(reviewItemsTable.activityId, quiz.id))
+      .run();
+
+    expect(countDueReviews(db, new Date())).toBe(1);
+  });
+
+  it("excludes an Activity-scoped review_item whose Activity was soft-deleted", async () => {
+    const module_ = await modulesClient.create({
+      name: "Modulo do Quiz",
+      programId: (await programsClient.create({ name: "Prog Q" })).id,
+    });
+    const quiz = await activitiesClient.create({
+      moduleId: module_.id,
+      title: "Quiz",
+      type: "quiz",
+    });
+    await reviewClient.markActivityDifficulty({
+      activityId: quiz.id,
+      rating: "good",
+    });
+    await activitiesClient.softDelete({ id: quiz.id });
+
+    expect(countDueReviews(db, new Date())).toBe(0);
+  });
+
   it("uses the given 'now' for the comparison, not the real current time", async () => {
     const deck = await createDeck();
     const flashcard = await createFlashcardWithReviewItem(deck.id);

@@ -30,7 +30,6 @@ const REVIEW_ROW: ReviewItemRow = {
   createdAt: new Date("2026-01-01T00:00:00Z"),
   difficulty: 5.2,
   dueDate: new Date("2026-01-10T00:00:00Z"),
-  flashcardId: "f1",
   id: "r1",
   lapses: 1,
   lastRating: "good",
