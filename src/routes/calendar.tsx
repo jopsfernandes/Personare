@@ -94,7 +94,7 @@ export function CalendarPage() {
     syncCalendar(
       scheduleRows.map((row) => ({
         dueDate: row.dueDate.toISOString(),
-        front: row.front,
+        front: row.front ?? row.activityTitle,
         id: row.id,
       }))
     )

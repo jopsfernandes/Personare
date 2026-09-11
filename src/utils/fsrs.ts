@@ -1,11 +1,34 @@
 import type { Card, Grade, ReviewLog, StateType } from "ts-fsrs";
-import { createEmptyCard, fsrs, State } from "ts-fsrs";
+import { createEmptyCard, fsrs, generatorParameters, State } from "ts-fsrs";
 
+/**
+ * ts-fsrs's default enable_short_term:true treats a rating as one step in
+ * same-session drilling -- a brand-new card's first "Good" schedules the
+ * next due date minutes away (a short learning step), only reaching a real
+ * multi-day interval once it "graduates" on a later rating. That fits
+ * Flashcard review (Issue #16): the user drills the same card repeatedly
+ * in one sitting. It does not fit markActivityDifficulty (Issue #77): one
+ * rating, once, for a whole Activity just finished -- with the default
+ * scheduler that first rating looked like a same-session step too,
+ * rescheduling minutes (not days) away, only reaching a sensible interval
+ * on a second rating shortly after (reported as a confusing ~2-day jump).
+ * enable_short_term:false makes every rating graduate straight to a real,
+ * whole-day interval, matching "I just finished this once" semantics.
+ */
+const shortTermScheduler = fsrs();
+const longTermScheduler = fsrs(
+  generatorParameters({ enable_short_term: false })
+);
+
+/**
+ * Agnostic of which content it schedules (Flashcard or, since Issue #77, a
+ * whole quiz/pdf/link Activity) -- none of the FSRS math below reads a
+ * foreign key, only the FSRS state fields themselves.
+ */
 export interface ReviewItemRow {
   createdAt: Date;
   difficulty: number;
   dueDate: Date;
-  flashcardId: string;
   id: string;
   lapses: number;
   lastRating: string;
@@ -67,9 +90,15 @@ export function toFsrsCard(row: ReviewItemRow): Card {
 export function applyRating(
   row: ReviewItemRow,
   rating: Grade,
-  now: Date
+  now: Date,
+  options?: { shortTermEnabled?: boolean }
 ): { card: Card; log: ReviewLog } {
-  return fsrs().next(toFsrsCard(row), now, rating);
+  const scheduler =
+    options?.shortTermEnabled === false
+      ? longTermScheduler
+      : shortTermScheduler;
+
+  return scheduler.next(toFsrsCard(row), now, rating);
 }
 
 export function fromFsrsCard(card: Card): ReviewItemUpdateFields {

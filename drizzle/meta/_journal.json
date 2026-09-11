@@ -50,6 +50,13 @@
       "when": 1788952281924,
       "tag": "0006_sad_sebastian_shaw",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1789116973641,
+      "tag": "0007_add_activity_id_to_review_items",
+      "breakpoints": true
     }
   ]
 }

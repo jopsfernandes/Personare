@@ -12,3 +12,12 @@ export const submitRatingInputSchema = z.object({
   rating: z.enum(["again", "hard", "good", "easy"]),
   reviewItemId: z.string(),
 });
+
+export const markActivityDifficultyInputSchema = z.object({
+  activityId: z.string(),
+  rating: z.enum(["again", "hard", "good", "easy"]),
+});
+
+export const listActivityReviewStateInputSchema = z.object({
+  moduleId: z.string(),
+});

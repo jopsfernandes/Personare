@@ -99,17 +99,21 @@ export const flashcards = sqliteTable("flashcards", {
 
 /**
  * ReviewItem is the first-class entity scheduled by FSRS, decoupled from the
- * content hierarchy: it references only the Flashcard that schedules it, not
- * the Module/Program/Activity above it. It preserves its review history even
- * after the underlying Flashcard content is edited.
+ * content hierarchy: it references only the Flashcard or Activity that
+ * schedules it, not the Module/Program above it. It preserves its review
+ * history even after the underlying content is edited.
+ *
+ * Exactly one of flashcardId/activityId is set (app-validated, same open
+ * discriminator style as activities.type -- not a DB CHECK constraint):
+ * flashcardId for an individual Flashcard inside a flashcard_deck Activity,
+ * activityId for a quiz/pdf/link Activity reviewed as a whole (Issue #77).
  */
 export const reviewItems = sqliteTable("review_items", {
+  activityId: text("activity_id").references(() => activities.id),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   difficulty: real("difficulty").notNull(),
   dueDate: integer("due_date", { mode: "timestamp_ms" }).notNull(),
-  flashcardId: text("flashcard_id")
-    .notNull()
-    .references(() => flashcards.id),
+  flashcardId: text("flashcard_id").references(() => flashcards.id),
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),

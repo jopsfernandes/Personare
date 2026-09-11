@@ -1,4 +1,6 @@
+import { format } from "date-fns";
 import {
+  CheckCircle2,
   ExternalLink,
   FileText,
   Layers,
@@ -25,6 +27,11 @@ export interface Activity {
   url: string | null;
 }
 
+export interface ActivityReviewState {
+  dueDate: Date;
+  lastRating: string;
+}
+
 const ACTIVITY_TYPE_TRANSLATION_KEYS: Record<string, string> = {
   flashcard_deck: "activityTypeFlashcardDeck",
   link: "activityTypeLink",
@@ -32,15 +39,31 @@ const ACTIVITY_TYPE_TRANSLATION_KEYS: Record<string, string> = {
   quiz: "activityTypeQuiz",
 };
 
+/**
+ * flashcard_deck already has its own per-Flashcard review flow
+ * (onStartReview) -- markActivityDifficulty (Issue #77) is only for the 3
+ * types that never had any FSRS scheduling before.
+ */
+const MARKABLE_ACTIVITY_TYPES = new Set(["link", "pdf", "quiz"]);
+
+const RATING_TRANSLATION_KEYS: Record<string, string> = {
+  again: "ratingAgainAction",
+  easy: "ratingEasyAction",
+  good: "ratingGoodAction",
+  hard: "ratingHardAction",
+};
+
 interface ActivitiesDataTableProps {
   activities: Activity[];
   onEdit: (activity: Activity) => void;
   onManageFlashcards: (activity: Activity) => void;
   onManageQuiz: (activity: Activity) => void;
+  onMarkDifficulty: (activity: Activity) => void;
   onRequestDelete: (activity: Activity) => void;
   onStartReview: (activity: Activity) => void;
   onTakeQuiz: (activity: Activity) => void;
   onViewPdf: (activity: Activity) => void;
+  reviewStateByActivityId: Record<string, ActivityReviewState | undefined>;
 }
 
 interface ActivityRowProps {
@@ -48,10 +71,12 @@ interface ActivityRowProps {
   onEdit: (activity: Activity) => void;
   onManageFlashcards: (activity: Activity) => void;
   onManageQuiz: (activity: Activity) => void;
+  onMarkDifficulty: (activity: Activity) => void;
   onRequestDelete: (activity: Activity) => void;
   onStartReview: (activity: Activity) => void;
   onTakeQuiz: (activity: Activity) => void;
   onViewPdf: (activity: Activity) => void;
+  reviewState: ActivityReviewState | undefined;
 }
 
 function ActivityRow({
@@ -59,10 +84,12 @@ function ActivityRow({
   onEdit,
   onManageFlashcards,
   onManageQuiz,
+  onMarkDifficulty,
   onRequestDelete,
   onStartReview,
   onTakeQuiz,
   onViewPdf,
+  reviewState,
 }: ActivityRowProps) {
   const { t } = useTranslation();
 
@@ -100,6 +127,10 @@ function ActivityRow({
     onStartReview(activity);
   }, [onStartReview, activity]);
 
+  const handleMarkDifficultyClick = useCallback(() => {
+    onMarkDifficulty(activity);
+  }, [onMarkDifficulty, activity]);
+
   const typeTranslationKey =
     ACTIVITY_TYPE_TRANSLATION_KEYS[activity.type] ?? activity.type;
 
@@ -108,6 +139,17 @@ function ActivityRow({
       <td>{activity.title}</td>
       <td>
         <Badge>{t(typeTranslationKey)}</Badge>
+      </td>
+      <td>
+        {reviewState
+          ? t("activityReviewStateLabel", {
+              date: format(reviewState.dueDate, "yyyy-MM-dd"),
+              rating: t(
+                RATING_TRANSLATION_KEYS[reviewState.lastRating] ??
+                  reviewState.lastRating
+              ),
+            })
+          : null}
       </td>
       <td>
         {activity.type === "link" && (
@@ -170,6 +212,16 @@ function ActivityRow({
             <Repeat />
           </Button>
         )}
+        {MARKABLE_ACTIVITY_TYPES.has(activity.type) && (
+          <Button
+            aria-label={t("markActivityDoneAction")}
+            onClick={handleMarkDifficultyClick}
+            size="icon"
+            variant="ghost"
+          >
+            <CheckCircle2 />
+          </Button>
+        )}
         <Button
           aria-label={t("editActivityAction")}
           onClick={handleEditClick}
@@ -196,10 +248,12 @@ export default function ActivitiesDataTable({
   onEdit,
   onManageFlashcards,
   onManageQuiz,
+  onMarkDifficulty,
   onRequestDelete,
   onStartReview,
   onTakeQuiz,
   onViewPdf,
+  reviewStateByActivityId,
 }: ActivitiesDataTableProps) {
   const { t } = useTranslation();
 
@@ -217,10 +271,12 @@ export default function ActivitiesDataTable({
             onEdit={onEdit}
             onManageFlashcards={onManageFlashcards}
             onManageQuiz={onManageQuiz}
+            onMarkDifficulty={onMarkDifficulty}
             onRequestDelete={onRequestDelete}
             onStartReview={onStartReview}
             onTakeQuiz={onTakeQuiz}
             onViewPdf={onViewPdf}
+            reviewState={reviewStateByActivityId[activity.id]}
           />
         ))}
       </tbody>

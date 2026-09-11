@@ -84,10 +84,17 @@ const ACTIVITIES: Activity[] = [
   },
 ];
 
-function renderTable(activities: Activity[] = ACTIVITIES) {
+function renderTable(
+  activities: Activity[] = ACTIVITIES,
+  reviewStateByActivityId: Record<
+    string,
+    { dueDate: Date; lastRating: string } | undefined
+  > = {}
+) {
   const onEdit = vi.fn();
   const onManageFlashcards = vi.fn();
   const onManageQuiz = vi.fn();
+  const onMarkDifficulty = vi.fn();
   const onRequestDelete = vi.fn();
   const onStartReview = vi.fn();
   const onTakeQuiz = vi.fn();
@@ -99,10 +106,12 @@ function renderTable(activities: Activity[] = ACTIVITIES) {
       onEdit={onEdit}
       onManageFlashcards={onManageFlashcards}
       onManageQuiz={onManageQuiz}
+      onMarkDifficulty={onMarkDifficulty}
       onRequestDelete={onRequestDelete}
       onStartReview={onStartReview}
       onTakeQuiz={onTakeQuiz}
       onViewPdf={onViewPdf}
+      reviewStateByActivityId={reviewStateByActivityId}
     />
   );
 
@@ -110,6 +119,7 @@ function renderTable(activities: Activity[] = ACTIVITIES) {
     onEdit,
     onManageFlashcards,
     onManageQuiz,
+    onMarkDifficulty,
     onRequestDelete,
     onStartReview,
     onTakeQuiz,
@@ -365,6 +375,71 @@ describe("ActivitiesDataTable", () => {
     expect(onStartReview).toHaveBeenCalledTimes(1);
     expect(onStartReview).toHaveBeenCalledWith(ACTIVITIES[3]);
   });
+
+  /**
+   * RED phase (Issue #77, Spec Driven TDD): ActivitiesDataTable does not
+   * render a "mark as done" action yet -- these tests are expected to fail
+   * until it's added, visible only for quiz/pdf/link (not flashcard_deck,
+   * which already has its own per-Flashcard review flow via
+   * onStartReview). Mirrors onViewPdf/onManageQuiz: the table only bubbles
+   * the request up, since opening the difficulty dialog is the caller's
+   * responsibility.
+   */
+  it("renders a mark-as-done action only for link/quiz/pdf activities, not flashcard_deck", () => {
+    renderTable();
+
+    const markButtons = screen.getAllByRole("button", {
+      name: i18n.t("markActivityDoneAction"),
+    });
+
+    expect(markButtons).toHaveLength(3);
+  });
+
+  it("calls onMarkDifficulty with the corresponding activity when mark-as-done is triggered", async () => {
+    const user = userEvent.setup();
+    const { onMarkDifficulty } = renderTable();
+
+    const markButtons = screen.getAllByRole("button", {
+      name: i18n.t("markActivityDoneAction"),
+    });
+    await user.click(markButtons[0]);
+
+    expect(onMarkDifficulty).toHaveBeenCalledTimes(1);
+    expect(onMarkDifficulty).toHaveBeenCalledWith(ACTIVITIES[0]);
+  });
+
+  it("shows nothing about review state for an activity that was never marked", () => {
+    renderTable();
+
+    const ratingLabels = [
+      i18n.t("ratingAgainAction"),
+      i18n.t("ratingHardAction"),
+      i18n.t("ratingGoodAction"),
+      i18n.t("ratingEasyAction"),
+    ];
+    for (const label of ratingLabels) {
+      expect(screen.queryByText(label)).not.toBeInTheDocument();
+    }
+  });
+
+  it("shows the last rating and next review date for an activity with review state", () => {
+    const [, quiz] = ACTIVITIES;
+    renderTable(ACTIVITIES, {
+      [quiz.id]: {
+        dueDate: new Date("2026-03-15T12:00:00Z"),
+        lastRating: "good",
+      },
+    });
+
+    expect(
+      screen.getByText(
+        i18n.t("activityReviewStateLabel", {
+          date: "2026-03-15",
+          rating: i18n.t("ratingGoodAction"),
+        })
+      )
+    ).toBeInTheDocument();
+  });
 });
 
 describe("Activities screen i18n keys (Issue #10)", () => {
@@ -398,6 +473,10 @@ describe("Activities screen i18n keys (Issue #10)", () => {
     "manageFlashcardsAction",
     // Issue #16 (Motor FSRS: sessao de revisao do Baralho)
     "startReviewAction",
+    // Issue #77 (Dificuldade percebida em Quiz/PDF/Link -> FSRS)
+    "markActivityDoneAction",
+    "activityDifficultyPromptMessage",
+    "activityReviewStateLabel",
   ];
 
   it.each(["en", "pt-BR"] as const)(

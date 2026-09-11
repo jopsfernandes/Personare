@@ -1,3 +1,4 @@
+import { startOfDay } from "date-fns";
 import { describe, expect, it } from "vitest";
 import { type ScheduleRow, toCalendarEvents } from "@/actions/calendar";
 
@@ -12,8 +13,13 @@ import { type ScheduleRow, toCalendarEvents } from "@/actions/calendar";
  * installs that component; this test does not depend on it or import it,
  * only on the plain-object shape the spec documents):
  *
- * - `allDay: true`, `start: dueDate`, `end: dueDate + 1 day` (exclusive end,
- *   matching the library's documented single full-day event pattern).
+ * - `allDay: true`, `start`/`end` floored to the local day dueDate falls on
+ *   (start of that day, end at start of the next) -- event-calendar-lib.tsx
+ *   documents that an allDay occurrence's bounds must already be
+ *   display-zone midnights, or its day-by-day segmentation walks past the
+ *   scheduled day and paints the bar into the next day too (reported as a
+ *   review event visually spanning two days when dueDate still carried the
+ *   time-of-day the review happened at).
  * - `readOnly: true` on every event -- the calendar is read-only, and this
  *   is the second layer of protection against accidental edits (the first
  *   being `interactions={{ drag: false, resize: false, selectSlot: false }}`
@@ -56,12 +62,17 @@ describe("toCalendarEvents (Issue #18)", () => {
     expect(events.map((event) => event.id)).toEqual(["r1", "r2"]);
   });
 
-  it("marks every event as allDay, starting at dueDate and ending one day later", () => {
+  it("marks every event as allDay, floored to the local day dueDate falls on and ending the next day", () => {
     const events = toCalendarEvents(SCHEDULE_ROWS);
+    const dayStart = startOfDay(SCHEDULE_ROWS[0].dueDate);
 
     expect(events[0].allDay).toBe(true);
-    expect(events[0].start).toEqual(SCHEDULE_ROWS[0].dueDate);
-    expect(events[0].end).toEqual(new Date("2026-02-02T10:00:00Z"));
+    expect(events[0].start).toEqual(dayStart);
+    expect(events[0].start.getHours()).toBe(0);
+    expect(events[0].start.getMinutes()).toBe(0);
+    expect(events[0].end.getTime() - dayStart.getTime()).toBe(
+      24 * 60 * 60 * 1000
+    );
   });
 
   it("marks every event as readOnly, so the calendar cannot edit review_items", () => {
@@ -86,5 +97,21 @@ describe("toCalendarEvents (Issue #18)", () => {
 
   it("returns an empty array for an empty schedule", () => {
     expect(toCalendarEvents([])).toEqual([]);
+  });
+
+  it("falls back to the activityTitle when front is null (Activity-scoped row, Issue #77)", () => {
+    const events = toCalendarEvents([
+      {
+        activityId: "a3",
+        activityTitle: "Quiz de Historia",
+        dueDate: new Date("2026-02-05T10:00:00Z"),
+        front: null,
+        id: "r3",
+        moduleId: "m3",
+        programId: "p3",
+      },
+    ]);
+
+    expect(events[0].title).toBe("Quiz de Historia");
   });
 });

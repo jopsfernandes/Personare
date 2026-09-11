@@ -8,9 +8,12 @@ import {
   softDeleteActivity,
   updateActivity,
 } from "@/actions/activities";
+import { listActivityReviewState } from "@/actions/review";
 import ActivitiesDataTable, {
   type Activity,
+  type ActivityReviewState,
 } from "@/components/activities-data-table";
+import ActivityDifficultyDialog from "@/components/activity-difficulty-dialog";
 import ActivityFormDialog from "@/components/activity-form-dialog";
 import DeleteActivityDialog from "@/components/delete-activity-dialog";
 import FlashcardManagerDialog from "@/components/flashcard-manager-dialog";
@@ -24,6 +27,9 @@ function ModuleActivitiesPage() {
   const { t } = useTranslation();
   const { moduleId } = Route.useParams();
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [reviewStateByActivityId, setReviewStateByActivityId] = useState<
+    Record<string, ActivityReviewState | undefined>
+  >({});
   const [, startTransition] = useTransition();
   const [formActivity, setFormActivity] = useState<Activity | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -41,6 +47,8 @@ function ModuleActivitiesPage() {
   const [activityInReview, setActivityInReview] = useState<Activity | null>(
     null
   );
+  const [activityMarkingDifficulty, setActivityMarkingDifficulty] =
+    useState<Activity | null>(null);
 
   const refreshActivities = useCallback(() => {
     startTransition(() => {
@@ -48,9 +56,25 @@ function ModuleActivitiesPage() {
     });
   }, [moduleId]);
 
+  const refreshReviewState = useCallback(() => {
+    listActivityReviewState(moduleId).then((rows) => {
+      setReviewStateByActivityId(
+        Object.fromEntries(
+          rows
+            .filter((row) => row.activityId !== null)
+            .map((row) => [
+              row.activityId as string,
+              { dueDate: row.dueDate, lastRating: row.lastRating },
+            ])
+        )
+      );
+    });
+  }, [moduleId]);
+
   useEffect(() => {
     refreshActivities();
-  }, [refreshActivities]);
+    refreshReviewState();
+  }, [refreshActivities, refreshReviewState]);
 
   const handleCreateClick = useCallback(() => {
     setFormActivity(null);
@@ -84,6 +108,10 @@ function ModuleActivitiesPage() {
 
   const handleStartReview = useCallback((activity: Activity) => {
     setActivityInReview(activity);
+  }, []);
+
+  const handleMarkDifficulty = useCallback((activity: Activity) => {
+    setActivityMarkingDifficulty(activity);
   }, []);
 
   const handleFormOpenChange = useCallback((open: boolean) => {
@@ -139,6 +167,12 @@ function ModuleActivitiesPage() {
     }
   }, []);
 
+  const handleDifficultyDialogOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setActivityMarkingDifficulty(null);
+    }
+  }, []);
+
   const handleDeleteDialogOpenChange = useCallback((open: boolean) => {
     if (!open) {
       setActivityPendingDelete(null);
@@ -167,10 +201,12 @@ function ModuleActivitiesPage() {
         onEdit={handleEdit}
         onManageFlashcards={handleManageFlashcards}
         onManageQuiz={handleManageQuiz}
+        onMarkDifficulty={handleMarkDifficulty}
         onRequestDelete={handleRequestDelete}
         onStartReview={handleStartReview}
         onTakeQuiz={handleTakeQuiz}
         onViewPdf={handleViewPdf}
+        reviewStateByActivityId={reviewStateByActivityId}
       />
       <ActivityFormDialog
         activity={formActivity}
@@ -208,6 +244,12 @@ function ModuleActivitiesPage() {
         activity={activityInReview}
         onOpenChange={handleReviewSessionOpenChange}
         open={activityInReview !== null}
+      />
+      <ActivityDifficultyDialog
+        activity={activityMarkingDifficulty}
+        onOpenChange={handleDifficultyDialogOpenChange}
+        onRated={refreshReviewState}
+        open={activityMarkingDifficulty !== null}
       />
     </div>
   );

@@ -501,6 +501,218 @@ describe("review IPC namespace (Issue #16)", () => {
   });
 
   /**
+   * RED phase (Issue #77, Spec Driven TDD): src/ipc/review does not expose
+   * a `markActivityDifficulty` procedure yet. Unlike Flashcard review
+   * (per-Flashcard review_items, created lazily by ensureReviewItems and
+   * rated one at a time via submitRating), a quiz/pdf/link Activity gets
+   * exactly one review_item for the whole Activity, get-or-created and
+   * rated in the same call -- there is no separate "ensure" step, since the
+   * only way this review_item is ever created is the user marking the
+   * Activity done with a rating.
+   */
+  describe("markActivityDifficulty", () => {
+    async function createQuizActivity() {
+      const created = await activitiesClient.create({
+        moduleId: (
+          await modulesClient.create({
+            name: "Modulo do Quiz",
+            programId: (await programsClient.create({ name: "Programa X" })).id,
+          })
+        ).id,
+        title: "Quiz de Historia",
+        type: "quiz",
+      });
+      return created;
+    }
+
+    it("creates a review_item scoped to the Activity (activityId, no flashcardId) on the first call", async () => {
+      const quiz = await createQuizActivity();
+
+      await reviewClient.markActivityDifficulty({
+        activityId: quiz.id,
+        rating: "good",
+      });
+
+      const rows = db
+        .select()
+        .from(reviewItemsTable)
+        .where(eq(reviewItemsTable.activityId, quiz.id))
+        .all();
+      expect(rows).toHaveLength(1);
+      expect(rows[0].flashcardId).toBeNull();
+      expect(rows[0].lastRating).toBe("good");
+    });
+
+    it("applies the FSRS rating immediately -- the first mark is a real review, not just creation", async () => {
+      const quiz = await createQuizActivity();
+
+      const updated = await reviewClient.markActivityDifficulty({
+        activityId: quiz.id,
+        rating: "good",
+      });
+
+      expect(updated.reps).toBe(1);
+      expect(updated.state).not.toBe("New");
+      expect(updated.lastReviewedAt).not.toBeNull();
+    });
+
+    /**
+     * Regression: the default ts-fsrs scheduler (enable_short_term: true,
+     * used by Flashcard review) treats a first "good"/"easy" rating as a
+     * short-term learning step, scheduling the next due date minutes away
+     * -- confusing for a one-shot "I just finished this Activity" rating,
+     * reported as a strange same-day/2-day reschedule on a second mark.
+     * markActivityDifficulty passes shortTermEnabled: false so even the
+     * very first rating graduates straight to a real, whole-day interval.
+     */
+    it("schedules a real multi-day interval on the very first mark, not a short-term learning step minutes away", async () => {
+      const quiz = await createQuizActivity();
+
+      const updated = await reviewClient.markActivityDifficulty({
+        activityId: quiz.id,
+        rating: "good",
+      });
+
+      const hoursUntilDue =
+        (updated.dueDate.getTime() - Date.now()) / (1000 * 60 * 60);
+      expect(hoursUntilDue).toBeGreaterThanOrEqual(24);
+    });
+
+    it("reuses the same review_item on a second call, applying the new rating on top of the FSRS state instead of creating a duplicate", async () => {
+      const quiz = await createQuizActivity();
+
+      await reviewClient.markActivityDifficulty({
+        activityId: quiz.id,
+        rating: "good",
+      });
+      await reviewClient.markActivityDifficulty({
+        activityId: quiz.id,
+        rating: "easy",
+      });
+
+      const rows = db
+        .select()
+        .from(reviewItemsTable)
+        .where(eq(reviewItemsTable.activityId, quiz.id))
+        .all();
+      expect(rows).toHaveLength(1);
+      expect(rows[0].reps).toBe(2);
+      expect(rows[0].lastRating).toBe("easy");
+    });
+
+    it("rejects a rating outside again/hard/good/easy", async () => {
+      const quiz = await createQuizActivity();
+
+      await expect(
+        reviewClient.markActivityDifficulty({
+          activityId: quiz.id,
+          rating: "manual",
+        })
+      ).rejects.toThrow();
+    });
+
+    it("keeps each Activity's review_item independent from another Activity's", async () => {
+      const first = await createQuizActivity();
+      const second = await createQuizActivity();
+
+      await reviewClient.markActivityDifficulty({
+        activityId: first.id,
+        rating: "again",
+      });
+      await reviewClient.markActivityDifficulty({
+        activityId: second.id,
+        rating: "easy",
+      });
+
+      const rows = db.select().from(reviewItemsTable).all();
+      expect(rows).toHaveLength(2);
+      expect(rows.map((row) => row.lastRating).sort()).toEqual([
+        "again",
+        "easy",
+      ]);
+    });
+  });
+
+  describe("listActivityReviewState", () => {
+    async function createQuizActivity(moduleId: string, title: string) {
+      return await activitiesClient.create({ moduleId, title, type: "quiz" });
+    }
+
+    it("returns an empty array when no Activity in the module has been marked yet", async () => {
+      const program = await programsClient.create({ name: "Programa Y" });
+      const module_ = await modulesClient.create({
+        name: "Modulo Y",
+        programId: program.id,
+      });
+
+      await expect(
+        reviewClient.listActivityReviewState({ moduleId: module_.id })
+      ).resolves.toEqual([]);
+    });
+
+    it("returns the activityId, lastRating and dueDate for a marked Activity in the module", async () => {
+      const program = await programsClient.create({ name: "Programa Y" });
+      const module_ = await modulesClient.create({
+        name: "Modulo Y",
+        programId: program.id,
+      });
+      const quiz = await createQuizActivity(module_.id, "Quiz 1");
+      await reviewClient.markActivityDifficulty({
+        activityId: quiz.id,
+        rating: "hard",
+      });
+
+      const state = await reviewClient.listActivityReviewState({
+        moduleId: module_.id,
+      });
+
+      expect(state).toHaveLength(1);
+      expect(state[0].activityId).toBe(quiz.id);
+      expect(state[0].lastRating).toBe("hard");
+      expect(state[0].dueDate).toBeInstanceOf(Date);
+    });
+
+    it("does not return review state for Activities in a different module", async () => {
+      const program = await programsClient.create({ name: "Programa Y" });
+      const moduleA = await modulesClient.create({
+        name: "Modulo A",
+        programId: program.id,
+      });
+      const moduleB = await modulesClient.create({
+        name: "Modulo B",
+        programId: program.id,
+      });
+      const quizInB = await createQuizActivity(moduleB.id, "Quiz de B");
+      await reviewClient.markActivityDifficulty({
+        activityId: quizInB.id,
+        rating: "good",
+      });
+
+      await expect(
+        reviewClient.listActivityReviewState({ moduleId: moduleA.id })
+      ).resolves.toEqual([]);
+    });
+
+    it("excludes a soft-deleted Activity", async () => {
+      const program = await programsClient.create({ name: "Programa Y" });
+      const module_ = await modulesClient.create({
+        name: "Modulo Y",
+        programId: program.id,
+      });
+      const quiz = await createQuizActivity(module_.id, "Quiz 1");
+      await reviewClient.markActivityDifficulty({
+        activityId: quiz.id,
+        rating: "good",
+      });
+      await activitiesClient.softDelete({ id: quiz.id });
+
+      await expect(
+        reviewClient.listActivityReviewState({ moduleId: module_.id })
+      ).resolves.toEqual([]);
+    });
+  });
+
+  /**
    * RED phase (Issue #18, Spec Driven TDD): src/ipc/review does not expose
    * a `listSchedule` procedure yet. Every test below is expected to fail
    * until the Developer implements it, per
@@ -634,6 +846,56 @@ describe("review IPC namespace (Issue #16)", () => {
 
       const afterDelete = await reviewClient.listSchedule();
       expect(afterDelete.map((item) => item.activityId)).not.toContain(deck.id);
+    });
+
+    /**
+     * RED phase (Issue #77, Spec Driven TDD): listSchedule only unions the
+     * Flashcard-scoped branch so far -- these cover the new Activity-scoped
+     * branch (quiz/pdf/link review_items, no flashcardId) added alongside
+     * markActivityDifficulty.
+     */
+    it("includes an Activity-scoped review_item (quiz/pdf/link), with front null since there is no Flashcard", async () => {
+      const quiz = await activitiesClient.create({
+        moduleId: (
+          await modulesClient.create({
+            name: "Modulo do Quiz",
+            programId: (await programsClient.create({ name: "Prog Z" })).id,
+          })
+        ).id,
+        title: "Quiz de Geografia",
+        type: "quiz",
+      });
+      await reviewClient.markActivityDifficulty({
+        activityId: quiz.id,
+        rating: "good",
+      });
+
+      const schedule = await reviewClient.listSchedule();
+
+      expect(schedule).toHaveLength(1);
+      expect(schedule[0].activityId).toBe(quiz.id);
+      expect(schedule[0].activityTitle).toBe("Quiz de Geografia");
+      expect(schedule[0].front).toBeNull();
+    });
+
+    it("excludes an Activity-scoped review_item whose Activity was soft-deleted", async () => {
+      const quiz = await activitiesClient.create({
+        moduleId: (
+          await modulesClient.create({
+            name: "Modulo do Quiz",
+            programId: (await programsClient.create({ name: "Prog Z" })).id,
+          })
+        ).id,
+        title: "Quiz de Geografia",
+        type: "quiz",
+      });
+      await reviewClient.markActivityDifficulty({
+        activityId: quiz.id,
+        rating: "good",
+      });
+      await activitiesClient.softDelete({ id: quiz.id });
+
+      await expect(reviewClient.listSchedule()).resolves.toEqual([]);
     });
   });
 });

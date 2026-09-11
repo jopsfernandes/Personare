@@ -30,7 +30,6 @@ const REVIEW_ROW: ReviewItemRow = {
   createdAt: new Date("2026-01-01T00:00:00Z"),
   difficulty: 5.2,
   dueDate: new Date("2026-01-10T00:00:00Z"),
-  flashcardId: "f1",
   id: "r1",
   lapses: 1,
   lastRating: "good",
@@ -144,6 +143,63 @@ describe("applyRating (Issue #16)", () => {
     const result = applyRating(REVIEW_ROW, Rating.Good, now);
 
     expect(result.card.due.getTime()).toBeGreaterThan(now.getTime());
+  });
+
+  /**
+   * RED phase (Issue #77 follow-up, Spec Driven TDD): applyRating does not
+   * accept a shortTermEnabled option yet. Default ts-fsrs behavior
+   * (enable_short_term: true, the Flashcard review default) schedules a
+   * brand-new card's first "Good"/"Easy" rating as a short learning step
+   * just minutes away, not the multi-day interval the stability value
+   * implies -- correct for a Flashcard drilled repeatedly in one sitting,
+   * but confusing for markActivityDifficulty's one-shot "I just finished
+   * this Quiz/PDF/Link, here's how hard it was" (a user reported this as
+   * a strange same-day/2-day reschedule). shortTermEnabled: false makes
+   * even the very first rating graduate straight to a real, whole-day
+   * interval.
+   */
+  it("schedules a real multi-day interval on the very first rating when shortTermEnabled is false", () => {
+    const now = new Date("2026-01-15T00:00:00Z");
+    const newCardRow: ReviewItemRow = {
+      ...REVIEW_ROW,
+      dueDate: now,
+      lapses: 0,
+      lastReviewedAt: null,
+      learningSteps: 0,
+      ratingHistory: "[]",
+      reps: 0,
+      state: "New",
+    };
+
+    const result = applyRating(newCardRow, Rating.Good, now, {
+      shortTermEnabled: false,
+    });
+
+    const hoursUntilDue =
+      (result.card.due.getTime() - now.getTime()) / (1000 * 60 * 60);
+    expect(hoursUntilDue).toBeGreaterThanOrEqual(24);
+    expect(result.card.state).toBe(State.Review);
+  });
+
+  it("defaults to the short-term (same-session drilling) scheduler, matching Flashcard review's existing behavior", () => {
+    const now = new Date("2026-01-15T00:00:00Z");
+    const newCardRow: ReviewItemRow = {
+      ...REVIEW_ROW,
+      dueDate: now,
+      lapses: 0,
+      lastReviewedAt: null,
+      learningSteps: 0,
+      ratingHistory: "[]",
+      reps: 0,
+      state: "New",
+    };
+
+    const result = applyRating(newCardRow, Rating.Good, now);
+
+    const hoursUntilDue =
+      (result.card.due.getTime() - now.getTime()) / (1000 * 60 * 60);
+    expect(hoursUntilDue).toBeLessThan(1);
+    expect(result.card.state).toBe(State.Learning);
   });
 });
 

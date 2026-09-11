@@ -8,6 +8,26 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Added
 
+- **Agendamento FSRS para Quiz/PDF/Link via dificuldade percebida** ([#77](https://github.com/jopsfernandes/Personare/issues/77)).
+  Resolve a decisão que `Plan.md` (seção 1.2) deixava formalmente em aberto: Atividades do tipo Quiz,
+  PDF e Link passam a poder ser agendadas pelo mesmo motor FSRS que já agenda Flashcards. Nova ação
+  "Marcar como concluído" na row da Atividade (visível só para quiz/pdf/link -- Baralho continua com seu
+  próprio fluxo por Flashcard) abre o mesmo passo de avaliação Again/Hard/Good/Easy da revisão de
+  Flashcard; a primeira marcação cria e já avalia um `ReviewItem` da Atividade inteira, marcações
+  seguintes reaproveitam esse mesmo `ReviewItem`. A row passa a mostrar a última dificuldade registrada e
+  a próxima data de revisão.
+  - `review_items.flashcard_id` vira opcional e ganha uma nova coluna opcional `activity_id` --
+    exatamente um dos dois preenchido, validado em app (mesmo padrão de `activities.type`, não um CHECK
+    de banco).
+  - Novos procedures `review.markActivityDifficulty` e `review.listActivityReviewState`; `review.listSchedule`
+    e `countDueReviews` (boot, notificação de revisões pendentes) passam a somar as duas origens
+    (Flashcard-scoped e Activity-scoped), então essas Atividades também aparecem no Calendário.
+  - `flashcard_deck` fica inalterado -- continua com um `ReviewItem` por Flashcard, sem `ReviewItem` no
+    nível da Atividade.
+  - Corrigido durante validação manual: a primeira marcação de uma Atividade usava o scheduler default
+    do `ts-fsrs` (pensado pra revisão de Flashcard na mesma sessão), agendando a próxima revisão minutos
+    depois em vez de um intervalo real em dias -- `markActivityDifficulty` agora usa
+    `enable_short_term: false`, então mesmo a primeira marcação já agenda um intervalo real.
 - **Sincronização com Google Calendar (unidirecional)** ([#26](https://github.com/jopsfernandes/Personare/issues/26)).
   Adiciona sincronização unidirecional Personare → Google Calendar: cada `ReviewItem` pendente passa a
   poder aparecer como evento no Google Calendar do usuário. Nada vem de volta do Google Calendar para o
