@@ -156,6 +156,31 @@ describe("CalendarPage (Issue #18)", () => {
     expect(screen.getByTestId("event-calendar-nav")).toBeInTheDocument();
     expect(screen.getByTestId("event-calendar-content")).toBeInTheDocument();
   });
+
+  /**
+   * The Calendar's own nav/view-switcher strings ("Today", "Month", ...)
+   * were hardcoded English regardless of the app's active language --
+   * EventCalendar already exposes an `i18n`/`locale` override for this
+   * (src/utils/event-calendar-i18n.ts bridges it to i18next's `t`), it just
+   * wasn't wired up.
+   */
+  it("passes translated i18n labels and a matching date-fns locale to EventCalendar", async () => {
+    renderCalendarPage();
+
+    await waitFor(() => {
+      const lastCall = vi.mocked(EventCalendar).mock.calls.at(-1);
+      expect(lastCall?.[0].i18n).toEqual(
+        expect.objectContaining({
+          labels: expect.objectContaining({
+            next: i18n.t("calendarNextAction"),
+            previous: i18n.t("calendarPreviousAction"),
+            today: i18n.t("calendarTodayAction"),
+          }),
+        })
+      );
+      expect(lastCall?.[0].locale?.code).toBe("en-US");
+    });
+  });
 });
 
 describe("CalendarPage Google Calendar sync (Issue #26)", () => {
