@@ -1,26 +1,30 @@
 {
   "name": "personare",
-  "productName": "Personare",
   "version": "0.1.0",
-  "description": "Dashboard desktop para academicos organizarem estudos com FSRS e curva do esquecimento",
-  "main": ".vite/build/main.js",
   "private": true,
+  "description": "Dashboard desktop para academicos organizarem estudos com FSRS e curva do esquecimento",
+  "license": "MIT",
+  "author": "Personare <contato@devfernandes.com>",
+  "main": ".vite/build/main.js",
   "scripts": {
-    "start": "electron-forge start",
-    "package": "electron-forge package",
-    "make": "electron-forge make",
-    "publish": "electron-forge publish",
+    "bump-ui": "tsx ./scripts/bump-ui.ts",
     "check": "ultracite check",
     "fix": "ultracite fix",
-    "bump-ui": "tsx ./scripts/bump-ui.ts",
+    "make": "electron-forge make",
+    "package": "electron-forge package",
+    "publish": "electron-forge publish",
+    "start": "electron-forge start",
     "test": "vitest run",
-    "test:watch": "vitest watch",
-    "test:unit": "vitest",
+    "test:all": "vitest run && playwright test",
     "test:e2e": "playwright test",
-    "test:all": "vitest run && playwright test"
+    "test:unit": "vitest",
+    "test:watch": "vitest watch"
   },
-  "author": "Personare <contato@devfernandes.com>",
-  "license": "MIT",
+  "overrides": {
+    "@electron-forge/plugin-fuses": {
+      "@electron/fuses": "^2"
+    }
+  },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",
     "@fontsource-variable/geist": "^5.2.9",
@@ -93,9 +97,5 @@
     "vite": "^8.2.1",
     "vitest": "^4.1.10"
   },
-  "overrides": {
-    "@electron-forge/plugin-fuses": {
-      "@electron/fuses": "^2"
-    }
-  }
+  "productName": "Personare"
 }
