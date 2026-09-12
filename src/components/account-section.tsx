@@ -6,6 +6,7 @@ import {
   getCalendarConnectionStatus,
 } from "@/actions/calendar-sync";
 import { selectAccountExportPath } from "@/actions/dialog";
+import { connectDrive, getDriveConnectionStatus } from "@/actions/drive-backup";
 import DeleteAccountDialog from "@/components/delete-account-dialog";
 import ScopeConsentDialog from "@/components/scope-consent-dialog";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,9 @@ export default function AccountSection() {
   const [isAwaitingCalendarConnect, setIsAwaitingCalendarConnect] =
     useState(false);
   const [isCalendarConsentOpen, setIsCalendarConsentOpen] = useState(false);
+  const [isDriveConnected, setIsDriveConnected] = useState(false);
+  const [isAwaitingDriveConnect, setIsAwaitingDriveConnect] = useState(false);
+  const [isDriveConsentOpen, setIsDriveConsentOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
 
@@ -41,6 +45,7 @@ export default function AccountSection() {
     }
 
     getCalendarConnectionStatus().then(setIsCalendarConnected);
+    getDriveConnectionStatus().then(setIsDriveConnected);
   }, [session]);
 
   useEffect(() => {
@@ -89,6 +94,29 @@ export default function AccountSection() {
     };
   }, [isAwaitingCalendarConnect]);
 
+  useEffect(() => {
+    if (!isAwaitingDriveConnect) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      getDriveConnectionStatus().then((connected) => {
+        if (connected) {
+          setIsDriveConnected(true);
+          setIsAwaitingDriveConnect(false);
+        }
+      });
+    }, POLL_INTERVAL_MS);
+    const timeout = setTimeout(() => {
+      setIsAwaitingDriveConnect(false);
+    }, POLL_TIMEOUT_MS);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [isAwaitingDriveConnect]);
+
   const handleLoginClick = useCallback(() => {
     login();
     setIsAwaitingLogin(true);
@@ -98,6 +126,7 @@ export default function AccountSection() {
     logout().then(() => {
       setSession(null);
       setIsCalendarConnected(false);
+      setIsDriveConnected(false);
     });
   }, []);
 
@@ -113,6 +142,20 @@ export default function AccountSection() {
     setIsCalendarConsentOpen(false);
     connectCalendar();
     setIsAwaitingCalendarConnect(true);
+  }, []);
+
+  const handleConnectDriveClick = useCallback(() => {
+    setIsDriveConsentOpen(true);
+  }, []);
+
+  const handleDriveConsentCancel = useCallback(() => {
+    setIsDriveConsentOpen(false);
+  }, []);
+
+  const handleDriveConsentConfirm = useCallback(() => {
+    setIsDriveConsentOpen(false);
+    connectDrive();
+    setIsAwaitingDriveConnect(true);
   }, []);
 
   const handleExportClick = useCallback(async () => {
@@ -140,6 +183,7 @@ export default function AccountSection() {
     setIsDeleteDialogOpen(false);
     setSession(null);
     setIsCalendarConnected(false);
+    setIsDriveConnected(false);
   }, []);
 
   return (
@@ -181,6 +225,26 @@ export default function AccountSection() {
               ) : null}
             </div>
           )}
+          {isDriveConnected ? (
+            <p className="text-muted-foreground text-sm">
+              {t("driveConnectedLabel")}
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Button
+                disabled={isAwaitingDriveConnect}
+                onClick={handleConnectDriveClick}
+                variant="outline"
+              >
+                {t("connectGoogleDriveAction")}
+              </Button>
+              {isAwaitingDriveConnect ? (
+                <p className="text-muted-foreground text-sm">
+                  {t("waitingForDriveConnectMessage")}
+                </p>
+              ) : null}
+            </div>
+          )}
           <div className="flex gap-2">
             <Button onClick={handleExportClick} variant="outline">
               {t("exportAccountDataAction")}
@@ -211,6 +275,13 @@ export default function AccountSection() {
         onConfirm={handleCalendarConsentConfirm}
         open={isCalendarConsentOpen}
         titleKey="connectGoogleCalendarAction"
+      />
+      <ScopeConsentDialog
+        descriptionKey="driveScopeConsentDescription"
+        onCancel={handleDriveConsentCancel}
+        onConfirm={handleDriveConsentConfirm}
+        open={isDriveConsentOpen}
+        titleKey="connectGoogleDriveAction"
       />
       <DeleteAccountDialog
         onDeleted={handleAccountDeleted}

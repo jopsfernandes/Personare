@@ -42,6 +42,7 @@ i18n.use(initReactI18next).init({
         backupSectionDescription:
           "Export all your data to an encrypted local file, or restore a previously exported one. Works independently of Google login. Importing a backup replaces all current data.",
         backupSectionTitle: "Local backup",
+        backupToDriveAction: "Back up to Google Drive",
         calendarAddEventAction: "Add event",
         calendarAllDayLabel: "All day",
         calendarConnectedLabel: "Google Calendar connected",
@@ -81,6 +82,7 @@ i18n.use(initReactI18next).init({
         cancelAction: "Cancel",
         confirmDeleteAction: "Delete",
         connectGoogleCalendarAction: "Connect Google Calendar",
+        connectGoogleDriveAction: "Connect Google Drive",
         continueAction: "Continue",
         createActivityAction: "New activity",
         createActivityTitle: "New activity",
@@ -107,6 +109,18 @@ i18n.use(initReactI18next).init({
         deleteProgramConfirmTitle: "Delete this program?",
         deleteQuizQuestionAction: "Delete question",
         documentation: "Documentation",
+        driveBackupErrorMessage:
+          "Failed to back up to Google Drive. Please try again.",
+        driveBackupSectionDescription:
+          "Back up your data to your Google Drive as an extra, off-device copy, or restore a previously made one. Complements local backup, does not replace it. Restoring replaces all current data.",
+        driveBackupSectionTitle: "Google Drive backup",
+        driveConnectedLabel: "Google Drive connected",
+        driveNoBackupFoundMessage: "No backup found in Google Drive yet.",
+        driveNotConnectedMessage: "Connect Google Drive in Settings first.",
+        driveRestoreErrorMessage:
+          "Incorrect passphrase or corrupted backup file.",
+        driveScopeConsentDescription:
+          "Personare will ask permission to create a single backup file in a private area of your Google Drive, invisible in your regular Drive files, used only to store your encrypted backup. You can disconnect this at any time.",
         editActivityAction: "Edit activity",
         editActivityTitle: "Edit activity",
         editFlashcardAction: "Edit flashcard",
@@ -148,6 +162,7 @@ i18n.use(initReactI18next).init({
         ratingGoodAction: "Good",
         ratingHardAction: "Hard",
         removeQuizOptionAction: "Remove option",
+        restoreFromDriveAction: "Restore from Google Drive",
         revealAnswerAction: "Reveal answer",
         reviewNothingDueMessage: "Nothing to review right now.",
         reviewSessionCompleteMessage: "Review session complete.",
@@ -164,6 +179,8 @@ i18n.use(initReactI18next).init({
         viewPdfAction: "View PDF",
         waitingForCalendarConnectMessage:
           "Waiting for you to finish connecting Google Calendar in your browser...",
+        waitingForDriveConnectMessage:
+          "Waiting for you to finish connecting Google Drive in your browser...",
         waitingForGoogleLoginMessage:
           "Waiting for you to finish signing in with Google in your browser...",
       },
@@ -208,6 +225,7 @@ i18n.use(initReactI18next).init({
         backupSectionDescription:
           "Exporte todos os seus dados para um arquivo local criptografado, ou restaure um arquivo exportado anteriormente. Funciona independente de login Google. Importar um backup substitui todos os dados atuais.",
         backupSectionTitle: "Backup local",
+        backupToDriveAction: "Fazer backup no Google Drive",
         calendarAddEventAction: "Adicionar evento",
         calendarAllDayLabel: "Dia inteiro",
         calendarConnectedLabel: "Google Calendar conectado",
@@ -247,6 +265,7 @@ i18n.use(initReactI18next).init({
         cancelAction: "Cancelar",
         confirmDeleteAction: "Excluir",
         connectGoogleCalendarAction: "Conectar Google Calendar",
+        connectGoogleDriveAction: "Conectar Google Drive",
         continueAction: "Continuar",
         createActivityAction: "Nova atividade",
         createActivityTitle: "Nova atividade",
@@ -273,6 +292,20 @@ i18n.use(initReactI18next).init({
         deleteProgramConfirmTitle: "Excluir este programa?",
         deleteQuizQuestionAction: "Excluir pergunta",
         documentation: "Documentação",
+        driveBackupErrorMessage:
+          "Falha ao fazer backup no Google Drive. Tente novamente.",
+        driveBackupSectionDescription:
+          "Faça backup dos seus dados no seu Google Drive como uma cópia extra fora do dispositivo, ou restaure um backup feito anteriormente. Complementar ao backup local, não o substitui. Restaurar substitui todos os dados atuais.",
+        driveBackupSectionTitle: "Backup no Google Drive",
+        driveConnectedLabel: "Google Drive conectado",
+        driveNoBackupFoundMessage:
+          "Nenhum backup encontrado no Google Drive ainda.",
+        driveNotConnectedMessage:
+          "Conecte o Google Drive em Configurações primeiro.",
+        driveRestoreErrorMessage:
+          "Senha incorreta ou arquivo de backup corrompido.",
+        driveScopeConsentDescription:
+          "O Personare vai pedir permissão para criar um único arquivo de backup em uma área privada do seu Google Drive, invisível nos seus arquivos normais do Drive, usado apenas para guardar seu backup criptografado. Você pode desconectar isso a qualquer momento.",
         editActivityAction: "Editar atividade",
         editActivityTitle: "Editar atividade",
         editFlashcardAction: "Editar flashcard",
@@ -314,6 +347,7 @@ i18n.use(initReactI18next).init({
         ratingGoodAction: "Bom",
         ratingHardAction: "Difícil",
         removeQuizOptionAction: "Remover opção",
+        restoreFromDriveAction: "Restaurar do Google Drive",
         revealAnswerAction: "Revelar resposta",
         reviewNothingDueMessage: "Nada para revisar agora.",
         reviewSessionCompleteMessage: "Sessão de revisão concluída.",
@@ -330,6 +364,8 @@ i18n.use(initReactI18next).init({
         viewPdfAction: "Ver PDF",
         waitingForCalendarConnectMessage:
           "Aguardando você concluir a conexão do Google Calendar no navegador...",
+        waitingForDriveConnectMessage:
+          "Aguardando você concluir a conexão do Google Drive no navegador...",
         waitingForGoogleLoginMessage:
           "Aguardando você concluir o login com o Google no navegador...",
       },

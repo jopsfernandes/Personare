@@ -171,6 +171,7 @@ describe("auth IPC namespace (Issue #25)", () => {
     it("writes the backend's export payload to filePath using the current session token", async () => {
       vi.mocked(fetchAccountExport).mockResolvedValue({
         googleCalendarConnected: false,
+        googleDriveConnected: false,
         profile: {
           avatarUrl: null,
           createdAt: "2026-01-01T00:00:00.000Z",
@@ -187,6 +188,7 @@ describe("auth IPC namespace (Issue #25)", () => {
       expect(fetchAccountExport).toHaveBeenCalledWith("the-jwt-token");
       expect(JSON.parse(fs.readFileSync(filePath, "utf-8"))).toEqual({
         googleCalendarConnected: false,
+        googleDriveConnected: false,
         profile: {
           avatarUrl: null,
           createdAt: "2026-01-01T00:00:00.000Z",

@@ -46,6 +46,13 @@ vi.mock("@/actions/calendar-sync", () => ({
   syncCalendar: vi.fn(),
 }));
 
+vi.mock("@/actions/drive-backup", () => ({
+  backupToDrive: vi.fn(),
+  connectDrive: vi.fn(),
+  getDriveConnectionStatus: vi.fn(),
+  restoreFromDrive: vi.fn(),
+}));
+
 const { getSettings } = await import("@/actions/settings");
 const {
   selectAccountExportPath,
@@ -58,12 +65,19 @@ const { deleteAccount, exportAccountData, getSession, login, logout } =
 const { connectCalendar, getCalendarConnectionStatus } = await import(
   "@/actions/calendar-sync"
 );
+const {
+  backupToDrive,
+  connectDrive,
+  getDriveConnectionStatus,
+  restoreFromDrive,
+} = await import("@/actions/drive-backup");
 const { SettingsPage } = await import("@/routes/settings");
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getSettings).mockResolvedValue({ autoStartEnabled: false });
   vi.mocked(getCalendarConnectionStatus).mockResolvedValue(false);
+  vi.mocked(getDriveConnectionStatus).mockResolvedValue(false);
   vi.mocked(getSession).mockResolvedValue(null);
 });
 
@@ -548,6 +562,99 @@ describe("SettingsPage account section (Issue #25)", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows a connect-drive action when logged in but not connected (Issue #27)", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      avatarUrl: null,
+      email: "aluno@example.com",
+      id: "user-1",
+      name: "Aluno",
+    });
+
+    render(<SettingsPage />);
+
+    expect(
+      await screen.findByRole("button", {
+        name: i18n.t("connectGoogleDriveAction"),
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("shows the connected label instead of the action once Drive is connected (Issue #27)", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      avatarUrl: null,
+      email: "aluno@example.com",
+      id: "user-1",
+      name: "Aluno",
+    });
+    vi.mocked(getDriveConnectionStatus).mockResolvedValue(true);
+
+    render(<SettingsPage />);
+
+    expect(
+      await screen.findByText(i18n.t("driveConnectedLabel"))
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: i18n.t("connectGoogleDriveAction"),
+      })
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows an explicit consent dialog before connecting Drive, without calling connectDrive() yet (Issue #27)", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      avatarUrl: null,
+      email: "aluno@example.com",
+      id: "user-1",
+      name: "Aluno",
+    });
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: i18n.t("connectGoogleDriveAction"),
+      })
+    );
+
+    expect(
+      await screen.findByText(i18n.t("driveScopeConsentDescription"))
+    ).toBeInTheDocument();
+    expect(connectDrive).not.toHaveBeenCalled();
+  });
+
+  it("calls connectDrive() only after confirming the consent dialog, then polls the connection status until connected (Issue #27)", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      avatarUrl: null,
+      email: "aluno@example.com",
+      id: "user-1",
+      name: "Aluno",
+    });
+    vi.mocked(connectDrive).mockResolvedValue(undefined);
+    const user = userEvent.setup({
+      advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
+    });
+    render(<SettingsPage />);
+    await user.click(
+      await screen.findByRole("button", {
+        name: i18n.t("connectGoogleDriveAction"),
+      })
+    );
+    await screen.findByText(i18n.t("driveScopeConsentDescription"));
+
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("continueAction") })
+    );
+
+    expect(connectDrive).toHaveBeenCalledTimes(1);
+
+    vi.mocked(getDriveConnectionStatus).mockResolvedValue(true);
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
+
+    expect(
+      await screen.findByText(i18n.t("driveConnectedLabel"))
+    ).toBeInTheDocument();
+  });
+
   describe("account data export (Issue #28)", () => {
     beforeEach(() => {
       vi.mocked(getSession).mockResolvedValue({
@@ -703,6 +810,197 @@ describe("SettingsPage account section (Issue #25)", () => {
       ).toBeInTheDocument();
       expect(
         screen.getByText(i18n.t("deleteAccountWarningMessage"))
+      ).toBeInTheDocument();
+    });
+  });
+});
+
+describe("SettingsPage Google Drive backup section (Issue #27)", () => {
+  beforeEach(() => {
+    vi.mocked(getSession).mockResolvedValue({
+      avatarUrl: null,
+      email: "aluno@example.com",
+      id: "user-1",
+      name: "Aluno",
+    });
+  });
+
+  it("does not render Drive backup actions when Drive is not connected", async () => {
+    render(<SettingsPage />);
+    await screen.findByText("Aluno");
+
+    expect(
+      screen.queryByRole("button", { name: i18n.t("backupToDriveAction") })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: i18n.t("restoreFromDriveAction") })
+    ).not.toBeInTheDocument();
+  });
+
+  describe("when Drive is connected", () => {
+    beforeEach(() => {
+      vi.mocked(getDriveConnectionStatus).mockResolvedValue(true);
+    });
+
+    it("renders backup and restore Drive actions", async () => {
+      render(<SettingsPage />);
+
+      expect(
+        await screen.findByRole("button", {
+          name: i18n.t("backupToDriveAction"),
+        })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: i18n.t("restoreFromDriveAction") })
+      ).toBeInTheDocument();
+    });
+
+    it("backs up with the typed passphrase when confirmed", async () => {
+      vi.mocked(backupToDrive).mockResolvedValue({ success: true });
+      const user = userEvent.setup();
+      render(<SettingsPage />);
+
+      await user.click(
+        await screen.findByRole("button", {
+          name: i18n.t("backupToDriveAction"),
+        })
+      );
+      await user.type(
+        screen.getByLabelText(i18n.t("backupPassphraseLabel")),
+        "senha-forte"
+      );
+      await user.type(
+        screen.getByLabelText(i18n.t("backupConfirmPassphraseLabel")),
+        "senha-forte"
+      );
+      await user.click(
+        screen.getByRole("button", { name: i18n.t("backupToDriveAction") })
+      );
+
+      await waitFor(() => {
+        expect(backupToDrive).toHaveBeenCalledWith("senha-forte");
+      });
+    });
+
+    it("shows an error message when the backend reports Drive is not connected", async () => {
+      vi.mocked(backupToDrive).mockResolvedValue({
+        error: "drive_not_connected",
+      });
+      const user = userEvent.setup();
+      render(<SettingsPage />);
+
+      await user.click(
+        await screen.findByRole("button", {
+          name: i18n.t("backupToDriveAction"),
+        })
+      );
+      await user.type(
+        screen.getByLabelText(i18n.t("backupPassphraseLabel")),
+        "senha-forte"
+      );
+      await user.type(
+        screen.getByLabelText(i18n.t("backupConfirmPassphraseLabel")),
+        "senha-forte"
+      );
+      await user.click(
+        screen.getByRole("button", { name: i18n.t("backupToDriveAction") })
+      );
+
+      expect(
+        await screen.findByText(i18n.t("driveNotConnectedMessage"))
+      ).toBeInTheDocument();
+    });
+
+    it("shows a destructive warning before restoring, without calling restoreFromDrive() yet", async () => {
+      const user = userEvent.setup();
+      render(<SettingsPage />);
+
+      await user.click(
+        await screen.findByRole("button", {
+          name: i18n.t("restoreFromDriveAction"),
+        })
+      );
+
+      expect(
+        await screen.findByText(i18n.t("backupImportWarningMessage"))
+      ).toBeInTheDocument();
+      expect(restoreFromDrive).not.toHaveBeenCalled();
+    });
+
+    it("restores with the typed passphrase when confirmed", async () => {
+      vi.mocked(restoreFromDrive).mockResolvedValue(undefined);
+      const user = userEvent.setup();
+      render(<SettingsPage />);
+
+      await user.click(
+        await screen.findByRole("button", {
+          name: i18n.t("restoreFromDriveAction"),
+        })
+      );
+      await user.type(
+        screen.getByLabelText(i18n.t("backupPassphraseLabel")),
+        "senha-forte"
+      );
+      await user.click(
+        screen.getByRole("button", {
+          name: i18n.t("backupImportConfirmAction"),
+        })
+      );
+
+      await waitFor(() => {
+        expect(restoreFromDrive).toHaveBeenCalledWith("senha-forte");
+      });
+    });
+
+    it("shows an error message when the passphrase is wrong", async () => {
+      vi.mocked(restoreFromDrive).mockRejectedValue(new Error("bad pass"));
+      const user = userEvent.setup();
+      render(<SettingsPage />);
+
+      await user.click(
+        await screen.findByRole("button", {
+          name: i18n.t("restoreFromDriveAction"),
+        })
+      );
+      await user.type(
+        screen.getByLabelText(i18n.t("backupPassphraseLabel")),
+        "senha-errada"
+      );
+      await user.click(
+        screen.getByRole("button", {
+          name: i18n.t("backupImportConfirmAction"),
+        })
+      );
+
+      expect(
+        await screen.findByText(i18n.t("driveRestoreErrorMessage"))
+      ).toBeInTheDocument();
+    });
+
+    it("shows a specific message when no backup exists yet", async () => {
+      vi.mocked(restoreFromDrive).mockResolvedValue({
+        error: "no_backup_found",
+      });
+      const user = userEvent.setup();
+      render(<SettingsPage />);
+
+      await user.click(
+        await screen.findByRole("button", {
+          name: i18n.t("restoreFromDriveAction"),
+        })
+      );
+      await user.type(
+        screen.getByLabelText(i18n.t("backupPassphraseLabel")),
+        "senha-forte"
+      );
+      await user.click(
+        screen.getByRole("button", {
+          name: i18n.t("backupImportConfirmAction"),
+        })
+      );
+
+      expect(
+        await screen.findByText(i18n.t("driveNoBackupFoundMessage"))
       ).toBeInTheDocument();
     });
   });

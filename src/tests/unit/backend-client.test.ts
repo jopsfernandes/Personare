@@ -276,3 +276,182 @@ describe("deleteAccount (Issue #28)", () => {
     await expect(deleteAccount("any-token")).resolves.toBe(false);
   });
 });
+
+/**
+ * RED phase (Issue #27, Spec Driven TDD): fetchDriveAuthorizationUrl/
+ * uploadDriveBackup/downloadDriveBackup do not exist yet. Mirror the
+ * corresponding Calendar sync (Issue #26) functions one call over.
+ */
+describe("fetchDriveAuthorizationUrl (Issue #27)", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the authorizationUrl when the backend accepts the token", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({ authorizationUrl: "https://accounts.google.com/x" }),
+        { status: 200 }
+      )
+    );
+    const { fetchDriveAuthorizationUrl } = await import(
+      "@/main/backend-client"
+    );
+
+    const url = await fetchDriveAuthorizationUrl(
+      "the-jwt-token",
+      "personare://drive-connect-callback"
+    );
+
+    expect(url).toBe("https://accounts.google.com/x");
+    const [requestUrl, options] = vi.mocked(fetch).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
+    expect(requestUrl).toContain("/drive/connect?redirect_uri=");
+    expect(options.headers).toMatchObject({
+      Authorization: "Bearer the-jwt-token",
+    });
+  });
+
+  it("returns null when the backend rejects the request", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("", { status: 401 }));
+    const { fetchDriveAuthorizationUrl } = await import(
+      "@/main/backend-client"
+    );
+
+    await expect(
+      fetchDriveAuthorizationUrl("expired-token", "personare://x")
+    ).resolves.toBeNull();
+  });
+
+  it("returns null instead of throwing when the backend is unreachable", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network error"));
+    const { fetchDriveAuthorizationUrl } = await import(
+      "@/main/backend-client"
+    );
+
+    await expect(
+      fetchDriveAuthorizationUrl("any-token", "personare://x")
+    ).resolves.toBeNull();
+  });
+});
+
+describe("uploadDriveBackup (Issue #27)", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns success when the backend accepts the upload", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(null, { status: 204 }));
+    const { uploadDriveBackup } = await import("@/main/backend-client");
+
+    const result = await uploadDriveBackup("the-jwt-token", "base64-bytes");
+
+    expect(result).toEqual({ success: true });
+    const [requestUrl, options] = vi.mocked(fetch).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
+    expect(requestUrl).toContain("/drive/backup");
+    expect(options.method).toBe("POST");
+    expect(options.headers).toMatchObject({
+      Authorization: "Bearer the-jwt-token",
+    });
+    expect(options.body).toBe(JSON.stringify({ data: "base64-bytes" }));
+  });
+
+  it("returns the backend's error when Drive is not connected (409)", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ error: "drive_not_connected" }), {
+        status: 409,
+      })
+    );
+    const { uploadDriveBackup } = await import("@/main/backend-client");
+
+    const result = await uploadDriveBackup("the-jwt-token", "base64-bytes");
+
+    expect(result).toEqual({ error: "drive_not_connected" });
+  });
+
+  it("returns a generic error result instead of throwing when the backend is unreachable", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network error"));
+    const { uploadDriveBackup } = await import("@/main/backend-client");
+
+    const result = await uploadDriveBackup("the-jwt-token", "base64-bytes");
+
+    expect(result).toEqual({ error: "unreachable" });
+  });
+});
+
+describe("downloadDriveBackup (Issue #27)", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the base64 backup data on success", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ data: "base64-bytes" }), { status: 200 })
+    );
+    const { downloadDriveBackup } = await import("@/main/backend-client");
+
+    const result = await downloadDriveBackup("the-jwt-token");
+
+    expect(result).toEqual({ data: "base64-bytes" });
+    const [requestUrl, options] = vi.mocked(fetch).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
+    expect(requestUrl).toContain("/drive/backup");
+    expect(options.headers).toMatchObject({
+      Authorization: "Bearer the-jwt-token",
+    });
+  });
+
+  it("returns the backend's error when no backup exists (404)", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ error: "no_backup_found" }), {
+        status: 404,
+      })
+    );
+    const { downloadDriveBackup } = await import("@/main/backend-client");
+
+    const result = await downloadDriveBackup("the-jwt-token");
+
+    expect(result).toEqual({ error: "no_backup_found" });
+  });
+
+  it("returns the backend's error when Drive is not connected (409)", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ error: "drive_not_connected" }), {
+        status: 409,
+      })
+    );
+    const { downloadDriveBackup } = await import("@/main/backend-client");
+
+    const result = await downloadDriveBackup("the-jwt-token");
+
+    expect(result).toEqual({ error: "drive_not_connected" });
+  });
+
+  it("returns a generic error result instead of throwing when the backend is unreachable", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network error"));
+    const { downloadDriveBackup } = await import("@/main/backend-client");
+
+    const result = await downloadDriveBackup("the-jwt-token");
+
+    expect(result).toEqual({ error: "unreachable" });
+  });
+});
