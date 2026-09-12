@@ -21,6 +21,7 @@ vi.mock("@/actions/settings", () => ({
 }));
 
 vi.mock("@/actions/dialog", () => ({
+  selectAccountExportPath: vi.fn(),
   selectBackupExportPath: vi.fn(),
   selectBackupImportFile: vi.fn(),
   selectPdfFile: vi.fn(),
@@ -32,6 +33,8 @@ vi.mock("@/actions/backup", () => ({
 }));
 
 vi.mock("@/actions/auth", () => ({
+  deleteAccount: vi.fn(),
+  exportAccountData: vi.fn(),
   getSession: vi.fn(),
   login: vi.fn(),
   logout: vi.fn(),
@@ -44,11 +47,14 @@ vi.mock("@/actions/calendar-sync", () => ({
 }));
 
 const { getSettings } = await import("@/actions/settings");
-const { selectBackupExportPath, selectBackupImportFile } = await import(
-  "@/actions/dialog"
-);
+const {
+  selectAccountExportPath,
+  selectBackupExportPath,
+  selectBackupImportFile,
+} = await import("@/actions/dialog");
 const { exportBackup, importBackup } = await import("@/actions/backup");
-const { getSession, login, logout } = await import("@/actions/auth");
+const { deleteAccount, exportAccountData, getSession, login, logout } =
+  await import("@/actions/auth");
 const { connectCalendar, getCalendarConnectionStatus } = await import(
   "@/actions/calendar-sync"
 );
@@ -461,7 +467,55 @@ describe("SettingsPage account section (Issue #25)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("calls connectCalendar() and then polls the connection status until connected", async () => {
+  it("shows an explicit consent dialog before connecting, without calling connectCalendar() yet", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      avatarUrl: null,
+      email: "aluno@example.com",
+      id: "user-1",
+      name: "Aluno",
+    });
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: i18n.t("connectGoogleCalendarAction"),
+      })
+    );
+
+    expect(
+      await screen.findByText(i18n.t("calendarScopeConsentDescription"))
+    ).toBeInTheDocument();
+    expect(connectCalendar).not.toHaveBeenCalled();
+  });
+
+  it("does not call connectCalendar() when the consent dialog is canceled", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      avatarUrl: null,
+      email: "aluno@example.com",
+      id: "user-1",
+      name: "Aluno",
+    });
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+    await user.click(
+      await screen.findByRole("button", {
+        name: i18n.t("connectGoogleCalendarAction"),
+      })
+    );
+    await screen.findByText(i18n.t("calendarScopeConsentDescription"));
+
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("cancelAction") })
+    );
+
+    expect(connectCalendar).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText(i18n.t("calendarScopeConsentDescription"))
+    ).not.toBeInTheDocument();
+  });
+
+  it("calls connectCalendar() only after confirming the consent dialog, then polls the connection status until connected", async () => {
     vi.mocked(getSession).mockResolvedValue({
       avatarUrl: null,
       email: "aluno@example.com",
@@ -473,11 +527,15 @@ describe("SettingsPage account section (Issue #25)", () => {
       advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
     });
     render(<SettingsPage />);
-
     await user.click(
       await screen.findByRole("button", {
         name: i18n.t("connectGoogleCalendarAction"),
       })
+    );
+    await screen.findByText(i18n.t("calendarScopeConsentDescription"));
+
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("continueAction") })
     );
 
     expect(connectCalendar).toHaveBeenCalledTimes(1);
@@ -488,5 +546,164 @@ describe("SettingsPage account section (Issue #25)", () => {
     expect(
       await screen.findByText(i18n.t("calendarConnectedLabel"))
     ).toBeInTheDocument();
+  });
+
+  describe("account data export (Issue #28)", () => {
+    beforeEach(() => {
+      vi.mocked(getSession).mockResolvedValue({
+        avatarUrl: null,
+        email: "aluno@example.com",
+        id: "user-1",
+        name: "Aluno",
+      });
+    });
+
+    it("picks a save location and exports when confirmed", async () => {
+      vi.mocked(selectAccountExportPath).mockResolvedValue("C:\\account.json");
+      vi.mocked(exportAccountData).mockResolvedValue(true);
+      const user = userEvent.setup();
+      render(<SettingsPage />);
+
+      await user.click(
+        await screen.findByRole("button", {
+          name: i18n.t("exportAccountDataAction"),
+        })
+      );
+
+      await waitFor(() => {
+        expect(exportAccountData).toHaveBeenCalledWith("C:\\account.json");
+      });
+      expect(
+        await screen.findByText(i18n.t("accountExportSuccessMessage"))
+      ).toBeInTheDocument();
+    });
+
+    it("does not export when the save dialog is canceled", async () => {
+      vi.mocked(selectAccountExportPath).mockResolvedValue(null);
+      const user = userEvent.setup();
+      render(<SettingsPage />);
+
+      await user.click(
+        await screen.findByRole("button", {
+          name: i18n.t("exportAccountDataAction"),
+        })
+      );
+
+      await waitFor(() => {
+        expect(selectAccountExportPath).toHaveBeenCalled();
+      });
+      expect(exportAccountData).not.toHaveBeenCalled();
+    });
+
+    it("shows an error message when the export fails", async () => {
+      vi.mocked(selectAccountExportPath).mockResolvedValue("C:\\account.json");
+      vi.mocked(exportAccountData).mockResolvedValue(false);
+      const user = userEvent.setup();
+      render(<SettingsPage />);
+
+      await user.click(
+        await screen.findByRole("button", {
+          name: i18n.t("exportAccountDataAction"),
+        })
+      );
+
+      expect(
+        await screen.findByText(i18n.t("accountExportErrorMessage"))
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe("account deletion (Issue #28)", () => {
+    beforeEach(() => {
+      vi.mocked(getSession).mockResolvedValue({
+        avatarUrl: null,
+        email: "aluno@example.com",
+        id: "user-1",
+        name: "Aluno",
+      });
+    });
+
+    it("shows a destructive warning before deleting, without calling deleteAccount() yet", async () => {
+      const user = userEvent.setup();
+      render(<SettingsPage />);
+
+      await user.click(
+        await screen.findByRole("button", {
+          name: i18n.t("deleteAccountAction"),
+        })
+      );
+
+      expect(
+        await screen.findByText(i18n.t("deleteAccountWarningMessage"))
+      ).toBeInTheDocument();
+      expect(deleteAccount).not.toHaveBeenCalled();
+    });
+
+    it("does not call deleteAccount() when canceled", async () => {
+      const user = userEvent.setup();
+      render(<SettingsPage />);
+      await user.click(
+        await screen.findByRole("button", {
+          name: i18n.t("deleteAccountAction"),
+        })
+      );
+      await screen.findByText(i18n.t("deleteAccountWarningMessage"));
+
+      await user.click(
+        screen.getByRole("button", { name: i18n.t("cancelAction") })
+      );
+
+      expect(deleteAccount).not.toHaveBeenCalled();
+    });
+
+    it("calls deleteAccount() and returns to the logged-out state on success", async () => {
+      vi.mocked(deleteAccount).mockResolvedValue(true);
+      const user = userEvent.setup();
+      render(<SettingsPage />);
+      await user.click(
+        await screen.findByRole("button", {
+          name: i18n.t("deleteAccountAction"),
+        })
+      );
+      await screen.findByText(i18n.t("deleteAccountWarningMessage"));
+
+      await user.click(
+        screen.getByRole("button", {
+          name: i18n.t("deleteAccountConfirmAction"),
+        })
+      );
+
+      expect(deleteAccount).toHaveBeenCalledTimes(1);
+      expect(
+        await screen.findByRole("button", {
+          name: i18n.t("loginWithGoogleAction"),
+        })
+      ).toBeInTheDocument();
+    });
+
+    it("shows an error message and keeps the dialog open when deletion fails", async () => {
+      vi.mocked(deleteAccount).mockResolvedValue(false);
+      const user = userEvent.setup();
+      render(<SettingsPage />);
+      await user.click(
+        await screen.findByRole("button", {
+          name: i18n.t("deleteAccountAction"),
+        })
+      );
+      await screen.findByText(i18n.t("deleteAccountWarningMessage"));
+
+      await user.click(
+        screen.getByRole("button", {
+          name: i18n.t("deleteAccountConfirmAction"),
+        })
+      );
+
+      expect(
+        await screen.findByText(i18n.t("accountDeletionErrorMessage"))
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(i18n.t("deleteAccountWarningMessage"))
+      ).toBeInTheDocument();
+    });
   });
 });

@@ -1,10 +1,17 @@
+import fs from "node:fs";
 import { os } from "@orpc/server";
 import { shell } from "electron";
+import { z } from "zod";
 import { BACKEND_BASE_URL, OAUTH_REDIRECT_URI } from "@/constants";
 import { setCalendarConnected } from "@/ipc/calendar-sync/state";
 import { clearToken } from "@/main/auth-token-storage";
 import {
+  deleteAccount as deleteAccountOnBackend,
+  fetchAccountExport,
+} from "@/main/backend-client";
+import {
   getAuthSession,
+  getAuthToken,
   getAuthTokenFilePath,
   setAuthSession,
   setAuthToken,
@@ -18,9 +25,48 @@ export const login = os.handler(async () => {
 
 export const getSession = os.handler(() => getAuthSession());
 
-export const logout = os.handler(() => {
+function clearLocalSession() {
   setAuthSession(null);
   setAuthToken(null);
   setCalendarConnected(false);
   clearToken(getAuthTokenFilePath());
+}
+
+export const logout = os.handler(() => {
+  clearLocalSession();
+});
+
+export const exportAccountData = os
+  .input(z.object({ filePath: z.string() }))
+  .handler(async ({ input }) => {
+    const token = getAuthToken();
+
+    if (!token) {
+      return false;
+    }
+
+    const data = await fetchAccountExport(token);
+
+    if (!data) {
+      return false;
+    }
+
+    fs.writeFileSync(input.filePath, JSON.stringify(data, null, 2));
+    return true;
+  });
+
+export const deleteAccount = os.handler(async () => {
+  const token = getAuthToken();
+
+  if (!token) {
+    return false;
+  }
+
+  const deleted = await deleteAccountOnBackend(token);
+
+  if (deleted) {
+    clearLocalSession();
+  }
+
+  return deleted;
 });

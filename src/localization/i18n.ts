@@ -6,6 +6,10 @@ i18n.use(initReactI18next).init({
   resources: {
     en: {
       translation: {
+        accountDeletionErrorMessage:
+          "Failed to delete account. Please try again.",
+        accountExportErrorMessage: "Failed to export account data.",
+        accountExportSuccessMessage: "Account data exported.",
         accountSectionDescription:
           "Sign in with your Google account to use features that depend on it (Calendar sync, Drive backup). The app continues to work fully without signing in.",
         accountSectionTitle: "Account",
@@ -41,18 +45,25 @@ i18n.use(initReactI18next).init({
         calendarConnectedLabel: "Google Calendar connected",
         calendarNotConnectedErrorMessage:
           "Connect Google Calendar in Settings first.",
+        calendarScopeConsentDescription:
+          "Personare will ask permission to create, edit, and delete events on your Google Calendar, used only to reflect your pending reviews. You can disconnect this at any time.",
         calendarSyncErrorMessage: "Failed to sync with Google Calendar.",
         calendarSyncResultMessage:
           "{{created}} created, {{updated}} updated, {{deleted}} removed",
         cancelAction: "Cancel",
         confirmDeleteAction: "Delete",
         connectGoogleCalendarAction: "Connect Google Calendar",
+        continueAction: "Continue",
         createActivityAction: "New activity",
         createActivityTitle: "New activity",
         createModuleAction: "New module",
         createModuleTitle: "New module",
         createProgramAction: "New program",
         createProgramTitle: "New program",
+        deleteAccountAction: "Delete my account",
+        deleteAccountConfirmAction: "Delete my account permanently",
+        deleteAccountWarningMessage:
+          "This deletes your Personare account on the server (profile, Google Calendar connection). It does NOT delete any of your local study content, which keeps working and stays exportable via Local backup.",
         deleteActivityAction: "Delete activity",
         deleteActivityConfirmDescription:
           'This will delete "{{title}}". Nothing is permanently removed.',
@@ -76,6 +87,7 @@ i18n.use(initReactI18next).init({
         editProgramAction: "Edit program",
         editProgramTitle: "Edit program",
         editQuizQuestionAction: "Edit question",
+        exportAccountDataAction: "Export account data",
         exportBackupAction: "Export backup",
         finishQuizAction: "Finish quiz",
         flashcardBackLabel: "Back",
@@ -130,6 +142,10 @@ i18n.use(initReactI18next).init({
     },
     "pt-BR": {
       translation: {
+        accountDeletionErrorMessage:
+          "Falha ao excluir a conta. Tente novamente.",
+        accountExportErrorMessage: "Falha ao exportar os dados da conta.",
+        accountExportSuccessMessage: "Dados da conta exportados.",
         accountSectionDescription:
           "Entre com sua conta Google para usar funcionalidades que dependem dela (sincronização de Calendário, backup no Drive). O app continua funcionando normalmente sem entrar.",
         accountSectionTitle: "Conta",
@@ -167,18 +183,25 @@ i18n.use(initReactI18next).init({
         calendarConnectedLabel: "Google Calendar conectado",
         calendarNotConnectedErrorMessage:
           "Conecte o Google Calendar em Configurações primeiro.",
+        calendarScopeConsentDescription:
+          "O Personare vai pedir permissão para criar, editar e excluir eventos no seu Google Calendar, usados apenas para refletir suas revisões pendentes. Você pode desconectar isso a qualquer momento.",
         calendarSyncErrorMessage: "Falha ao sincronizar com o Google Calendar.",
         calendarSyncResultMessage:
           "{{created}} criados, {{updated}} atualizados, {{deleted}} removidos",
         cancelAction: "Cancelar",
         confirmDeleteAction: "Excluir",
         connectGoogleCalendarAction: "Conectar Google Calendar",
+        continueAction: "Continuar",
         createActivityAction: "Nova atividade",
         createActivityTitle: "Nova atividade",
         createModuleAction: "Novo módulo",
         createModuleTitle: "Novo módulo",
         createProgramAction: "Novo programa",
         createProgramTitle: "Novo programa",
+        deleteAccountAction: "Excluir minha conta",
+        deleteAccountConfirmAction: "Excluir minha conta permanentemente",
+        deleteAccountWarningMessage:
+          "Isso exclui sua conta do Personare no servidor (perfil, conexão com o Google Calendar). Isso NÃO exclui nenhum conteúdo de estudo local, que continua funcionando e continua exportável pelo Backup local.",
         deleteActivityAction: "Excluir atividade",
         deleteActivityConfirmDescription:
           'Isso vai excluir "{{title}}". Nada é removido permanentemente.',
@@ -202,6 +225,7 @@ i18n.use(initReactI18next).init({
         editProgramAction: "Editar programa",
         editProgramTitle: "Editar programa",
         editQuizQuestionAction: "Editar pergunta",
+        exportAccountDataAction: "Exportar dados da conta",
         exportBackupAction: "Exportar backup",
         finishQuizAction: "Finalizar quiz",
         flashcardBackLabel: "Verso",
