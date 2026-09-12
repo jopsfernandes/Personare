@@ -150,9 +150,9 @@ describe("backup IPC namespace (Issue #21)", () => {
       await client.importBackup({ filePath: backupPath, passphrase: "abc123" });
 
       expect(releaseSingleInstanceLockMock).toHaveBeenCalledTimes(1);
-      expect(releaseSingleInstanceLockMock.mock.invocationCallOrder[0]).toBeLessThan(
-        relaunchMock.mock.invocationCallOrder[0]
-      );
+      expect(
+        releaseSingleInstanceLockMock.mock.invocationCallOrder[0]
+      ).toBeLessThan(relaunchMock.mock.invocationCallOrder[0]);
     });
 
     it("does not relaunch when the import fails", async () => {

@@ -76,3 +76,45 @@ export async function syncCalendarEvents(
     return { error: "unreachable" };
   }
 }
+
+export interface AccountExport {
+  googleCalendarConnected: boolean;
+  profile: {
+    avatarUrl: string | null;
+    createdAt: string;
+    email: string;
+    id: string;
+    name: string;
+  };
+}
+
+export async function fetchAccountExport(
+  token: string
+): Promise<AccountExport | null> {
+  try {
+    const response = await fetch(`${BACKEND_BASE_URL}/auth/me/export`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as AccountExport;
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteAccount(token: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${BACKEND_BASE_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+      method: "DELETE",
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}

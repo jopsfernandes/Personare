@@ -11,3 +11,11 @@ export function login() {
 export function logout() {
   return ipc.client.auth.logout();
 }
+
+export function exportAccountData(filePath: string) {
+  return ipc.client.auth.exportAccountData({ filePath });
+}
+
+export function deleteAccount() {
+  return ipc.client.auth.deleteAccount();
+}

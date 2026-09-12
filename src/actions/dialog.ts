@@ -11,3 +11,7 @@ export function selectBackupExportPath() {
 export function selectBackupImportFile() {
   return ipc.client.dialog.selectBackupImportFile();
 }
+
+export function selectAccountExportPath() {
+  return ipc.client.dialog.selectAccountExportPath();
+}
