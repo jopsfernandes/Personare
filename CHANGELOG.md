@@ -8,6 +8,18 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Added
 
+- **Parser de arquivos .apkg do Anki** ([#29](https://github.com/jopsfernandes/Personare/issues/29)).
+  Primeira etapa da importação de Anki (Plan.md seção 6, Fase 3): extrai o zip `.apkg` e abre o banco
+  SQLite interno para leitura, sem UI nem mapeamento de conteúdo ainda (isso fica para as Issues #30 e
+  #31) -- um módulo puro, `parseApkg`, consumido pelas issues seguintes.
+  - Suporta as 3 versões de pacote que o próprio Anki gera: `collection.anki2`/`.anki21` (SQLite puro,
+    exports de versões antigas) e `collection.anki21b` (SQLite comprimido em zstd, formato padrão desde
+    o Anki 2.1.50+), detectadas pelo arquivo `meta` do pacote quando presente.
+  - Resolve a lista de mídia (JSON legado ou protobuf `MediaEntries` no formato novo) para nomes de
+    arquivo originais, e devolve os bytes de cada mídia referenciada.
+  - Novo módulo utilitário `src/utils/protobuf-lite.ts` (parser genérico de wire format, sem depender de
+    uma lib de protobuf completa) e `src/utils/zstd.ts` (compress/decompress via `zstd-codec`, WASM, sem
+    binário nativo).
 - **Backup via Google Drive** ([#27](https://github.com/jopsfernandes/Personare/issues/27)).
   Complementa o Backup local (Issue #21) com uma cópia extra fora do dispositivo, no próprio Google
   Drive do usuário -- não o substitui. Reaproveita o mesmo padrão de conexão OAuth separada do login já

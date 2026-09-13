@@ -3,3 +3,20 @@
 // whether you're running in development or production).
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
+
+// zstd-codec ships no type definitions -- this covers only the surface
+// used by src/utils/zstd.ts (Issue #29).
+declare module "zstd-codec" {
+  export interface ZstdSimple {
+    compress(content: Uint8Array, compressionLevel?: number): Uint8Array | null;
+    decompress(compressed: Uint8Array): Uint8Array | null;
+  }
+
+  export interface ZstdCodecModule {
+    Simple: new () => ZstdSimple;
+  }
+
+  export const ZstdCodec: {
+    run(callback: (zstd: ZstdCodecModule) => void): void;
+  };
+}
