@@ -163,8 +163,14 @@ export async function parseApkg(filePath: string): Promise<AnkiApkgContents> {
   }
 
   const db = await readCollectionDatabase(zip, version);
-  const mediaIndex = await readMediaIndex(zip, version);
-  const media = await readMediaFiles(zip, version, mediaIndex);
 
-  return { db, media };
+  try {
+    const mediaIndex = await readMediaIndex(zip, version);
+    const media = await readMediaFiles(zip, version, mediaIndex);
+
+    return { db, media };
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 }

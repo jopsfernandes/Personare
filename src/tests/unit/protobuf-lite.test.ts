@@ -7,6 +7,8 @@ import { describe, expect, it } from "vitest";
  * docs/specs/issue-29-anki-apkg-parser.md AC-3.
  */
 
+const TRUNCATED_MESSAGE = /truncad/i;
+
 describe("protobuf-lite (Issue #29)", () => {
   describe("decodeVarint", () => {
     it("decodes a single-byte varint", async () => {
@@ -95,6 +97,26 @@ describe("protobuf-lite (Issue #29)", () => {
       );
 
       expect(decodeFields(buffer)).toEqual(new Map([[1, [3]]]));
+    });
+
+    it("throws on a truncated varint instead of silently misparsing it", async () => {
+      const { decodeFields } = await import("@/utils/protobuf-lite");
+
+      // field 1, wire type 0 (varint), continuation bit set with no
+      // following byte -- a corrupted/truncated buffer
+      const buffer = Uint8Array.of(0x08, 0xac);
+
+      expect(() => decodeFields(buffer)).toThrow(TRUNCATED_MESSAGE);
+    });
+
+    it("throws when a length-delimited field's length exceeds the remaining bytes", async () => {
+      const { decodeFields } = await import("@/utils/protobuf-lite");
+
+      // field 1, wire type 2 (length-delimited), length 5, but only 2
+      // bytes actually follow
+      const buffer = Uint8Array.of(0x0a, 0x05, 0x6f, 0x6b);
+
+      expect(() => decodeFields(buffer)).toThrow(TRUNCATED_MESSAGE);
     });
   });
 });
