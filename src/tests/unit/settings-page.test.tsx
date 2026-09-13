@@ -653,6 +653,9 @@ describe("SettingsPage account section (Issue #25)", () => {
     expect(
       await screen.findByText(i18n.t("driveConnectedLabel"))
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: i18n.t("backupToDriveAction") })
+    ).toBeInTheDocument();
   });
 
   describe("account data export (Issue #28)", () => {

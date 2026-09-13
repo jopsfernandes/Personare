@@ -127,6 +127,19 @@ describe("auth IPC namespace (Issue #25)", () => {
       await expect(client.getSession()).resolves.toBeNull();
     });
 
+    it("resets the Drive connection flag, so a different account doesn't inherit it (Issue #27)", async () => {
+      const { setDriveConnected, getDriveConnected } = await import(
+        "@/ipc/drive-backup/state"
+      );
+      setDriveConnected(true);
+      const { auth } = await import("@/ipc/auth");
+      const client = createRouterClient(auth);
+
+      await client.logout();
+
+      expect(getDriveConnected()).toBe(false);
+    });
+
     it("deletes the persisted token file, if any", async () => {
       const { setAuthTokenFilePath } = await import("@/ipc/auth/state");
       const { saveToken } = await import("@/main/auth-token-storage");
@@ -239,6 +252,20 @@ describe("auth IPC namespace (Issue #25)", () => {
 
       expect(clearTokenMock).toHaveBeenCalled();
       await expect(client.getSession()).resolves.toBeNull();
+    });
+
+    it("resets the Drive connection flag on success (Issue #27)", async () => {
+      vi.mocked(deleteAccountMock).mockResolvedValue(true);
+      const { setDriveConnected, getDriveConnected } = await import(
+        "@/ipc/drive-backup/state"
+      );
+      setDriveConnected(true);
+      const { auth } = await import("@/ipc/auth");
+      const client = createRouterClient(auth);
+
+      await client.deleteAccount();
+
+      expect(getDriveConnected()).toBe(false);
     });
 
     it("does not clear the local session when the backend refuses the deletion", async () => {

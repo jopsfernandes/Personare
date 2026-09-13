@@ -21,7 +21,13 @@ interface Session {
   name: string;
 }
 
-export default function AccountSection() {
+interface AccountSectionProps {
+  onDriveConnectedChange?: (connected: boolean) => void;
+}
+
+export default function AccountSection({
+  onDriveConnectedChange,
+}: AccountSectionProps = {}) {
   const { t } = useTranslation();
   const [session, setSession] = useState<Session | null>(null);
   const [isAwaitingLogin, setIsAwaitingLogin] = useState(false);
@@ -45,8 +51,11 @@ export default function AccountSection() {
     }
 
     getCalendarConnectionStatus().then(setIsCalendarConnected);
-    getDriveConnectionStatus().then(setIsDriveConnected);
-  }, [session]);
+    getDriveConnectionStatus().then((connected) => {
+      setIsDriveConnected(connected);
+      onDriveConnectedChange?.(connected);
+    });
+  }, [session, onDriveConnectedChange]);
 
   useEffect(() => {
     if (!isAwaitingLogin) {
@@ -103,6 +112,7 @@ export default function AccountSection() {
       getDriveConnectionStatus().then((connected) => {
         if (connected) {
           setIsDriveConnected(true);
+          onDriveConnectedChange?.(true);
           setIsAwaitingDriveConnect(false);
         }
       });
@@ -115,7 +125,7 @@ export default function AccountSection() {
       clearInterval(interval);
       clearTimeout(timeout);
     };
-  }, [isAwaitingDriveConnect]);
+  }, [isAwaitingDriveConnect, onDriveConnectedChange]);
 
   const handleLoginClick = useCallback(() => {
     login();
@@ -127,8 +137,9 @@ export default function AccountSection() {
       setSession(null);
       setIsCalendarConnected(false);
       setIsDriveConnected(false);
+      onDriveConnectedChange?.(false);
     });
-  }, []);
+  }, [onDriveConnectedChange]);
 
   const handleConnectCalendarClick = useCallback(() => {
     setIsCalendarConsentOpen(true);
@@ -184,7 +195,8 @@ export default function AccountSection() {
     setSession(null);
     setIsCalendarConnected(false);
     setIsDriveConnected(false);
-  }, []);
+    onDriveConnectedChange?.(false);
+  }, [onDriveConnectedChange]);
 
   return (
     <div className="flex flex-col gap-2">

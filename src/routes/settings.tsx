@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { selectBackupImportFile } from "@/actions/dialog";
-import { getDriveConnectionStatus } from "@/actions/drive-backup";
 import { getSettings, setAutoStart } from "@/actions/settings";
 import AccountSection from "@/components/account-section";
 import BackupExportDialog from "@/components/backup-export-dialog";
@@ -29,7 +28,6 @@ export function SettingsPage() {
     getSettings().then((settings) => {
       setAutoStartEnabled(settings.autoStartEnabled);
     });
-    getDriveConnectionStatus().then(setIsDriveConnected);
   }, []);
 
   const handleAutoStartChange = useCallback((checked: boolean) => {
@@ -76,7 +74,7 @@ export function SettingsPage() {
           {t("autoStartDescription")}
         </p>
       </div>
-      <AccountSection />
+      <AccountSection onDriveConnectedChange={setIsDriveConnected} />
       <div className="flex flex-col gap-2">
         <h2 className="font-semibold text-lg">{t("backupSectionTitle")}</h2>
         <p className="text-muted-foreground text-sm">
