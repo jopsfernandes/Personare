@@ -17,7 +17,7 @@ export async function zstdCompress(data: Uint8Array): Promise<Buffer> {
   const result = simple.compress(data);
 
   if (!result) {
-    throw new Error("zstd compression failed");
+    throw new Error("Falha ao comprimir dados em zstd");
   }
 
   return Buffer.from(result);
@@ -28,7 +28,7 @@ export async function zstdDecompress(data: Uint8Array): Promise<Buffer> {
   const result = simple.decompress(data);
 
   if (!result) {
-    throw new Error("zstd decompression failed");
+    throw new Error("Falha ao descomprimir dados em zstd");
   }
 
   return Buffer.from(result);
