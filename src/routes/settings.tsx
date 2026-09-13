@@ -6,6 +6,8 @@ import { getSettings, setAutoStart } from "@/actions/settings";
 import AccountSection from "@/components/account-section";
 import BackupExportDialog from "@/components/backup-export-dialog";
 import BackupImportDialog from "@/components/backup-import-dialog";
+import DriveBackupDialog from "@/components/drive-backup-dialog";
+import DriveRestoreDialog from "@/components/drive-restore-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -17,6 +19,10 @@ export function SettingsPage() {
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importFilePath, setImportFilePath] = useState<string | null>(null);
+  const [isDriveConnected, setIsDriveConnected] = useState(false);
+  const [isDriveBackupDialogOpen, setIsDriveBackupDialogOpen] = useState(false);
+  const [isDriveRestoreDialogOpen, setIsDriveRestoreDialogOpen] =
+    useState(false);
 
   useEffect(() => {
     getSettings().then((settings) => {
@@ -44,6 +50,14 @@ export function SettingsPage() {
     });
   }, []);
 
+  const handleDriveBackupClick = useCallback(() => {
+    setIsDriveBackupDialogOpen(true);
+  }, []);
+
+  const handleDriveRestoreClick = useCallback(() => {
+    setIsDriveRestoreDialogOpen(true);
+  }, []);
+
   return (
     <div className="flex h-full flex-col gap-4 p-2">
       <h1 className="font-bold text-2xl">{t("settingsPageTitle")}</h1>
@@ -60,7 +74,7 @@ export function SettingsPage() {
           {t("autoStartDescription")}
         </p>
       </div>
-      <AccountSection />
+      <AccountSection onDriveConnectedChange={setIsDriveConnected} />
       <div className="flex flex-col gap-2">
         <h2 className="font-semibold text-lg">{t("backupSectionTitle")}</h2>
         <p className="text-muted-foreground text-sm">
@@ -75,6 +89,24 @@ export function SettingsPage() {
           </Button>
         </div>
       </div>
+      {isDriveConnected ? (
+        <div className="flex flex-col gap-2">
+          <h2 className="font-semibold text-lg">
+            {t("driveBackupSectionTitle")}
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            {t("driveBackupSectionDescription")}
+          </p>
+          <div className="flex gap-2">
+            <Button onClick={handleDriveBackupClick} variant="outline">
+              {t("backupToDriveAction")}
+            </Button>
+            <Button onClick={handleDriveRestoreClick} variant="outline">
+              {t("restoreFromDriveAction")}
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <BackupExportDialog
         onOpenChange={setIsExportDialogOpen}
         open={isExportDialogOpen}
@@ -83,6 +115,14 @@ export function SettingsPage() {
         filePath={importFilePath}
         onOpenChange={setIsImportDialogOpen}
         open={isImportDialogOpen}
+      />
+      <DriveBackupDialog
+        onOpenChange={setIsDriveBackupDialogOpen}
+        open={isDriveBackupDialogOpen}
+      />
+      <DriveRestoreDialog
+        onOpenChange={setIsDriveRestoreDialogOpen}
+        open={isDriveRestoreDialogOpen}
       />
     </div>
   );

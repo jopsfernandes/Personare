@@ -63,3 +63,33 @@ export function parseCalendarConnectCallback(
     return null;
   }
 }
+
+export type DriveConnectCallbackResult =
+  | { connected: true }
+  | { error: string };
+
+/**
+ * Mirrors parseCalendarConnectCallback (Issue #26) exactly, one host/query
+ * param pair over -- Drive backup (Issue #27) is a third, separate
+ * authorization flow sharing the same registered protocol.
+ */
+export function parseDriveConnectCallback(
+  url: string
+): DriveConnectCallbackResult | null {
+  try {
+    const parsed = new URL(url);
+    const connected = parsed.searchParams.get("driveConnected");
+    const error = parsed.searchParams.get("error");
+
+    if (connected === "true") {
+      return { connected: true };
+    }
+    if (error) {
+      return { error };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}

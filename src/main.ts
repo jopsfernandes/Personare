@@ -16,6 +16,7 @@ import {
 import { setCalendarConnected } from "@/ipc/calendar-sync/state";
 import { ipcContext } from "@/ipc/context";
 import { getDatabaseClient, setDatabaseClient } from "@/ipc/database/state";
+import { setDriveConnected } from "@/ipc/drive-backup/state";
 import { getOrCreateAppSettings } from "@/ipc/settings/handlers";
 import { loadToken, saveToken } from "@/main/auth-token-storage";
 import { fetchCurrentUser } from "@/main/backend-client";
@@ -24,6 +25,7 @@ import {
   findOAuthCallbackUrl,
   getProtocolCallbackHost,
   parseCalendarConnectCallback,
+  parseDriveConnectCallback,
   parseOAuthCallback,
 } from "@/main/oauth-callback";
 import { createPlaceholderTrayIcon } from "@/main/tray-icon";
@@ -253,15 +255,32 @@ function handleCalendarConnectCallback(url: string) {
   showMainWindow();
 }
 
+function handleDriveConnectCallback(url: string) {
+  const result = parseDriveConnectCallback(url);
+
+  if (result && "connected" in result) {
+    setDriveConnected(true);
+  }
+
+  showMainWindow();
+}
+
 /**
- * Login (Issue #25) and Calendar authorization (Issue #26) share the same
- * registered personare:// protocol but land on different hosts
- * (oauth-callback vs calendar-connect-callback) -- dispatch keeps each
- * flow's handler isolated rather than overloading one function with both.
+ * Login (Issue #25), Calendar authorization (Issue #26), and Drive
+ * authorization (Issue #27) share the same registered personare:// protocol
+ * but land on different hosts -- dispatch keeps each flow's handler
+ * isolated rather than overloading one function with all three.
  */
 function handleProtocolCallback(url: string) {
-  if (getProtocolCallbackHost(url) === "calendar-connect-callback") {
+  const host = getProtocolCallbackHost(url);
+
+  if (host === "calendar-connect-callback") {
     handleCalendarConnectCallback(url);
+    return;
+  }
+
+  if (host === "drive-connect-callback") {
+    handleDriveConnectCallback(url);
     return;
   }
 

@@ -79,6 +79,7 @@ export async function syncCalendarEvents(
 
 export interface AccountExport {
   googleCalendarConnected: boolean;
+  googleDriveConnected: boolean;
   profile: {
     avatarUrl: string | null;
     createdAt: string;
@@ -116,5 +117,70 @@ export async function deleteAccount(token: string): Promise<boolean> {
     return response.ok;
   } catch {
     return false;
+  }
+}
+
+export async function fetchDriveAuthorizationUrl(
+  token: string,
+  redirectUri: string
+): Promise<string | null> {
+  try {
+    const response = await fetch(
+      `${BACKEND_BASE_URL}/drive/connect?redirect_uri=${encodeURIComponent(redirectUri)}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const body = (await response.json()) as { authorizationUrl: string };
+    return body.authorizationUrl;
+  } catch {
+    return null;
+  }
+}
+
+export type DriveBackupUploadResult = { success: true } | { error: string };
+
+export async function uploadDriveBackup(
+  token: string,
+  data: string
+): Promise<DriveBackupUploadResult> {
+  try {
+    const response = await fetch(`${BACKEND_BASE_URL}/drive/backup`, {
+      body: JSON.stringify({ data }),
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+
+    if (response.status === 204) {
+      return { success: true };
+    }
+
+    const body = (await response.json()) as { error: string };
+    return { error: body.error };
+  } catch {
+    return { error: "unreachable" };
+  }
+}
+
+export type DriveBackupDownloadResult = { data: string } | { error: string };
+
+export async function downloadDriveBackup(
+  token: string
+): Promise<DriveBackupDownloadResult> {
+  try {
+    const response = await fetch(`${BACKEND_BASE_URL}/drive/backup`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const body = await response.json();
+
+    return body as DriveBackupDownloadResult;
+  } catch {
+    return { error: "unreachable" };
   }
 }

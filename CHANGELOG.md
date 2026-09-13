@@ -8,6 +8,22 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Added
 
+- **Backup via Google Drive** ([#27](https://github.com/jopsfernandes/Personare/issues/27)).
+  Complementa o Backup local (Issue #21) com uma cópia extra fora do dispositivo, no próprio Google
+  Drive do usuário -- não o substitui. Reaproveita o mesmo padrão de conexão OAuth separada do login já
+  estabelecido pelo Calendar sync (Issue #26), mediado pelo backend compartilhado.
+  - Escopo `drive.appdata`: pasta especial oculta, invisível na UI normal do Drive do usuário,
+    classificada por padrão como não-sensível pelo Google (diferente de `drive.file`/`drive`).
+  - Botão **"Conectar Google Drive"** (Configurações → Conta), com o mesmo diálogo de consentimento
+    explícito por escopo já usado pelo Calendar (LGPD, Issue #28).
+  - Nova seção **"Backup no Google Drive"** (Configurações), visível só quando conectado: **"Fazer
+    backup no Drive"** e **"Restaurar do Drive"**, mesma senha/criptografia (AES-256-GCM) e mesma
+    semântica de restauração por substituição total já usadas no Backup local -- o backend nunca vê o
+    conteúdo em claro nem a passphrase, só transporta os bytes já cifrados pelo Electron.
+  - Um único arquivo de backup, sempre sobrescrito -- sem versionamento/histórico. Gatilho manual, sob
+    demanda -- sem backup agendado/automático.
+  - `DELETE /auth/me` (exclusão de conta) e `GET /auth/me/export` (exportação LGPD) estendidos para
+    também revogar/reportar a conexão do Drive, mesmo tratamento já dado à conexão do Calendar.
 - **Agendamento FSRS para Quiz/PDF/Link via dificuldade percebida** ([#77](https://github.com/jopsfernandes/Personare/issues/77)).
   Resolve a decisão que `Plan.md` (seção 1.2) deixava formalmente em aberto: Atividades do tipo Quiz,
   PDF e Link passam a poder ser agendadas pelo mesmo motor FSRS que já agenda Flashcards. Nova ação

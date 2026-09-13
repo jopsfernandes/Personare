@@ -131,3 +131,44 @@ describe("parseCalendarConnectCallback (Issue #26)", () => {
     expect(parseCalendarConnectCallback("not a url at all")).toBeNull();
   });
 });
+
+/**
+ * RED phase (Issue #27, Spec Driven TDD): parseDriveConnectCallback does not
+ * exist yet. Mirrors parseCalendarConnectCallback (Issue #26) exactly, one
+ * host/query-param pair over.
+ */
+describe("parseDriveConnectCallback (Issue #27)", () => {
+  it("extracts success from a successful callback URL", async () => {
+    const { parseDriveConnectCallback } = await import("@/main/oauth-callback");
+
+    expect(
+      parseDriveConnectCallback(
+        "personare://drive-connect-callback?driveConnected=true"
+      )
+    ).toEqual({ connected: true });
+  });
+
+  it("extracts the error from a failed callback URL", async () => {
+    const { parseDriveConnectCallback } = await import("@/main/oauth-callback");
+
+    expect(
+      parseDriveConnectCallback(
+        "personare://drive-connect-callback?error=no_refresh_token"
+      )
+    ).toEqual({ error: "no_refresh_token" });
+  });
+
+  it("returns null for a URL with neither driveConnected nor error", async () => {
+    const { parseDriveConnectCallback } = await import("@/main/oauth-callback");
+
+    expect(
+      parseDriveConnectCallback("personare://drive-connect-callback")
+    ).toBeNull();
+  });
+
+  it("returns null for an unparseable URL instead of throwing", async () => {
+    const { parseDriveConnectCallback } = await import("@/main/oauth-callback");
+
+    expect(parseDriveConnectCallback("not a url at all")).toBeNull();
+  });
+});
