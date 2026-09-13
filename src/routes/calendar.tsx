@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ensureReviewItems,
@@ -19,6 +19,10 @@ import {
   type EventCalendarRenderEventProps,
 } from "@/components/reui/event-calendar";
 import { Button } from "@/components/ui/button";
+import {
+  buildEventCalendarI18n,
+  resolveEventCalendarLocale,
+} from "@/utils/event-calendar-i18n";
 
 interface CalendarEventData {
   moduleId: string;
@@ -49,13 +53,19 @@ function CalendarEventChip({ event, onSelect }: CalendarEventChipProps) {
 }
 
 export function CalendarPage() {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
   const navigate = useNavigate();
   const [events, setEvents] = useState<CalendarEvent<CalendarEventData>[]>([]);
   const [scheduleRows, setScheduleRows] = useState<ScheduleRow[]>([]);
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  const eventCalendarI18n = useMemo(() => buildEventCalendarI18n(t), [t]);
+  const eventCalendarLocale = useMemo(
+    () => resolveEventCalendarLocale(i18n.language),
+    [i18n.language]
+  );
 
   useEffect(() => {
     ensureReviewItems()
@@ -142,7 +152,9 @@ export function CalendarPage() {
         className="h-full"
         defaultView="month"
         events={events}
+        i18n={eventCalendarI18n}
         interactions={{ drag: false, resize: false, selectSlot: false }}
+        locale={eventCalendarLocale}
         onEventsChange={setEvents}
         renderEvent={renderEvent}
         views={["month", "agenda"]}
