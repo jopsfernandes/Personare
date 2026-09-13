@@ -7,7 +7,7 @@ import "@testing-library/jest-dom";
  * ResizeObserver. Sem esses polyfills os testes de componentes que usam
  * esse bloco quebram por causa do ambiente, nao da logica da Sidebar.
  */
-if (!window.matchMedia) {
+if (typeof window !== "undefined" && !window.matchMedia) {
   window.matchMedia = (query: string) =>
     ({
       addEventListener: () => undefined,
@@ -21,7 +21,7 @@ if (!window.matchMedia) {
     }) as unknown as MediaQueryList;
 }
 
-if (!window.ResizeObserver) {
+if (typeof window !== "undefined" && !window.ResizeObserver) {
   window.ResizeObserver = class ResizeObserver {
     observe() {
       // no-op in jsdom
