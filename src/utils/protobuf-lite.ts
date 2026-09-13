@@ -18,6 +18,10 @@ export function decodeVarint(
   let cursor = offset;
 
   for (;;) {
+    if (cursor >= buffer.length) {
+      throw new Error("Protobuf inválido: varint truncado");
+    }
+
     const byte = buffer[cursor];
     cursor += 1;
     value += (byte & 0x7f) * 2 ** shift;
@@ -30,6 +34,62 @@ export function decodeVarint(
   }
 
   return { nextOffset: cursor, value };
+}
+
+function assertBytesAvailable(
+  buffer: Uint8Array,
+  offset: number,
+  length: number,
+  fieldKind: string
+): void {
+  if (offset + length > buffer.length) {
+    throw new Error(`Protobuf inválido: campo ${fieldKind} truncado`);
+  }
+}
+
+interface DecodedField {
+  nextOffset: number;
+  // null for wire types this parser doesn't expose (fixed64/fixed32) --
+  // the field still advances the offset but is skipped by the caller.
+  value: Uint8Array | number | null;
+}
+
+function decodeFieldValue(
+  buffer: Uint8Array,
+  offset: number,
+  wireType: number
+): DecodedField {
+  if (wireType === WIRE_TYPE_VARINT) {
+    const decoded = decodeVarint(buffer, offset);
+    return { nextOffset: decoded.nextOffset, value: decoded.value };
+  }
+
+  if (wireType === WIRE_TYPE_LENGTH_DELIMITED) {
+    const length = decodeVarint(buffer, offset);
+    assertBytesAvailable(
+      buffer,
+      length.nextOffset,
+      length.value,
+      "length-delimited"
+    );
+    const start = length.nextOffset;
+    return {
+      nextOffset: start + length.value,
+      value: buffer.subarray(start, start + length.value),
+    };
+  }
+
+  if (wireType === WIRE_TYPE_FIXED64) {
+    assertBytesAvailable(buffer, offset, 8, "fixed64");
+    return { nextOffset: offset + 8, value: null };
+  }
+
+  if (wireType === WIRE_TYPE_FIXED32) {
+    assertBytesAvailable(buffer, offset, 4, "fixed32");
+    return { nextOffset: offset + 4, value: null };
+  }
+
+  throw new Error(`Tipo de wire protobuf não suportado: ${wireType}`);
 }
 
 /**
@@ -47,36 +107,21 @@ export function decodeFields(
 
   while (offset < buffer.length) {
     const tag = decodeVarint(buffer, offset);
-    offset = tag.nextOffset;
     const fieldNumber = tag.value >>> 3;
     const wireType = tag.value & 0x7;
 
-    let value: Uint8Array | number;
+    const decoded = decodeFieldValue(buffer, tag.nextOffset, wireType);
+    offset = decoded.nextOffset;
 
-    if (wireType === WIRE_TYPE_VARINT) {
-      const { nextOffset, value: decodedValue } = decodeVarint(buffer, offset);
-      offset = nextOffset;
-      value = decodedValue;
-    } else if (wireType === WIRE_TYPE_LENGTH_DELIMITED) {
-      const { nextOffset, value: length } = decodeVarint(buffer, offset);
-      offset = nextOffset;
-      value = buffer.subarray(offset, offset + length);
-      offset += length;
-    } else if (wireType === WIRE_TYPE_FIXED64) {
-      offset += 8;
+    if (decoded.value === null) {
       continue;
-    } else if (wireType === WIRE_TYPE_FIXED32) {
-      offset += 4;
-      continue;
-    } else {
-      throw new Error(`Unsupported protobuf wire type: ${wireType}`);
     }
 
     const existing = fields.get(fieldNumber);
     if (existing) {
-      existing.push(value);
+      existing.push(decoded.value);
     } else {
-      fields.set(fieldNumber, [value]);
+      fields.set(fieldNumber, [decoded.value]);
     }
   }
 

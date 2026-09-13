@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import AdmZip from "adm-zip";
 import Database from "better-sqlite3";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { zstdCompress } from "@/utils/zstd";
 
 /**
@@ -192,6 +192,21 @@ describe("anki-apkg-parser (Issue #29)", () => {
 
     expect(contents.media).toEqual([]);
     contents.db.close();
+  });
+
+  it("closes the collection database when a later step (media processing) throws", async () => {
+    const { parseApkg } = await import("@/main/anki-apkg-parser");
+    const zip = new AdmZip();
+    zip.addFile("collection.anki21", buildSqliteBuffer());
+    zip.addFile("media", Buffer.from("not valid json"));
+    const fixturePath = writeFixture(zip);
+
+    const closeSpy = vi.spyOn(Database.prototype, "close");
+
+    await expect(parseApkg(fixturePath)).rejects.toThrow();
+
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+    closeSpy.mockRestore();
   });
 
   it("throws when the collection database is missing", async () => {
