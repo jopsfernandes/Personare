@@ -258,6 +258,25 @@ describe("CalendarPage Google Calendar sync (Issue #26)", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows a reconnect message when the backend reports calendar_reconnect_required", async () => {
+    vi.mocked(getCalendarConnectionStatus).mockResolvedValue(true);
+    vi.mocked(syncCalendar).mockResolvedValue({
+      error: "calendar_reconnect_required",
+    });
+    const user = userEvent.setup();
+    renderCalendarPage();
+    const button = await screen.findByRole("button", {
+      name: i18n.t("syncCalendarAction"),
+    });
+    await waitFor(() => expect(button).not.toBeDisabled());
+
+    await user.click(button);
+
+    expect(
+      await screen.findByText(i18n.t("calendarReconnectRequiredErrorMessage"))
+    ).toBeInTheDocument();
+  });
+
   it("shows a generic error message when syncCalendar rejects", async () => {
     vi.mocked(getCalendarConnectionStatus).mockResolvedValue(true);
     vi.mocked(syncCalendar).mockRejectedValue(new Error("network error"));

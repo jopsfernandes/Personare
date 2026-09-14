@@ -279,6 +279,13 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Fixed
 
+- **Sincronização com Google Calendar não aparecia na agenda do usuário** (hotfix, follow-up da [#26](https://github.com/jopsfernandes/Personare/issues/26)).
+  `POST /calendar/sync` (`Study-Butler-Backend`) sempre escreveu na agenda `primary` do usuário conectado, mas o escopo pedido (`calendar.events`) só permite ler/escrever eventos em agendas já existentes -- nunca permitiu `calendars.insert`, então não havia como criar uma agenda dedicada nem confirmar programaticamente que os eventos realmente apareciam na agenda certa do usuário.
+  - Troca de abordagem: eventos agora vão para uma agenda secundária dedicada **"Personare"**, criada uma vez por usuário (`ensureCalendar`) e reaproveitada em todo sync seguinte via a nova coluna `calendar_id` em `google_calendar_connections`.
+  - Escopo do OAuth do Calendar trocado de `calendar.events` para `calendar.app.created` (permite criar/gerenciar só as agendas que o próprio app cria, sem acesso às agendas existentes do usuário) -- conexões feitas antes deste hotfix precisam reconectar (Configurações → Conta → Conectar Google Calendar) para o escopo novo ser concedido.
+  - `POST /calendar/sync` retorna `409 { error: "calendar_reconnect_required" }` quando a conexão armazenada não tem escopo suficiente para criar a agenda (ao invés de uma falha genérica), e o Personare mostra uma mensagem específica orientando a reconectar.
+  - `upsertCalendarEvent`/`deleteCalendarEvent` (`Study-Butler-Backend`) passam a receber `calendarId` explicitamente em vez de assumir `"primary"`.
+
 - **`review_items.due_date`/`last_reviewed_at` perdiam precisão de milissegundos** ([#64](https://github.com/jopsfernandes/Personare/issues/64)).
   `src/database/schema.ts` usava `integer(..., { mode: "timestamp" })` do drizzle-orm para essas duas colunas, que trunca para segundos inteiros em todo round-trip via SQLite — bug pré-existente desde a migration fundacional, exposto pela primeira vez pela Issue #16 (FSRS, que escreve timestamps com precisão sub-segundo via `ts-fsrs`) e descoberto incidentalmente durante a Issue #18 (Calendário).
   - Corrigido trocando o modo para `{ mode: "timestamp_ms" }` nas duas colunas — reinterpretação pura na camada do driver (o integer bruto já armazenado no SQLite não muda), sem impacto de DDL: `drizzle-kit generate` confirma que nenhuma migration nova é necessária.

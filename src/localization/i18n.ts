@@ -65,9 +65,11 @@ i18n.use(initReactI18next).init({
         calendarOneDayLabel: "1 day",
         calendarOneEventLabel: "1 event",
         calendarPreviousAction: "Previous",
+        calendarReconnectRequiredErrorMessage:
+          "Your Google Calendar connection needs to be renewed. Reconnect it in Settings.",
         calendarResourcesLabel: "Resources",
         calendarScopeConsentDescription:
-          "Personare will ask permission to create, edit, and delete events on your Google Calendar, used only to reflect your pending reviews. You can disconnect this at any time.",
+          'Personare will ask permission to create a dedicated "Personare" calendar in your Google account and manage events on it, used only to reflect your pending reviews. It cannot see or modify your other calendars. You can disconnect this at any time.',
         calendarSelectViewLabel: "Select view",
         calendarSyncErrorMessage: "Failed to sync with Google Calendar.",
         calendarSyncResultMessage:
@@ -258,9 +260,11 @@ i18n.use(initReactI18next).init({
         calendarOneDayLabel: "1 dia",
         calendarOneEventLabel: "1 evento",
         calendarPreviousAction: "Anterior",
+        calendarReconnectRequiredErrorMessage:
+          "Sua conexão com o Google Calendar precisa ser renovada. Reconecte em Configurações.",
         calendarResourcesLabel: "Recursos",
         calendarScopeConsentDescription:
-          "O Personare vai pedir permissão para criar, editar e excluir eventos no seu Google Calendar, usados apenas para refletir suas revisões pendentes. Você pode desconectar isso a qualquer momento.",
+          'O Personare vai pedir permissão para criar uma agenda dedicada "Personare" na sua conta Google e gerenciar eventos nela, usados apenas para refletir suas revisões pendentes. Ele não consegue ver nem modificar suas outras agendas. Você pode desconectar isso a qualquer momento.',
         calendarSelectViewLabel: "Selecionar visualização",
         calendarSyncErrorMessage: "Falha ao sincronizar com o Google Calendar.",
         calendarSyncResultMessage:

@@ -24,6 +24,11 @@ import {
   resolveEventCalendarLocale,
 } from "@/utils/event-calendar-i18n";
 
+const SYNC_ERROR_MESSAGE_KEYS: Record<string, string> = {
+  calendar_not_connected: "calendarNotConnectedErrorMessage",
+  calendar_reconnect_required: "calendarReconnectRequiredErrorMessage",
+};
+
 interface CalendarEventData {
   moduleId: string;
   programId: string;
@@ -110,10 +115,9 @@ export function CalendarPage() {
     )
       .then((result) => {
         if ("error" in result) {
+          const messageKey = SYNC_ERROR_MESSAGE_KEYS[result.error];
           setSyncMessage(
-            result.error === "calendar_not_connected"
-              ? t("calendarNotConnectedErrorMessage")
-              : t("calendarSyncErrorMessage")
+            messageKey ? t(messageKey) : t("calendarSyncErrorMessage")
           );
           return;
         }
