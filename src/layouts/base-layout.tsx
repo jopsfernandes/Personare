@@ -10,7 +10,7 @@ export default function BaseLayout({
 }) {
   return (
     <div className="flex h-svh flex-col">
-      <DragWindowRegion/>
+      <DragWindowRegion title="Personare" />
       <SidebarProvider className="min-h-0 flex-1">
         <AppSidebar />
         <SidebarInset>
