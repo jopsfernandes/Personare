@@ -204,39 +204,104 @@ describe("CalendarPage Google Calendar sync (Issue #26)", () => {
   });
 
   it("syncs the currently loaded schedule rows and shows the reconciliation counts", async () => {
-    vi.mocked(getCalendarConnectionStatus).mockResolvedValue(true);
-    vi.mocked(syncCalendar).mockResolvedValue({
-      created: 1,
-      deleted: 0,
-      updated: 2,
-    });
-    const user = userEvent.setup();
-    renderCalendarPage();
-    const button = await screen.findByRole("button", {
-      name: i18n.t("syncCalendarAction"),
-    });
-    await waitFor(() => expect(button).not.toBeDisabled());
+    const originalTz = process.env.TZ;
+    process.env.TZ = "UTC";
 
-    await user.click(button);
+    try {
+      vi.mocked(getCalendarConnectionStatus).mockResolvedValue(true);
+      vi.mocked(syncCalendar).mockResolvedValue({
+        created: 1,
+        deleted: 0,
+        updated: 2,
+      });
+      const user = userEvent.setup();
+      renderCalendarPage();
+      const button = await screen.findByRole("button", {
+        name: i18n.t("syncCalendarAction"),
+      });
+      await waitFor(() => expect(button).not.toBeDisabled());
 
-    await waitFor(() => {
-      expect(syncCalendar).toHaveBeenCalledWith([
+      await user.click(button);
+
+      await waitFor(() => {
+        expect(syncCalendar).toHaveBeenCalledWith([
+          {
+            dueDate: "2026-02-01",
+            front: "Brasilia",
+            id: "r1",
+          },
+        ]);
+      });
+      expect(
+        await screen.findByText(
+          i18n.t("calendarSyncResultMessage", {
+            created: 1,
+            deleted: 0,
+            updated: 2,
+          })
+        )
+      ).toBeInTheDocument();
+    } finally {
+      process.env.TZ = originalTz;
+    }
+  });
+
+  /**
+   * Regression test: syncing used to send row.dueDate.toISOString() (a UTC
+   * timestamp) straight to the backend, which then sliced its date portion
+   * -- also in UTC. A dueDate whose local time-of-day is late enough (or
+   * whose timezone offset is positive) crosses into the next/previous UTC
+   * calendar day, so the Google Calendar event landed on the wrong day
+   * (reported: app said day 21, Google Calendar showed day 22). Pinning TZ
+   * to a fixed UTC-3 zone (America/Sao_Paulo has had no DST since 2019)
+   * reproduces that mismatch deterministically regardless of which
+   * timezone actually runs this test suite.
+   */
+  it("sends the review's local calendar day, not its UTC day, so it doesn't land on the wrong day", async () => {
+    const originalTz = process.env.TZ;
+    process.env.TZ = "America/Sao_Paulo";
+
+    try {
+      vi.mocked(listSchedule).mockResolvedValue([
         {
-          dueDate: "2026-02-01T00:00:00.000Z",
-          front: "Brasilia",
-          id: "r1",
+          activityId: "a2",
+          activityTitle: "Baralho de fixacao",
+          // 2026-02-02T01:00:00Z is 2026-02-01 22:00 in UTC-3 -- local day
+          // is Feb 1, UTC day is Feb 2.
+          dueDate: new Date("2026-02-02T01:00:00Z"),
+          front: "Rio de Janeiro",
+          id: "r2",
+          moduleId: "m1",
+          programId: "p1",
         },
       ]);
-    });
-    expect(
-      await screen.findByText(
-        i18n.t("calendarSyncResultMessage", {
-          created: 1,
-          deleted: 0,
-          updated: 2,
-        })
-      )
-    ).toBeInTheDocument();
+      vi.mocked(getCalendarConnectionStatus).mockResolvedValue(true);
+      vi.mocked(syncCalendar).mockResolvedValue({
+        created: 1,
+        deleted: 0,
+        updated: 0,
+      });
+      const user = userEvent.setup();
+      renderCalendarPage();
+      const button = await screen.findByRole("button", {
+        name: i18n.t("syncCalendarAction"),
+      });
+      await waitFor(() => expect(button).not.toBeDisabled());
+
+      await user.click(button);
+
+      await waitFor(() => {
+        expect(syncCalendar).toHaveBeenCalledWith([
+          {
+            dueDate: "2026-02-01",
+            front: "Rio de Janeiro",
+            id: "r2",
+          },
+        ]);
+      });
+    } finally {
+      process.env.TZ = originalTz;
+    }
   });
 
   it("shows a not-connected message when the backend reports calendar_not_connected", async () => {

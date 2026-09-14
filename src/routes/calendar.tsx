@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { format } from "date-fns";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -108,7 +109,14 @@ export function CalendarPage() {
 
     syncCalendar(
       scheduleRows.map((row) => ({
-        dueDate: row.dueDate.toISOString(),
+        // Local calendar day, not UTC: row.dueDate carries whatever
+        // time-of-day the review happened at, and toISOString() converts to
+        // UTC first, which crosses into the next (or previous) day
+        // depending on the user's timezone offset and the time of day. The
+        // backend treats this as an all-day event, so it must already be a
+        // plain local date, matching how the in-app calendar itself floors
+        // to the local day (src/actions/calendar.ts, toCalendarEvents).
+        dueDate: format(row.dueDate, "yyyy-MM-dd"),
         front: row.front ?? row.activityTitle,
         id: row.id,
       }))
