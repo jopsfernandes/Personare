@@ -1,5 +1,6 @@
 // biome-ignore-all lint/style/useFilenamingConvention: TanStack Router file-based routing requires the "$paramName" filename convention for dynamic route segments.
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -8,9 +9,16 @@ import {
   softDeleteModule,
   updateModule,
 } from "@/actions/modules";
+import { listPrograms } from "@/actions/programs";
 import DeleteModuleDialog from "@/components/delete-module-dialog";
 import ModuleFormDialog from "@/components/module-form-dialog";
 import ModulesDataTable, { type Module } from "@/components/modules-data-table";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 
 function ProgramModulesPage() {
@@ -18,6 +26,7 @@ function ProgramModulesPage() {
   const navigate = useNavigate();
   const { programId } = Route.useParams();
   const [modules, setModules] = useState<Module[]>([]);
+  const [programName, setProgramName] = useState("");
   const [, startTransition] = useTransition();
   const [formModule, setFormModule] = useState<Module | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -34,6 +43,13 @@ function ProgramModulesPage() {
   useEffect(() => {
     refreshModules();
   }, [refreshModules]);
+
+  useEffect(() => {
+    listPrograms().then((programs) => {
+      const program = programs.find((item) => item.id === programId);
+      setProgramName(program?.name ?? "");
+    });
+  }, [programId]);
 
   const handleCreateClick = useCallback(() => {
     setFormModule(null);
@@ -99,6 +115,25 @@ function ProgramModulesPage() {
       <div className="flex items-center justify-between">
         <h1 className="font-bold text-2xl">{t("modulesPageTitle")}</h1>
         <Button onClick={handleCreateClick}>{t("createModuleAction")}</Button>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          aria-label={t("goBackAction")}
+          asChild
+          size="icon"
+          variant="outline"
+        >
+          <Link to="/">
+            <ArrowLeft />
+          </Link>
+        </Button>
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbPage>{programName}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
       <ModulesDataTable
         modules={modules}

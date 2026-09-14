@@ -1,3 +1,4 @@
+import type { VariantProps } from "class-variance-authority";
 import { format } from "date-fns";
 import {
   CheckCircle2,
@@ -13,8 +14,17 @@ import {
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { openExternalLink } from "@/actions/shell";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import ActionIconButton from "@/components/action-icon-button";
+import { Badge, type badgeVariants } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export interface Activity {
   createdAt: Date;
@@ -51,6 +61,15 @@ const RATING_TRANSLATION_KEYS: Record<string, string> = {
   easy: "ratingEasyAction",
   good: "ratingGoodAction",
   hard: "ratingHardAction",
+};
+
+type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
+
+const RATING_BADGE_VARIANTS: Record<string, BadgeVariant> = {
+  again: "destructive",
+  easy: "default",
+  good: "secondary",
+  hard: "outline",
 };
 
 interface ActivitiesDataTableProps {
@@ -135,111 +154,101 @@ function ActivityRow({
     ACTIVITY_TYPE_TRANSLATION_KEYS[activity.type] ?? activity.type;
 
   return (
-    <tr>
-      <td>{activity.title}</td>
-      <td>
-        <Badge>{t(typeTranslationKey)}</Badge>
-      </td>
-      <td>
-        {reviewState
-          ? t("activityReviewStateLabel", {
-              date: format(reviewState.dueDate, "yyyy-MM-dd"),
-              rating: t(
-                RATING_TRANSLATION_KEYS[reviewState.lastRating] ??
-                  reviewState.lastRating
-              ),
-            })
-          : null}
-      </td>
-      <td>
-        {activity.type === "link" && (
-          <Button
-            aria-label={t("openActivityUrlAction")}
-            onClick={handleOpenUrlClick}
-            size="icon"
-            variant="ghost"
+    <TableRow>
+      <TableCell className="font-medium">{activity.title}</TableCell>
+      <TableCell>
+        <Badge variant="outline">{t(typeTranslationKey)}</Badge>
+      </TableCell>
+      <TableCell>
+        {reviewState ? (
+          <Badge
+            variant={
+              RATING_BADGE_VARIANTS[reviewState.lastRating] ?? "secondary"
+            }
           >
-            <ExternalLink />
-          </Button>
-        )}
-        {activity.type === "pdf" && (
-          <Button
-            aria-label={t("viewPdfAction")}
-            onClick={handleViewPdfClick}
-            size="icon"
-            variant="ghost"
+            {t(
+              RATING_TRANSLATION_KEYS[reviewState.lastRating] ??
+                reviewState.lastRating
+            )}
+          </Badge>
+        ) : null}
+      </TableCell>
+      <TableCell className="text-muted-foreground">
+        {reviewState ? format(reviewState.dueDate, "yyyy-MM-dd") : null}
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-1">
+          {activity.type === "link" && (
+            <ActionIconButton
+              label={t("openActivityUrlAction")}
+              onClick={handleOpenUrlClick}
+            >
+              <ExternalLink />
+            </ActionIconButton>
+          )}
+          {activity.type === "pdf" && (
+            <ActionIconButton
+              label={t("viewPdfAction")}
+              onClick={handleViewPdfClick}
+            >
+              <FileText />
+            </ActionIconButton>
+          )}
+          {activity.type === "quiz" && (
+            <ActionIconButton
+              label={t("manageQuizQuestionsAction")}
+              onClick={handleManageQuizClick}
+            >
+              <ListChecks />
+            </ActionIconButton>
+          )}
+          {activity.type === "quiz" && (
+            <ActionIconButton
+              label={t("takeQuizAction")}
+              onClick={handleTakeQuizClick}
+            >
+              <Play />
+            </ActionIconButton>
+          )}
+          {activity.type === "flashcard_deck" && (
+            <ActionIconButton
+              label={t("manageFlashcardsAction")}
+              onClick={handleManageFlashcardsClick}
+            >
+              <Layers />
+            </ActionIconButton>
+          )}
+          {activity.type === "flashcard_deck" && (
+            <ActionIconButton
+              label={t("startReviewAction")}
+              onClick={handleStartReviewClick}
+            >
+              <Repeat />
+            </ActionIconButton>
+          )}
+          {MARKABLE_ACTIVITY_TYPES.has(activity.type) && (
+            <ActionIconButton
+              label={t("markActivityDoneAction")}
+              onClick={handleMarkDifficultyClick}
+            >
+              <CheckCircle2 />
+            </ActionIconButton>
+          )}
+          <ActionIconButton
+            label={t("editActivityAction")}
+            onClick={handleEditClick}
           >
-            <FileText />
-          </Button>
-        )}
-        {activity.type === "quiz" && (
-          <Button
-            aria-label={t("manageQuizQuestionsAction")}
-            onClick={handleManageQuizClick}
-            size="icon"
-            variant="ghost"
+            <Pencil />
+          </ActionIconButton>
+          <ActionIconButton
+            label={t("deleteActivityAction")}
+            onClick={handleDeleteClick}
           >
-            <ListChecks />
-          </Button>
-        )}
-        {activity.type === "quiz" && (
-          <Button
-            aria-label={t("takeQuizAction")}
-            onClick={handleTakeQuizClick}
-            size="icon"
-            variant="ghost"
-          >
-            <Play />
-          </Button>
-        )}
-        {activity.type === "flashcard_deck" && (
-          <Button
-            aria-label={t("manageFlashcardsAction")}
-            onClick={handleManageFlashcardsClick}
-            size="icon"
-            variant="ghost"
-          >
-            <Layers />
-          </Button>
-        )}
-        {activity.type === "flashcard_deck" && (
-          <Button
-            aria-label={t("startReviewAction")}
-            onClick={handleStartReviewClick}
-            size="icon"
-            variant="ghost"
-          >
-            <Repeat />
-          </Button>
-        )}
-        {MARKABLE_ACTIVITY_TYPES.has(activity.type) && (
-          <Button
-            aria-label={t("markActivityDoneAction")}
-            onClick={handleMarkDifficultyClick}
-            size="icon"
-            variant="ghost"
-          >
-            <CheckCircle2 />
-          </Button>
-        )}
-        <Button
-          aria-label={t("editActivityAction")}
-          onClick={handleEditClick}
-          size="icon"
-          variant="ghost"
-        >
-          <Pencil />
-        </Button>
-        <Button
-          aria-label={t("deleteActivityAction")}
-          onClick={handleDeleteClick}
-          size="icon"
-          variant="ghost"
-        >
-          <Trash2 />
-        </Button>
-      </td>
-    </tr>
+            <Trash2 />
+          </ActionIconButton>
+        </div>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -262,24 +271,37 @@ export default function ActivitiesDataTable({
   }
 
   return (
-    <table>
-      <tbody>
-        {activities.map((activity) => (
-          <ActivityRow
-            activity={activity}
-            key={activity.id}
-            onEdit={onEdit}
-            onManageFlashcards={onManageFlashcards}
-            onManageQuiz={onManageQuiz}
-            onMarkDifficulty={onMarkDifficulty}
-            onRequestDelete={onRequestDelete}
-            onStartReview={onStartReview}
-            onTakeQuiz={onTakeQuiz}
-            onViewPdf={onViewPdf}
-            reviewState={reviewStateByActivityId[activity.id]}
-          />
-        ))}
-      </tbody>
-    </table>
+    <TooltipProvider>
+      <div className="rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("activityTitleLabel")}</TableHead>
+              <TableHead>{t("activityTypeLabel")}</TableHead>
+              <TableHead>{t("activityReviewStateColumnLabel")}</TableHead>
+              <TableHead>{t("activityNextReviewColumnLabel")}</TableHead>
+              <TableHead>{t("actionsColumnLabel")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {activities.map((activity) => (
+              <ActivityRow
+                activity={activity}
+                key={activity.id}
+                onEdit={onEdit}
+                onManageFlashcards={onManageFlashcards}
+                onManageQuiz={onManageQuiz}
+                onMarkDifficulty={onMarkDifficulty}
+                onRequestDelete={onRequestDelete}
+                onStartReview={onStartReview}
+                onTakeQuiz={onTakeQuiz}
+                onViewPdf={onViewPdf}
+                reviewState={reviewStateByActivityId[activity.id]}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </TooltipProvider>
   );
 }

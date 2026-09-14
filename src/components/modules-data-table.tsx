@@ -1,7 +1,16 @@
 import { ListChecks, Pencil, Trash2 } from "lucide-react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
+import ActionIconButton from "@/components/action-icon-button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export interface Module {
   createdAt: Date;
@@ -46,35 +55,31 @@ function ModuleRow({
   }, [onNavigateToActivities, module]);
 
   return (
-    <tr>
-      <td>{module.name}</td>
-      <td>
-        <Button
-          aria-label={t("editModuleAction")}
-          onClick={handleEditClick}
-          size="icon"
-          variant="ghost"
-        >
-          <Pencil />
-        </Button>
-        <Button
-          aria-label={t("deleteModuleAction")}
-          onClick={handleDeleteClick}
-          size="icon"
-          variant="ghost"
-        >
-          <Trash2 />
-        </Button>
-        <Button
-          aria-label={t("viewActivitiesAction")}
-          onClick={handleNavigateToActivitiesClick}
-          size="icon"
-          variant="ghost"
-        >
-          <ListChecks />
-        </Button>
-      </td>
-    </tr>
+    <TableRow>
+      <TableCell className="font-medium">{module.name}</TableCell>
+      <TableCell>
+        <div className="flex items-center gap-1">
+          <ActionIconButton
+            label={t("viewActivitiesAction")}
+            onClick={handleNavigateToActivitiesClick}
+          >
+            <ListChecks />
+          </ActionIconButton>
+          <ActionIconButton
+            label={t("editModuleAction")}
+            onClick={handleEditClick}
+          >
+            <Pencil />
+          </ActionIconButton>
+          <ActionIconButton
+            label={t("deleteModuleAction")}
+            onClick={handleDeleteClick}
+          >
+            <Trash2 />
+          </ActionIconButton>
+        </div>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -91,18 +96,28 @@ export default function ModulesDataTable({
   }
 
   return (
-    <table>
-      <tbody>
-        {modules.map((module) => (
-          <ModuleRow
-            key={module.id}
-            module={module}
-            onEdit={onEdit}
-            onNavigateToActivities={onNavigateToActivities}
-            onRequestDelete={onRequestDelete}
-          />
-        ))}
-      </tbody>
-    </table>
+    <TooltipProvider>
+      <div className="rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("moduleNameLabel")}</TableHead>
+              <TableHead>{t("actionsColumnLabel")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {modules.map((module) => (
+              <ModuleRow
+                key={module.id}
+                module={module}
+                onEdit={onEdit}
+                onNavigateToActivities={onNavigateToActivities}
+                onRequestDelete={onRequestDelete}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </TooltipProvider>
   );
 }

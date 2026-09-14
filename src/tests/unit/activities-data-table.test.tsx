@@ -422,7 +422,7 @@ describe("ActivitiesDataTable", () => {
     }
   });
 
-  it("shows the last rating and next review date for an activity with review state", () => {
+  it("shows the last rating and the next review date in separate cells for an activity with review state", () => {
     const [, quiz] = ACTIVITIES;
     renderTable(ACTIVITIES, {
       [quiz.id]: {
@@ -431,14 +431,8 @@ describe("ActivitiesDataTable", () => {
       },
     });
 
-    expect(
-      screen.getByText(
-        i18n.t("activityReviewStateLabel", {
-          date: "2026-03-15",
-          rating: i18n.t("ratingGoodAction"),
-        })
-      )
-    ).toBeInTheDocument();
+    expect(screen.getByText(i18n.t("ratingGoodAction"))).toBeInTheDocument();
+    expect(screen.getByText("2026-03-15")).toBeInTheDocument();
   });
 });
 
@@ -476,7 +470,9 @@ describe("Activities screen i18n keys (Issue #10)", () => {
     // Issue #77 (Dificuldade percebida em Quiz/PDF/Link -> FSRS)
     "markActivityDoneAction",
     "activityDifficultyPromptMessage",
-    "activityReviewStateLabel",
+    "activityReviewStateColumnLabel",
+    "activityNextReviewColumnLabel",
+    "actionsColumnLabel",
   ];
 
   it.each(["en", "pt-BR"] as const)(
