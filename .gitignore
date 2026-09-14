@@ -102,3 +102,9 @@ out/
 
 # Tanstack
 .tanstack/
+
+# Maestri canvas local config
+.maestri/
+
+# LLM Council session transcripts (local reference only)
+docs/council/
