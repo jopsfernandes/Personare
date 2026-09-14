@@ -1,11 +1,7 @@
 import type React from "react";
 import AppSidebar from "@/components/app-sidebar";
 import DragWindowRegion from "@/components/drag-window-region";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 export default function BaseLayout({
   children,
@@ -13,15 +9,14 @@ export default function BaseLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <DragWindowRegion title="Personare" />
-      <SidebarProvider>
+    <div className="flex h-svh flex-col">
+      <DragWindowRegion/>
+      <SidebarProvider className="min-h-0 flex-1">
         <AppSidebar />
         <SidebarInset>
-          <SidebarTrigger />
-          <main className="h-screen p-2 pb-20">{children}</main>
+          <main className="h-full overflow-y-auto p-2">{children}</main>
         </SidebarInset>
       </SidebarProvider>
-    </>
+    </div>
   );
 }

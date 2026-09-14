@@ -1,6 +1,13 @@
 // biome-ignore-all lint/style/useFilenamingConvention: TanStack Router file-based routing requires the "$paramName" filename convention for dynamic route segments.
-import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowLeft, Search } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   createActivity,
@@ -8,6 +15,8 @@ import {
   softDeleteActivity,
   updateActivity,
 } from "@/actions/activities";
+import { listModules } from "@/actions/modules";
+import { listPrograms } from "@/actions/programs";
 import { listActivityReviewState } from "@/actions/review";
 import ActivitiesDataTable, {
   type Activity,
@@ -21,12 +30,24 @@ import PdfViewerDialog from "@/components/pdf-viewer-dialog";
 import QuizQuestionManagerDialog from "@/components/quiz-question-manager-dialog";
 import QuizRunnerDialog from "@/components/quiz-runner-dialog";
 import ReviewSessionDialog from "@/components/review-session-dialog";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 function ModuleActivitiesPage() {
   const { t } = useTranslation();
-  const { moduleId } = Route.useParams();
+  const { moduleId, programId } = Route.useParams();
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [programName, setProgramName] = useState("");
+  const [moduleName, setModuleName] = useState("");
   const [reviewStateByActivityId, setReviewStateByActivityId] = useState<
     Record<string, ActivityReviewState | undefined>
   >({});
@@ -75,6 +96,20 @@ function ModuleActivitiesPage() {
     refreshActivities();
     refreshReviewState();
   }, [refreshActivities, refreshReviewState]);
+
+  useEffect(() => {
+    listPrograms().then((programs) => {
+      const program = programs.find((item) => item.id === programId);
+      setProgramName(program?.name ?? "");
+    });
+  }, [programId]);
+
+  useEffect(() => {
+    listModules(programId).then((modules) => {
+      const module = modules.find((item) => item.id === moduleId);
+      setModuleName(module?.name ?? "");
+    });
+  }, [programId, moduleId]);
 
   const handleCreateClick = useCallback(() => {
     setFormActivity(null);
@@ -190,14 +225,69 @@ function ModuleActivitiesPage() {
     });
   }, [activityPendingDelete, refreshActivities]);
 
+  const handleSearchTermChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchTerm(event.target.value);
+    },
+    []
+  );
+
+  const visibleActivities = useMemo(() => {
+    const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+    if (!normalizedSearchTerm) {
+      return activities;
+    }
+
+    return activities.filter((activity) =>
+      activity.title.toLowerCase().includes(normalizedSearchTerm)
+    );
+  }, [activities, searchTerm]);
+
   return (
     <div className="flex h-full flex-col gap-4 p-2">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="font-bold text-2xl">{t("activitiesPageTitle")}</h1>
         <Button onClick={handleCreateClick}>{t("createActivityAction")}</Button>
       </div>
+      <div className="flex items-center gap-2">
+        <Button
+          aria-label={t("goBackAction")}
+          asChild
+          size="icon"
+          variant="outline"
+        >
+          <Link params={{ programId }} to="/programs/$programId">
+            <ArrowLeft />
+          </Link>
+        </Button>
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link params={{ programId }} to="/programs/$programId">
+                  {programName}
+                </Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{moduleName}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+      <div className="relative max-w-xs">
+        <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          aria-label={t("searchActivityPlaceholder")}
+          className="pl-7"
+          onChange={handleSearchTermChange}
+          placeholder={t("searchActivityPlaceholder")}
+          value={searchTerm}
+        />
+      </div>
       <ActivitiesDataTable
-        activities={activities}
+        activities={visibleActivities}
         onEdit={handleEdit}
         onManageFlashcards={handleManageFlashcards}
         onManageQuiz={handleManageQuiz}
