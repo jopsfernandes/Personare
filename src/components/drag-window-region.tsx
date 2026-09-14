@@ -54,7 +54,7 @@ function WindowButtons() {
   return (
     <div className="flex">
       <button
-        className="p-2 hover:bg-slate-300"
+        className="p-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         onClick={minimizeWindow}
         title="Minimize"
         type="button"
@@ -70,7 +70,7 @@ function WindowButtons() {
         </svg>
       </button>
       <button
-        className="p-2 hover:bg-slate-300"
+        className="p-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         onClick={maximizeWindow}
         title="Maximize"
         type="button"
@@ -93,7 +93,7 @@ function WindowButtons() {
         </svg>
       </button>
       <button
-        className="p-2 hover:bg-red-300"
+        className="p-2 hover:bg-destructive/20 hover:text-destructive"
         onClick={closeWindow}
         title="Close"
         type="button"
