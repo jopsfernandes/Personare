@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateQuizScore,
+  formatQuizDuration,
   type QuizScoringQuestion,
 } from "@/utils/quiz-scoring";
 
@@ -81,5 +82,32 @@ describe("calculateQuizScore (Issue #14)", () => {
       correct: 0,
       total: 3,
     });
+  });
+});
+
+/**
+ * RED phase (Issue #93, Spec Driven TDD): formatQuizDuration does not exist
+ * yet, per docs/specs/issue-93-quiz-multistep-radial-results.md AC-1.
+ */
+describe("formatQuizDuration (Issue #93)", () => {
+  it("formats a sub-minute duration as seconds only", () => {
+    expect(formatQuizDuration(45_000)).toBe("45s");
+  });
+
+  it("formats a duration of a minute or more as minutes and zero-padded seconds", () => {
+    expect(formatQuizDuration(185_000)).toBe("3m 05s");
+  });
+
+  it("rounds to the nearest second", () => {
+    expect(formatQuizDuration(1_499)).toBe("1s");
+    expect(formatQuizDuration(1_500)).toBe("2s");
+  });
+
+  it("treats a negative duration as zero", () => {
+    expect(formatQuizDuration(-1000)).toBe("0s");
+  });
+
+  it("formats exactly zero as 0s", () => {
+    expect(formatQuizDuration(0)).toBe("0s");
   });
 });

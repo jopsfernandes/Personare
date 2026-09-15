@@ -1,26 +1,21 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import i18n from "i18next";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@/localization/i18n";
 import type { Activity } from "@/components/activities-data-table";
 
 /**
- * RED phase (Issue #14, Spec Driven TDD): src/components/quiz-runner-dialog
- * does not exist yet. Every test below is expected to fail until Fundacao
- * (Developer) implements it, per docs/specs/issue-14-quiz.md AC-2.
+ * RED phase (Issue #93, Spec Driven TDD): src/components/quiz-runner-dialog
+ * is rewritten for a multi-step flow, per
+ * docs/specs/issue-93-quiz-multistep-radial-results.md AC-3. Every test
+ * below is expected to fail until the dialog renders one question per step
+ * (with a top progress bar), navigates forward-only via a
+ * next-question/finish action, and shows a radial-chart-text result with
+ * total/average time on finish.
  *
- * Contract exercised here: given a quiz Activity, fetches its questions with
- * options (listQuizQuestionsWithOptions) and renders every question with a
- * native radio group of its options -- one group per question, using a
- * distinct `name` per group so selecting an option in one question cannot
- * uncheck a selection in another (native <input type="radio"> semantics).
- * A finish action computes the score via calculateQuizScore (already
- * implemented, RED phase inherited -- src/tests/unit/quiz-scoring.test.ts)
- * and swaps the dialog's internal view to a result screen showing
- * "X of Y correct" through the interpolated i18n key `quizResultMessage`.
- * Nothing is persisted -- there is no database/IPC call involved in
- * answering or finishing, only in the initial load.
+ * Fake timers make startedAt/finishedAt deterministic (the component reads
+ * Date.now() when the dialog opens and again when the finish action fires).
  */
 
 vi.mock("@/actions/quiz", () => ({
@@ -78,86 +73,141 @@ function renderRunner(activity: Activity | null = QUIZ_ACTIVITY) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
   vi.mocked(listQuizQuestionsWithOptions).mockResolvedValue(RUNNER_QUESTIONS);
 });
 
-describe("QuizRunnerDialog (Issue #14)", () => {
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("QuizRunnerDialog (Issue #93)", () => {
   it("does not attempt to load questions when there is no activity", () => {
     renderRunner(null);
 
     expect(listQuizQuestionsWithOptions).not.toHaveBeenCalled();
   });
 
-  it("renders every question's text and a radio option per alternative once loaded", async () => {
+  it("renders only the current question, not the others, with a radio option per alternative", async () => {
     renderRunner();
 
-    expect(listQuizQuestionsWithOptions).toHaveBeenCalledWith(QUIZ_ACTIVITY.id);
     expect(
       await screen.findByText(RUNNER_QUESTIONS[0].text)
     ).toBeInTheDocument();
-    expect(screen.getByText(RUNNER_QUESTIONS[1].text)).toBeInTheDocument();
-    expect(screen.getAllByRole("radio")).toHaveLength(4);
+    expect(screen.queryByText(RUNNER_QUESTIONS[1].text)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("radio")).toHaveLength(2);
   });
 
-  it("groups each question's options under a distinct radio name so a selection in one question does not affect another", async () => {
-    const user = userEvent.setup();
+  it("shows a progress label reflecting the current question position", async () => {
     renderRunner();
     await screen.findByText(RUNNER_QUESTIONS[0].text);
 
-    const radios = screen.getAllByRole("radio") as HTMLInputElement[];
-    expect(radios[0].name).not.toBe(radios[2].name);
-
-    await user.click(radios[0]);
-    await user.click(radios[2]);
-
-    expect(radios[0].checked).toBe(true);
-    expect(radios[2].checked).toBe(true);
+    expect(
+      screen.getByText(i18n.t("quizQuestionProgressLabel", { current: 1, total: 2 }))
+    ).toBeInTheDocument();
   });
 
-  it("renders the finish action and no result yet before finishing", async () => {
+  it("shows the next-question action before the last question, and the finish action on the last one", async () => {
+    const user = userEvent.setup({
+      advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
+    });
     renderRunner();
     await screen.findByText(RUNNER_QUESTIONS[0].text);
+
+    expect(
+      screen.getByRole("button", { name: i18n.t("nextQuestionAction") })
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("nextQuestionAction") })
+    );
+    await screen.findByText(RUNNER_QUESTIONS[1].text);
 
     expect(
       screen.getByRole("button", { name: i18n.t("finishQuizAction") })
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(i18n.t("quizQuestionProgressLabel", { current: 2, total: 2 }))
+    ).toBeInTheDocument();
   });
 
-  it("computes and displays the score, replacing the questions view, when the finish action is triggered", async () => {
-    const user = userEvent.setup();
+  it("advances to the next question, no longer showing the previous one or its options", async () => {
+    const user = userEvent.setup({
+      advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
+    });
     renderRunner();
     await screen.findByText(RUNNER_QUESTIONS[0].text);
 
-    const radios = screen.getAllByRole("radio") as HTMLInputElement[];
-    await user.click(radios[1]); // q1 -> Brasilia (correct)
-    await user.click(radios[3]); // q2 -> 4 (correct)
+    const firstRadios = screen.getAllByRole("radio") as HTMLInputElement[];
+    await user.click(firstRadios[1]);
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("nextQuestionAction") })
+    );
+
+    expect(
+      await screen.findByText(RUNNER_QUESTIONS[1].text)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(RUNNER_QUESTIONS[0].text)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("radio")).toHaveLength(2);
+  });
+
+  it("shows the radial chart result with score, total time, and average time per question on finish", async () => {
+    const user = userEvent.setup({
+      advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
+    });
+    renderRunner();
+    await screen.findByText(RUNNER_QUESTIONS[0].text);
+
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    const q1Radios = screen.getAllByRole("radio") as HTMLInputElement[];
+    await user.click(q1Radios[1]); // Brasilia (correct)
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("nextQuestionAction") })
+    );
+    await screen.findByText(RUNNER_QUESTIONS[1].text);
+
+    await act(() => vi.advanceTimersByTimeAsync(15_000));
+    const q2Radios = screen.getAllByRole("radio") as HTMLInputElement[];
+    await user.click(q2Radios[1]); // 4 (correct)
     await user.click(
       screen.getByRole("button", { name: i18n.t("finishQuizAction") })
     );
 
+    expect(await screen.findByText("100%")).toBeInTheDocument();
     expect(
-      await screen.findByText(
-        i18n.t("quizResultMessage", { correct: 2, total: 2 })
-      )
+      screen.getByText(i18n.t("quizResultMessage", { correct: 2, total: 2 }))
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(i18n.t("quizTotalTimeLabel", { duration: "20s" }))
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(i18n.t("quizAverageTimeLabel", { duration: "10s" }))
     ).toBeInTheDocument();
     expect(screen.queryAllByRole("radio")).toHaveLength(0);
   });
 
   it("counts an unanswered question as incorrect when the finish action is triggered", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({
+      advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
+    });
     renderRunner();
     await screen.findByText(RUNNER_QUESTIONS[0].text);
 
-    const radios = screen.getAllByRole("radio") as HTMLInputElement[];
-    await user.click(radios[1]); // only answers q1, correctly
+    const q1Radios = screen.getAllByRole("radio") as HTMLInputElement[];
+    await user.click(q1Radios[1]); // Brasilia (correct)
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("nextQuestionAction") })
+    );
+    await screen.findByText(RUNNER_QUESTIONS[1].text);
+    // q2 left unanswered
     await user.click(
       screen.getByRole("button", { name: i18n.t("finishQuizAction") })
     );
 
+    expect(await screen.findByText("50%")).toBeInTheDocument();
     expect(
-      await screen.findByText(
-        i18n.t("quizResultMessage", { correct: 1, total: 2 })
-      )
+      screen.getByText(i18n.t("quizResultMessage", { correct: 1, total: 2 }))
     ).toBeInTheDocument();
   });
 });
