@@ -20,6 +20,18 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
   - Novo módulo utilitário `src/utils/protobuf-lite.ts` (parser genérico de wire format, sem depender de
     uma lib de protobuf completa) e `src/utils/zstd.ts` (compress/decompress via `zstd-codec`, WASM, sem
     binário nativo).
+- **Mapeamento de note types/templates do Anki para Flashcard** ([#30](https://github.com/jopsfernandes/Personare/issues/30)).
+  Segunda etapa da importação de Anki: converte o banco SQLite extraído pela Issue #29 em cards prontos
+  para virar `Flashcard` do Personare, sem tocar DB/IPC/UI ainda (isso fica para uma issue de importação
+  futura) -- um módulo puro, `mapAnkiNotesToFlashcards`.
+  - Suporta os dois schemas de coleção que um `.apkg` real pode conter: o legado (`col.models`/
+    `col.decks` como JSON) e o normalizado (tabelas `notetypes`/`fields`/`templates`/`decks`, com as
+    colunas `config` decodificadas via `protobuf-lite`).
+  - Renderiza os templates de front/verso do Anki (substituição de campos, seções condicionais
+    `{{#Campo}}`/`{{^Campo}}`, `{{FrontSide}}`) e note types de cloze deletion, gerando um card por
+    número de cloze e mascarando só o número ativo em cada um.
+  - Agrupa o resultado por deck do Anki (usando o deck de origem quando o card está num deck filtrado) e
+    extrai, por card, os nomes de arquivo de mídia referenciados no HTML renderizado.
 - **Backup via Google Drive** ([#27](https://github.com/jopsfernandes/Personare/issues/27)).
   Complementa o Backup local (Issue #21) com uma cópia extra fora do dispositivo, no próprio Google
   Drive do usuário -- não o substitui. Reaproveita o mesmo padrão de conexão OAuth separada do login já
