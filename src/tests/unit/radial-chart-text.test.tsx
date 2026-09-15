@@ -1,11 +1,30 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * RED phase (Issue #93, Spec Driven TDD): src/components/radial-chart-text
  * does not exist yet, per
  * docs/specs/issue-93-quiz-multistep-radial-results.md AC-2.
+ *
+ * Recharts' ResponsiveContainer measures its container via
+ * getBoundingClientRect() before its first render; jsdom always reports 0x0
+ * (no real layout engine) and the ResizeObserver polyfill in
+ * src/tests/unit/setup.ts never fires, so without this override the chart
+ * (and its centered text) never mounts at all.
  */
+beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+    bottom: 300,
+    height: 300,
+    left: 0,
+    right: 300,
+    toJSON: () => undefined,
+    top: 0,
+    width: 300,
+    x: 0,
+    y: 0,
+  });
+});
 
 const { RadialChartText } = await import("@/components/radial-chart-text");
 

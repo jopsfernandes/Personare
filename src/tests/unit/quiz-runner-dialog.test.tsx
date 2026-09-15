@@ -76,6 +76,19 @@ beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
   vi.mocked(listQuizQuestionsWithOptions).mockResolvedValue(RUNNER_QUESTIONS);
+  // The result screen renders RadialChartText (Recharts); see
+  // radial-chart-text.test.tsx for why this mock is required under jsdom.
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+    bottom: 300,
+    height: 300,
+    left: 0,
+    right: 300,
+    toJSON: () => undefined,
+    top: 0,
+    width: 300,
+    x: 0,
+    y: 0,
+  });
 });
 
 afterEach(() => {

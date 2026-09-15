@@ -8,6 +8,17 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Added
 
+- **Quiz: fluxo multi-step com progress-bar e resultado com radial chart** ([#93](https://github.com/jopsfernandes/Personare/issues/93)).
+  Redesenha a experiência de responder um Quiz (`QuizRunnerDialog`), que antes renderizava todas as
+  perguntas de uma vez com `<input type="radio">` cru e mostrava o resultado como uma única frase.
+  - Uma pergunta por vez, com uma `Progress` bar (shadcn/ui) no topo indicando "Pergunta X de Y" --
+    navegação só pra frente, sem revisar uma resposta já dada.
+  - Alternativas de resposta agora usam `RadioGroup`/`RadioGroupItem` (shadcn/ui) em vez do `<input>`
+    cru anterior.
+  - Tela final de resultado com um novo componente genérico `RadialChartText` (shadcn charts sobre
+    Recharts) mostrando a pontuação em %, mais tempo total do quiz e tempo médio por questão (dois
+    timestamps -- início e fim -- já que média é sempre soma/contagem, sem precisar de um cronômetro
+    por pergunta).
 - **Parser de arquivos .apkg do Anki** ([#29](https://github.com/jopsfernandes/Personare/issues/29)).
   Primeira etapa da importação de Anki (Plan.md seção 6, Fase 3): extrai o zip `.apkg` e abre o banco
   SQLite interno para leitura, sem UI nem mapeamento de conteúdo ainda (isso fica para as Issues #30 e
