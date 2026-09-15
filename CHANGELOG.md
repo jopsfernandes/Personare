@@ -32,6 +32,16 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
     número de cloze e mascarando só o número ativo em cada um.
   - Agrupa o resultado por deck do Anki (usando o deck de origem quando o card está num deck filtrado) e
     extrai, por card, os nomes de arquivo de mídia referenciados no HTML renderizado.
+- **Conversão de estado SM-2 para seed inicial de FSRS** ([#31](https://github.com/jopsfernandes/Personare/issues/31)).
+  Terceira etapa da importação de Anki: gera, por card do banco extraído pela Issue #29, um estado
+  inicial de FSRS pronto para virar `ReviewItem` do Personare -- também um módulo puro,
+  `seedReviewStateFromAnkiCards`, sem tocar DB/IPC/UI (fica para a mesma issue de importação futura da
+  #30; os dois resultados se casam pelo `cardId`/`cards.id`, não por posição na lista).
+  - Usa o estado real do scheduler FSRS do próprio Anki (`cards.data`) quando presente -- coleções do
+    Anki 23.10+ com FSRS habilitado já guardam `stability`/`difficulty` na mesma escala do `ts-fsrs`.
+  - Sem esse estado nativo, estima `stability`/`difficulty` a partir do intervalo/fator de facilidade do
+    SM-2 (`ivl`/`factor`), ancorado nos próprios parâmetros padrão do FSRS (`request_retention`,
+    `S_MIN`) e no piso de ease que o Anki mesmo impõe -- não é (nem tenta ser) um mapeamento 1:1.
 - **Backup via Google Drive** ([#27](https://github.com/jopsfernandes/Personare/issues/27)).
   Complementa o Backup local (Issue #21) com uma cópia extra fora do dispositivo, no próprio Google
   Drive do usuário -- não o substitui. Reaproveita o mesmo padrão de conexão OAuth separada do login já

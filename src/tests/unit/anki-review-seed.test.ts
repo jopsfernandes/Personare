@@ -36,7 +36,10 @@ interface CardFixture {
   type: number;
 }
 
-function buildDb(options: { cards: CardFixture[]; crt: number }): Database.Database {
+function buildDb(options: {
+  cards: CardFixture[];
+  crt: number;
+}): Database.Database {
   const db = new Database(":memory:");
   db.exec("CREATE TABLE col (id INTEGER PRIMARY KEY, crt INTEGER NOT NULL)");
   db.exec(`CREATE TABLE cards (
@@ -373,9 +376,39 @@ describe("anki-review-seed (Issue #31)", () => {
     );
     const db = buildDb({
       cards: [
-        { data: "", due: 1, factor: 2500, id: 20, ivl: 5, lapses: 0, queue: 2, reps: 1, type: 2 },
-        { data: "", due: 5, factor: 0, id: 21, ivl: 0, lapses: 0, queue: 0, reps: 0, type: 0 },
-        { data: "", due: 2, factor: 2400, id: 22, ivl: 3, lapses: 0, queue: 2, reps: 1, type: 2 },
+        {
+          data: "",
+          due: 1,
+          factor: 2500,
+          id: 20,
+          ivl: 5,
+          lapses: 0,
+          queue: 2,
+          reps: 1,
+          type: 2,
+        },
+        {
+          data: "",
+          due: 5,
+          factor: 0,
+          id: 21,
+          ivl: 0,
+          lapses: 0,
+          queue: 0,
+          reps: 0,
+          type: 0,
+        },
+        {
+          data: "",
+          due: 2,
+          factor: 2400,
+          id: 22,
+          ivl: 3,
+          lapses: 0,
+          queue: 2,
+          reps: 1,
+          type: 2,
+        },
       ],
       crt: 1_600_000_000,
     });
