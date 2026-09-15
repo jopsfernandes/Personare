@@ -1,3 +1,5 @@
+// @vitest-environment node
+// biome-ignore-all lint/suspicious/noBitwiseOperators: bitwise math is inherent to hand-encoding protobuf's varint/tag wire format for these fixtures
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 
@@ -15,9 +17,14 @@ import { describe, expect, it } from "vitest";
  * protobuf-encoded) -- the same protobuf wire format already decoded by
  * src/utils/protobuf-lite.ts for Issue #29, so the encoders below mirror
  * anki-apkg-parser.test.ts's hand-rolled ones.
+ *
+ * Forced to the "node" environment for the same reason as
+ * anki-apkg-parser.test.ts: better-sqlite3's BLOB columns come back as real
+ * Node Buffers from a native addon, and protobuf-lite's `instanceof
+ * Uint8Array` check fails across jsdom's separate VM realm otherwise, always
+ * decoding the `config` columns as empty.
  */
 
-// biome-ignore-all lint/suspicious/noBitwiseOperators: bitwise math is inherent to hand-encoding protobuf's varint/tag wire format for these fixtures
 function encodeVarint(value: number): number[] {
   const bytes: number[] = [];
   let remaining = value;
@@ -76,17 +83,17 @@ interface LegacyField {
 }
 
 interface LegacyTemplate {
+  afmt: string;
   name: string;
   ord: number;
   qfmt: string;
-  afmt: string;
 }
 
 interface LegacyNotetype {
-  id: number;
-  type: 0 | 1;
   flds: LegacyField[];
+  id: number;
   tmpls: LegacyTemplate[];
+  type: 0 | 1;
 }
 
 interface LegacyDeck {
@@ -95,17 +102,17 @@ interface LegacyDeck {
 }
 
 interface NoteRow {
+  flds: string[];
   id: number;
   mid: number;
-  flds: string[];
 }
 
 interface CardRow {
+  did: number;
   id: number;
   nid: number;
-  did: number;
-  ord: number;
   odid?: number;
+  ord: number;
 }
 
 const COL_COLUMNS =
@@ -281,7 +288,11 @@ describe.each([
     expect(mapAnkiNotesToFlashcards(db)).toEqual([
       {
         cards: [
-          { back: "Pergunta<hr>Resposta", front: "Pergunta", mediaFilenames: [] },
+          {
+            back: "Pergunta<hr>Resposta",
+            front: "Pergunta",
+            mediaFilenames: [],
+          },
         ],
         deckName: "Deck Padrão",
       },
@@ -326,7 +337,11 @@ describe.each([
 
     const [{ cards }] = mapAnkiNotesToFlashcards(db);
 
-    expect(cards[0]).toEqual({ back: "Q1<hr>A1", front: "Q1", mediaFilenames: [] });
+    expect(cards[0]).toEqual({
+      back: "Q1<hr>A1",
+      front: "Q1",
+      mediaFilenames: [],
+    });
     expect(cards[1]).toEqual({
       back: "Q2<hr>A2<div>info extra</div>",
       front: "Q2",
@@ -347,7 +362,12 @@ describe.each([
       ],
       id: 3,
       tmpls: [
-        { afmt: "{{cloze:Text}}<br>{{Extra}}", name: "Cloze", ord: 0, qfmt: "{{cloze:Text}}" },
+        {
+          afmt: "{{cloze:Text}}<br>{{Extra}}",
+          name: "Cloze",
+          ord: 0,
+          qfmt: "{{cloze:Text}}",
+        },
       ],
       type: 1,
     };
@@ -395,7 +415,14 @@ describe.each([
     const clozeNotetype: LegacyNotetype = {
       flds: [{ name: "Text", ord: 0 }],
       id: 4,
-      tmpls: [{ afmt: "{{cloze:Text}}", name: "Cloze", ord: 0, qfmt: "{{cloze:Text}}" }],
+      tmpls: [
+        {
+          afmt: "{{cloze:Text}}",
+          name: "Cloze",
+          ord: 0,
+          qfmt: "{{cloze:Text}}",
+        },
+      ],
       type: 1,
     };
     const db = build({
@@ -519,6 +546,8 @@ describe.each([
   });
 });
 
+const UNSUPPORTED_SCHEMA_MESSAGE = /não suportad/i;
+
 describe("anki-note-mapper (Issue #30) -- schema detection", () => {
   it("throws when the collection schema version is neither legacy nor normalized", async () => {
     const { mapAnkiNotesToFlashcards } = await import(
@@ -528,7 +557,9 @@ describe("anki-note-mapper (Issue #30) -- schema detection", () => {
     db.exec("CREATE TABLE col (id INTEGER PRIMARY KEY, ver INTEGER NOT NULL)");
     db.prepare("INSERT INTO col (id, ver) VALUES (1, 14)").run();
 
-    expect(() => mapAnkiNotesToFlashcards(db)).toThrow(/não suportad/i);
+    expect(() => mapAnkiNotesToFlashcards(db)).toThrow(
+      UNSUPPORTED_SCHEMA_MESSAGE
+    );
 
     db.close();
   });
