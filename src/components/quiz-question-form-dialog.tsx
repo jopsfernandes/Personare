@@ -246,16 +246,19 @@ export default function QuizQuestionFormDialog({
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent>
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-2xl">
+        <form
+          className="flex flex-1 flex-col overflow-hidden"
+          onSubmit={handleSubmit}
+        >
+          <DialogHeader className="px-4 pt-4">
             <DialogTitle>
               {question
                 ? t("editQuizQuestionAction")
                 : t("addQuizQuestionAction")}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-4 py-4">
+          <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
             <div className="flex flex-col gap-2">
               <MarkdownEditor
                 id={questionTextId}
@@ -291,7 +294,7 @@ export default function QuizQuestionFormDialog({
               </Button>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="px-4 pb-4">
             <Button onClick={handleCancelClick} type="button" variant="outline">
               {t("cancelAction")}
             </Button>
