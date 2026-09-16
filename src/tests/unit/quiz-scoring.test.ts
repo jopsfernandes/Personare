@@ -99,8 +99,8 @@ describe("formatQuizDuration (Issue #93)", () => {
   });
 
   it("rounds to the nearest second", () => {
-    expect(formatQuizDuration(1_499)).toBe("1s");
-    expect(formatQuizDuration(1_500)).toBe("2s");
+    expect(formatQuizDuration(1499)).toBe("1s");
+    expect(formatQuizDuration(1500)).toBe("2s");
   });
 
   it("treats a negative duration as zero", () => {

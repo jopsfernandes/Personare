@@ -122,7 +122,9 @@ describe("QuizRunnerDialog (Issue #93)", () => {
     expect(
       await screen.findByText(RUNNER_QUESTIONS[0].text)
     ).toBeInTheDocument();
-    expect(screen.queryByText(RUNNER_QUESTIONS[1].text)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(RUNNER_QUESTIONS[1].text)
+    ).not.toBeInTheDocument();
     expect(screen.getAllByRole("radio")).toHaveLength(2);
   });
 
@@ -131,7 +133,9 @@ describe("QuizRunnerDialog (Issue #93)", () => {
     await screen.findByText(RUNNER_QUESTIONS[0].text);
 
     expect(
-      screen.getByText(i18n.t("quizQuestionProgressLabel", { current: 1, total: 2 }))
+      screen.getByText(
+        i18n.t("quizQuestionProgressLabel", { current: 1, total: 2 })
+      )
     ).toBeInTheDocument();
   });
 
@@ -181,7 +185,9 @@ describe("QuizRunnerDialog (Issue #93)", () => {
       screen.getByRole("button", { name: i18n.t("finishQuizAction") })
     ).toBeInTheDocument();
     expect(
-      screen.getByText(i18n.t("quizQuestionProgressLabel", { current: 2, total: 2 }))
+      screen.getByText(
+        i18n.t("quizQuestionProgressLabel", { current: 2, total: 2 })
+      )
     ).toBeInTheDocument();
   });
 
@@ -201,7 +207,9 @@ describe("QuizRunnerDialog (Issue #93)", () => {
     expect(
       await screen.findByText(RUNNER_QUESTIONS[1].text)
     ).toBeInTheDocument();
-    expect(screen.queryByText(RUNNER_QUESTIONS[0].text)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(RUNNER_QUESTIONS[0].text)
+    ).not.toBeInTheDocument();
     expect(screen.getAllByRole("radio")).toHaveLength(2);
   });
 
