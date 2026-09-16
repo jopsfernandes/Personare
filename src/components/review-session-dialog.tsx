@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ensureReviewItems, listDue, submitRating } from "@/actions/review";
 import type { Activity } from "@/components/activities-data-table";
+import ImageAttachmentViewer from "@/components/image-attachment-viewer";
+import MarkdownContent from "@/components/markdown-content";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,8 +15,10 @@ import {
 
 interface DueReviewItem {
   back: string;
+  backImagePath: string | null;
   dueDate: Date;
   front: string;
+  frontImagePath: string | null;
   id: string;
 }
 
@@ -110,8 +114,16 @@ export default function ReviewSessionDialog({
         {sessionComplete ? <p>{t("reviewSessionCompleteMessage")}</p> : null}
         {currentItem ? (
           <div className="flex flex-col gap-4 py-4">
-            <p>{currentItem.front}</p>
-            {isRevealed ? <p>{currentItem.back}</p> : null}
+            <div className="flex items-center gap-2">
+              <MarkdownContent content={currentItem.front} />
+              <ImageAttachmentViewer fileName={currentItem.frontImagePath} />
+            </div>
+            {isRevealed ? (
+              <div className="flex items-center gap-2">
+                <MarkdownContent content={currentItem.back} />
+                <ImageAttachmentViewer fileName={currentItem.backImagePath} />
+              </div>
+            ) : null}
           </div>
         ) : null}
         {currentItem ? (
