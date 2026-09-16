@@ -32,6 +32,9 @@ vi.mock("@/actions/review", () => ({
   listDue: vi.fn(),
   submitRating: vi.fn(),
 }));
+vi.mock("@/actions/attachments", () => ({
+  getAttachmentImageDataUrl: vi.fn(),
+}));
 
 const { ensureReviewItems, listDue, submitRating } = await import(
   "@/actions/review"
@@ -54,14 +57,18 @@ const REVIEW_ACTIVITY: Activity = {
 const DUE_ITEMS = [
   {
     back: "Capital do Brasil",
+    backImagePath: null,
     dueDate: new Date("2026-01-01"),
     front: "Brasilia",
+    frontImagePath: "front1.png",
     id: "r1",
   },
   {
     back: "Oceano Atlantico",
+    backImagePath: null,
     dueDate: new Date("2026-01-01"),
     front: "Qual oceano banha o Brasil?",
+    frontImagePath: null,
     id: "r2",
   },
 ];
@@ -123,6 +130,14 @@ describe("ReviewSessionDialog (Issue #16)", () => {
     expect(screen.queryByText(DUE_ITEMS[0].back)).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: i18n.t("revealAnswerAction") })
+    ).toBeInTheDocument();
+  });
+
+  it("shows a view-image action for the front when it has an attached image", async () => {
+    renderSession();
+
+    expect(
+      await screen.findByRole("button", { name: i18n.t("viewImageAction") })
     ).toBeInTheDocument();
   });
 
