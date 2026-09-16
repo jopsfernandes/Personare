@@ -37,6 +37,15 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
     garantem que a imagem nunca aparece inline — não há como ela quebrar o layout.
   - Telas de exibição atualizadas: `flashcard-manager-dialog.tsx`, `quiz-question-manager-dialog.tsx`,
     `review-session-dialog.tsx` e `quiz-runner-dialog.tsx`.
+- **Quiz: componente Questionnaire do shadcn/ui + revisão por pergunta no resultado**
+  ([#95](https://github.com/jopsfernandes/Personare/issues/95)).
+  - `QuizRunnerDialog` troca o `RadioGroup`/`RadioGroupItem` montado à mão pelos primitivos oficiais
+    `Questionnaire.Item`/`Title`/`Choices`/`Choice` (shadcn/ui) para pergunta e alternativas -- a
+    navegação em si continua um único botão próprio (não `Questionnaire.Next`/`Submit`), preservando a
+    tolerância a pergunta sem resposta já decidida na #93.
+  - A tela de resultado ganha uma lista de revisão por pergunta, abaixo do radial chart e dos tempos:
+    texto da pergunta, resposta escolhida (ou "nenhuma resposta"), resposta correta (quando a escolhida
+    estava errada) e um indicador de acerto/erro.
 - **Parser de arquivos .apkg do Anki** ([#29](https://github.com/jopsfernandes/Personare/issues/29)).
   Primeira etapa da importação de Anki (Plan.md seção 6, Fase 3): extrai o zip `.apkg` e abre o banco
   SQLite interno para leitura, sem UI nem mapeamento de conteúdo ainda (isso fica para as Issues #30 e
