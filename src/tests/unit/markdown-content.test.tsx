@@ -36,7 +36,7 @@ describe("MarkdownContent (Issue #96)", () => {
 
   it("renders block LaTeX between $$...$$ as a KaTeX display formula", () => {
     const { container } = render(
-      <MarkdownContent content="$$x^2 + y^2 = z^2$$" />
+      <MarkdownContent content={"$$\nx^2 + y^2 = z^2\n$$"} />
     );
 
     expect(container.querySelector(".katex-display")).not.toBeNull();

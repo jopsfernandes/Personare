@@ -154,7 +154,7 @@ i18n.use(initReactI18next).init({
         manageQuizQuestionsAction: "Manage questions",
         markActivityDoneAction: "Mark as done",
         markdownLatexHintMessage:
-          "Supports Markdown. Use $...$ for inline formulas and $$...$$ for block formulas, e.g. $E=mc^2$.",
+          "Supports Markdown. Use $...$ for inline formulas (e.g. $E=mc^2$) and $$ on its own line before and after for block formulas.",
         markdownPreviewTabLabel: "Preview",
         markdownWriteTabLabel: "Write",
         moduleNameLabel: "Name",
@@ -363,7 +363,7 @@ i18n.use(initReactI18next).init({
         manageQuizQuestionsAction: "Gerenciar perguntas",
         markActivityDoneAction: "Marcar como concluído",
         markdownLatexHintMessage:
-          "Suporta Markdown. Use $...$ para fórmulas em linha e $$...$$ para fórmulas em bloco, ex.: $E=mc^2$.",
+          "Suporta Markdown. Use $...$ para fórmulas em linha (ex.: $E=mc^2$) e $$ sozinho antes e depois para fórmulas em bloco.",
         markdownPreviewTabLabel: "Pré-visualizar",
         markdownWriteTabLabel: "Escrever",
         moduleNameLabel: "Nome",
