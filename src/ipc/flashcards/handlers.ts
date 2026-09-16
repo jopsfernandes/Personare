@@ -46,8 +46,10 @@ export const create = os
       .values({
         activityId: input.activityId,
         back: input.back,
+        backImagePath: input.backImagePath ?? null,
         createdAt: now,
         front: input.front,
+        frontImagePath: input.frontImagePath ?? null,
         updatedAt: now,
       })
       .returning()
@@ -63,7 +65,9 @@ export const update = os
       .update(flashcardsTable)
       .set({
         back: input.back,
+        backImagePath: input.backImagePath ?? null,
         front: input.front,
+        frontImagePath: input.frontImagePath ?? null,
         updatedAt: new Date(),
       })
       .where(eq(flashcardsTable.id, input.id))

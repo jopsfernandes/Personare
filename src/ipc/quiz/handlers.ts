@@ -53,6 +53,7 @@ export const createQuestion = os
       .values({
         activityId: input.activityId,
         createdAt: now,
+        imagePath: input.imagePath ?? null,
         text: input.text,
         updatedAt: now,
       })
@@ -67,7 +68,11 @@ export const updateQuestion = os
 
     return db
       .update(quizQuestions)
-      .set({ text: input.text, updatedAt: new Date() })
+      .set({
+        imagePath: input.imagePath ?? null,
+        text: input.text,
+        updatedAt: new Date(),
+      })
       .where(eq(quizQuestions.id, input.id))
       .returning()
       .get();
@@ -115,6 +120,7 @@ export const createOption = os
       .insert(quizOptions)
       .values({
         createdAt: now,
+        imagePath: input.imagePath ?? null,
         isCorrect: input.isCorrect,
         questionId: input.questionId,
         text: input.text,
@@ -132,6 +138,7 @@ export const updateOption = os
     return db
       .update(quizOptions)
       .set({
+        imagePath: input.imagePath ?? null,
         isCorrect: input.isCorrect,
         text: input.text,
         updatedAt: new Date(),

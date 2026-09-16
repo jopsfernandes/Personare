@@ -57,6 +57,13 @@
       "when": 1789116973641,
       "tag": "0007_add_activity_id_to_review_items",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1789553623801,
+      "tag": "0008_mighty_genesis",
+      "breakpoints": true
     }
   ]
 }

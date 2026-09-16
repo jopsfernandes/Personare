@@ -35,6 +35,14 @@ vi.mock("@/actions/quiz", () => ({
   softDeleteQuizQuestion: vi.fn(),
   updateQuizQuestion: vi.fn(),
 }));
+vi.mock("@/actions/dialog", () => ({
+  selectImageFile: vi.fn(),
+}));
+vi.mock("@/actions/attachments", () => ({
+  deleteAttachmentImage: vi.fn(),
+  getAttachmentImageDataUrl: vi.fn(),
+  saveAttachmentImage: vi.fn(),
+}));
 
 const {
   createQuizOption,
@@ -62,17 +70,19 @@ const QUIZ_ACTIVITY: Activity = {
 const EXISTING_QUESTIONS = [
   {
     id: "q1",
+    imagePath: null,
     options: [
-      { id: "o1", isCorrect: false, text: "Sao Paulo" },
-      { id: "o2", isCorrect: true, text: "Brasilia" },
+      { id: "o1", imagePath: null, isCorrect: false, text: "Sao Paulo" },
+      { id: "o2", imagePath: null, isCorrect: true, text: "Brasilia" },
     ],
     text: "Qual e a capital do Brasil?",
   },
   {
     id: "q2",
+    imagePath: null,
     options: [
-      { id: "o3", isCorrect: false, text: "3" },
-      { id: "o4", isCorrect: true, text: "4" },
+      { id: "o3", imagePath: null, isCorrect: false, text: "3" },
+      { id: "o4", imagePath: null, isCorrect: true, text: "4" },
     ],
     text: "Quanto e 2 + 2?",
   },
@@ -197,6 +207,7 @@ describe("QuizQuestionManagerDialog (Issue #14)", () => {
     vi.mocked(createQuizQuestion).mockResolvedValue({
       activityId: QUIZ_ACTIVITY.id,
       id: "new-q",
+      imagePath: null,
       text: "Nova pergunta",
     });
     renderManager();
@@ -223,12 +234,23 @@ describe("QuizQuestionManagerDialog (Issue #14)", () => {
     await waitFor(() => {
       expect(createQuizQuestion).toHaveBeenCalledWith(
         QUIZ_ACTIVITY.id,
-        "Nova pergunta"
+        "Nova pergunta",
+        null
       );
     });
     await waitFor(() => {
-      expect(createQuizOption).toHaveBeenCalledWith("new-q", "Opcao A", false);
-      expect(createQuizOption).toHaveBeenCalledWith("new-q", "Opcao B", true);
+      expect(createQuizOption).toHaveBeenCalledWith(
+        "new-q",
+        "Opcao A",
+        false,
+        null
+      );
+      expect(createQuizOption).toHaveBeenCalledWith(
+        "new-q",
+        "Opcao B",
+        true,
+        null
+      );
     });
   });
 
@@ -237,6 +259,7 @@ describe("QuizQuestionManagerDialog (Issue #14)", () => {
     vi.mocked(updateQuizQuestion).mockResolvedValue({
       activityId: QUIZ_ACTIVITY.id,
       id: "q1",
+      imagePath: null,
       text: "Pergunta editada",
     });
     renderManager();
@@ -257,15 +280,29 @@ describe("QuizQuestionManagerDialog (Issue #14)", () => {
     );
 
     await waitFor(() => {
-      expect(updateQuizQuestion).toHaveBeenCalledWith("q1", "Pergunta editada");
+      expect(updateQuizQuestion).toHaveBeenCalledWith(
+        "q1",
+        "Pergunta editada",
+        null
+      );
     });
     await waitFor(() => {
       expect(softDeleteQuizOption).toHaveBeenCalledWith("o1");
       expect(softDeleteQuizOption).toHaveBeenCalledWith("o2");
     });
     await waitFor(() => {
-      expect(createQuizOption).toHaveBeenCalledWith("q1", "Sao Paulo", false);
-      expect(createQuizOption).toHaveBeenCalledWith("q1", "Brasilia", true);
+      expect(createQuizOption).toHaveBeenCalledWith(
+        "q1",
+        "Sao Paulo",
+        false,
+        null
+      );
+      expect(createQuizOption).toHaveBeenCalledWith(
+        "q1",
+        "Brasilia",
+        true,
+        null
+      );
     });
   });
 });

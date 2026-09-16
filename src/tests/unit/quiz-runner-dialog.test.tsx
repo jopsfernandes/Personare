@@ -21,8 +21,12 @@ import type { Activity } from "@/components/activities-data-table";
 vi.mock("@/actions/quiz", () => ({
   listQuizQuestionsWithOptions: vi.fn(),
 }));
+vi.mock("@/actions/attachments", () => ({
+  getAttachmentImageDataUrl: vi.fn(),
+}));
 
 const { listQuizQuestionsWithOptions } = await import("@/actions/quiz");
+const { getAttachmentImageDataUrl } = await import("@/actions/attachments");
 const { default: QuizRunnerDialog } = await import(
   "@/components/quiz-runner-dialog"
 );
@@ -41,17 +45,24 @@ const QUIZ_ACTIVITY: Activity = {
 const RUNNER_QUESTIONS = [
   {
     id: "q1",
+    imagePath: "question1.png",
     options: [
-      { id: "q1-a", isCorrect: false, text: "Sao Paulo" },
-      { id: "q1-b", isCorrect: true, text: "Brasilia" },
+      { id: "q1-a", imagePath: null, isCorrect: false, text: "Sao Paulo" },
+      {
+        id: "q1-b",
+        imagePath: "option1b.png",
+        isCorrect: true,
+        text: "Brasilia",
+      },
     ],
     text: "Qual e a capital do Brasil?",
   },
   {
     id: "q2",
+    imagePath: null,
     options: [
-      { id: "q2-a", isCorrect: false, text: "3" },
-      { id: "q2-b", isCorrect: true, text: "4" },
+      { id: "q2-a", imagePath: null, isCorrect: false, text: "3" },
+      { id: "q2-b", imagePath: null, isCorrect: true, text: "4" },
     ],
     text: "Quanto e 2 + 2?",
   },
@@ -76,6 +87,9 @@ beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
   vi.mocked(listQuizQuestionsWithOptions).mockResolvedValue(RUNNER_QUESTIONS);
+  vi.mocked(getAttachmentImageDataUrl).mockResolvedValue(
+    "data:image/png;base64,AAAA"
+  );
   // The result screen renders RadialChartText (Recharts); see
   // radial-chart-text.test.tsx for why this mock is required under jsdom.
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
@@ -108,7 +122,9 @@ describe("QuizRunnerDialog (Issue #93)", () => {
     expect(
       await screen.findByText(RUNNER_QUESTIONS[0].text)
     ).toBeInTheDocument();
-    expect(screen.queryByText(RUNNER_QUESTIONS[1].text)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(RUNNER_QUESTIONS[1].text)
+    ).not.toBeInTheDocument();
     expect(screen.getAllByRole("radio")).toHaveLength(2);
   });
 
@@ -117,8 +133,36 @@ describe("QuizRunnerDialog (Issue #93)", () => {
     await screen.findByText(RUNNER_QUESTIONS[0].text);
 
     expect(
-      screen.getByText(i18n.t("quizQuestionProgressLabel", { current: 1, total: 2 }))
+      screen.getByText(
+        i18n.t("quizQuestionProgressLabel", { current: 1, total: 2 })
+      )
     ).toBeInTheDocument();
+  });
+
+  it("renders a view-image action for the question and options that have an attached image", async () => {
+    renderRunner();
+    await screen.findByText(RUNNER_QUESTIONS[0].text);
+
+    expect(
+      screen.getAllByRole("button", { name: i18n.t("viewImageAction") })
+    ).toHaveLength(2);
+  });
+
+  it("does not select the option's radio when its view-image action is clicked", async () => {
+    const user = userEvent.setup({
+      advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
+    });
+    renderRunner();
+    await screen.findByText(RUNNER_QUESTIONS[0].text);
+    // Captured before clicking: Radix's Dialog marks background content
+    // aria-hidden while open, which would hide these from a role query.
+    const radios = screen.getAllByRole("radio");
+
+    await user.click(
+      screen.getAllByRole("button", { name: i18n.t("viewImageAction") })[1]
+    );
+
+    expect(radios[1]).toHaveAttribute("aria-checked", "false");
   });
 
   it("shows the next-question action before the last question, and the finish action on the last one", async () => {
@@ -141,7 +185,9 @@ describe("QuizRunnerDialog (Issue #93)", () => {
       screen.getByRole("button", { name: i18n.t("finishQuizAction") })
     ).toBeInTheDocument();
     expect(
-      screen.getByText(i18n.t("quizQuestionProgressLabel", { current: 2, total: 2 }))
+      screen.getByText(
+        i18n.t("quizQuestionProgressLabel", { current: 2, total: 2 })
+      )
     ).toBeInTheDocument();
   });
 
@@ -161,7 +207,9 @@ describe("QuizRunnerDialog (Issue #93)", () => {
     expect(
       await screen.findByText(RUNNER_QUESTIONS[1].text)
     ).toBeInTheDocument();
-    expect(screen.queryByText(RUNNER_QUESTIONS[0].text)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(RUNNER_QUESTIONS[0].text)
+    ).not.toBeInTheDocument();
     expect(screen.getAllByRole("radio")).toHaveLength(2);
   });
 

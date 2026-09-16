@@ -6,9 +6,12 @@ import "@/localization/i18n";
 import type { Activity } from "@/components/activities-data-table";
 
 /**
- * RED phase (Issue #15, Spec Driven TDD): src/components/flashcard-manager-dialog
- * does not exist yet. Every test below is expected to fail until the
- * Developer implements it, per docs/specs/issue-15-flashcard-baralho.md AC-4.
+ * RED phase (Issue #15, then extended by Issue #96, Spec Driven TDD).
+ * Flashcards now carry an optional frontImagePath/backImagePath, and
+ * createFlashcard/updateFlashcard take a single values object (front, back,
+ * frontImagePath, backImagePath) instead of positional (front, back), per
+ * docs/specs/issue-96-markdown-latex-imagens.md AC-4. Each row's front/back
+ * render through MarkdownContent and get an ImageAttachmentViewer.
  *
  * Contract exercised here: given a flashcard_deck Activity (a "Baralho"),
  * lists its existing flashcards (fetched through listFlashcards), showing
@@ -28,6 +31,14 @@ vi.mock("@/actions/flashcards", () => ({
   listFlashcards: vi.fn(),
   softDeleteFlashcard: vi.fn(),
   updateFlashcard: vi.fn(),
+}));
+vi.mock("@/actions/dialog", () => ({
+  selectImageFile: vi.fn(),
+}));
+vi.mock("@/actions/attachments", () => ({
+  deleteAttachmentImage: vi.fn(),
+  getAttachmentImageDataUrl: vi.fn(),
+  saveAttachmentImage: vi.fn(),
 }));
 
 const {
@@ -52,8 +63,20 @@ const DECK_ACTIVITY: Activity = {
 };
 
 const EXISTING_FLASHCARDS = [
-  { back: "Capital do Brasil", front: "Brasilia", id: "f1" },
-  { back: "Oceano Atlantico", front: "Qual oceano banha o Brasil?", id: "f2" },
+  {
+    back: "Capital do Brasil",
+    backImagePath: null,
+    front: "Brasilia",
+    frontImagePath: "front1.png",
+    id: "f1",
+  },
+  {
+    back: "Oceano Atlantico",
+    backImagePath: null,
+    front: "Qual oceano banha o Brasil?",
+    frontImagePath: null,
+    id: "f2",
+  },
 ];
 
 function renderManager(activity: Activity | null = DECK_ACTIVITY) {
@@ -92,6 +115,15 @@ describe("FlashcardManagerDialog (Issue #15)", () => {
     expect(screen.getByText(EXISTING_FLASHCARDS[0].back)).toBeInTheDocument();
     expect(screen.getByText(EXISTING_FLASHCARDS[1].front)).toBeInTheDocument();
     expect(screen.getByText(EXISTING_FLASHCARDS[1].back)).toBeInTheDocument();
+  });
+
+  it("renders a view-image action only for a side that has an attached image", async () => {
+    renderManager();
+    await screen.findByText(EXISTING_FLASHCARDS[0].front);
+
+    expect(
+      screen.getAllByRole("button", { name: i18n.t("viewImageAction") })
+    ).toHaveLength(1);
   });
 
   it("renders an empty-state message when the deck has no flashcards", async () => {
@@ -177,7 +209,9 @@ describe("FlashcardManagerDialog (Issue #15)", () => {
     vi.mocked(createFlashcard).mockResolvedValue({
       activityId: DECK_ACTIVITY.id,
       back: "Verso novo",
+      backImagePath: null,
       front: "Frente nova",
+      frontImagePath: null,
       id: "new-f",
     });
     renderManager();
@@ -199,11 +233,12 @@ describe("FlashcardManagerDialog (Issue #15)", () => {
     );
 
     await waitFor(() => {
-      expect(createFlashcard).toHaveBeenCalledWith(
-        DECK_ACTIVITY.id,
-        "Frente nova",
-        "Verso novo"
-      );
+      expect(createFlashcard).toHaveBeenCalledWith(DECK_ACTIVITY.id, {
+        back: "Verso novo",
+        backImagePath: null,
+        front: "Frente nova",
+        frontImagePath: null,
+      });
     });
   });
 
@@ -212,7 +247,9 @@ describe("FlashcardManagerDialog (Issue #15)", () => {
     vi.mocked(updateFlashcard).mockResolvedValue({
       activityId: DECK_ACTIVITY.id,
       back: EXISTING_FLASHCARDS[0].back,
+      backImagePath: null,
       front: "Frente editada",
+      frontImagePath: EXISTING_FLASHCARDS[0].frontImagePath,
       id: "f1",
     });
     renderManager();
@@ -231,11 +268,12 @@ describe("FlashcardManagerDialog (Issue #15)", () => {
     );
 
     await waitFor(() => {
-      expect(updateFlashcard).toHaveBeenCalledWith(
-        "f1",
-        "Frente editada",
-        EXISTING_FLASHCARDS[0].back
-      );
+      expect(updateFlashcard).toHaveBeenCalledWith("f1", {
+        back: EXISTING_FLASHCARDS[0].back,
+        backImagePath: EXISTING_FLASHCARDS[0].backImagePath,
+        front: "Frente editada",
+        frontImagePath: EXISTING_FLASHCARDS[0].frontImagePath,
+      });
     });
   });
 });

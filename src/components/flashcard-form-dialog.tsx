@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import ImageAttachmentField from "@/components/image-attachment-field";
+import MarkdownEditor from "@/components/markdown-editor";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,19 +10,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 export interface FlashcardFormValue {
   back: string;
+  backImagePath: string | null;
   front: string;
+  frontImagePath: string | null;
   id: string;
+}
+
+export interface FlashcardFormSubmitValue {
+  back: string;
+  backImagePath: string | null;
+  front: string;
+  frontImagePath: string | null;
 }
 
 interface FlashcardFormDialogProps {
   flashcard: FlashcardFormValue | null;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (front: string, back: string) => void;
+  onSubmit: (values: FlashcardFormSubmitValue) => void;
   open: boolean;
 }
 
@@ -35,27 +44,21 @@ export default function FlashcardFormDialog({
   const backInputId = useId();
   const [front, setFront] = useState(flashcard?.front ?? "");
   const [back, setBack] = useState(flashcard?.back ?? "");
+  const [frontImagePath, setFrontImagePath] = useState(
+    flashcard?.frontImagePath ?? null
+  );
+  const [backImagePath, setBackImagePath] = useState(
+    flashcard?.backImagePath ?? null
+  );
 
   useEffect(() => {
     if (open) {
       setFront(flashcard?.front ?? "");
       setBack(flashcard?.back ?? "");
+      setFrontImagePath(flashcard?.frontImagePath ?? null);
+      setBackImagePath(flashcard?.backImagePath ?? null);
     }
   }, [open, flashcard]);
-
-  const handleFrontChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setFront(event.target.value);
-    },
-    []
-  );
-
-  const handleBackChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setBack(event.target.value);
-    },
-    []
-  );
 
   const handleCancelClick = useCallback(() => {
     onOpenChange(false);
@@ -64,9 +67,9 @@ export default function FlashcardFormDialog({
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      onSubmit(front, back);
+      onSubmit({ back, backImagePath, front, frontImagePath });
     },
-    [front, back, onSubmit]
+    [front, back, frontImagePath, backImagePath, onSubmit]
   );
 
   return (
@@ -79,22 +82,32 @@ export default function FlashcardFormDialog({
             </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-4">
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={frontInputId}>{t("flashcardFrontLabel")}</Label>
-              <Input
+            <div className="flex flex-col gap-2">
+              <MarkdownEditor
                 id={frontInputId}
-                onChange={handleFrontChange}
+                label={t("flashcardFrontLabel")}
+                onChange={setFront}
                 required
                 value={front}
               />
+              <ImageAttachmentField
+                fileName={frontImagePath}
+                label={t("flashcardFrontLabel")}
+                onChange={setFrontImagePath}
+              />
             </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={backInputId}>{t("flashcardBackLabel")}</Label>
-              <Input
+            <div className="flex flex-col gap-2">
+              <MarkdownEditor
                 id={backInputId}
-                onChange={handleBackChange}
+                label={t("flashcardBackLabel")}
+                onChange={setBack}
                 required
                 value={back}
+              />
+              <ImageAttachmentField
+                fileName={backImagePath}
+                label={t("flashcardBackLabel")}
+                onChange={setBackImagePath}
               />
             </div>
           </div>

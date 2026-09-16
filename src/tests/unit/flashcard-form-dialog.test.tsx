@@ -7,24 +7,29 @@ import FlashcardFormDialog, {
 } from "@/components/flashcard-form-dialog";
 import "@/localization/i18n";
 
+vi.mock("@/actions/dialog", () => ({
+  selectImageFile: vi.fn(),
+}));
+vi.mock("@/actions/attachments", () => ({
+  deleteAttachmentImage: vi.fn(),
+  saveAttachmentImage: vi.fn(),
+}));
+
 /**
- * RED phase (Issue #15, Spec Driven TDD): src/components/flashcard-form-dialog.tsx
- * does not exist yet. Every test below is expected to fail until the
- * Developer implements the component, per
- * docs/specs/issue-15-flashcard-baralho.md AC-3.
- *
- * Contract exercised here: this dialog manages ONE flashcard (front/back)
- * at a time. Unlike QuizQuestionFormDialog, there is no multi-field
- * invariant to validate client-side (no "exactly one correct option"
- * equivalent) -- the spec is explicit that native HTML `required` on both
- * inputs is sufficient, so this suite asserts the `required` attribute
- * instead of exercising the browser's own constraint-validation submit
- * blocking.
+ * RED phase (Issue #15, then extended by Issue #96, Spec Driven TDD).
+ * FlashcardFormDialog's front/back fields moved from single-line <Input> to
+ * MarkdownEditor (Markdown + LaTeX), each paired with an ImageAttachmentField
+ * (docs/specs/issue-96-markdown-latex-imagens.md AC-4). onSubmit's signature
+ * changed from positional (front, back) to a single values object carrying
+ * the image paths too, since a 4-argument positional call would be
+ * unreadable at call sites.
  */
 
 const EXISTING_FLASHCARD: FlashcardFormValue = {
   back: "Capital do Brasil",
+  backImagePath: "back123.png",
   front: "Brasilia",
+  frontImagePath: null,
   id: "11111111-1111-1111-1111-111111111111",
 };
 
@@ -78,7 +83,7 @@ describe("FlashcardFormDialog (Issue #15)", () => {
     expect(screen.getByLabelText(i18n.t("flashcardBackLabel"))).toBeRequired();
   });
 
-  it("calls onSubmit with the front and back text once filled in", async () => {
+  it("calls onSubmit with the front/back text and null image paths for a new flashcard", async () => {
     const { onSubmit } = renderDialog(null);
     const user = userEvent.setup();
 
@@ -93,18 +98,36 @@ describe("FlashcardFormDialog (Issue #15)", () => {
     await clickSave();
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
-    expect(onSubmit).toHaveBeenCalledWith("Frente nova", "Verso novo");
+    expect(onSubmit).toHaveBeenCalledWith({
+      back: "Verso novo",
+      backImagePath: null,
+      front: "Frente nova",
+      frontImagePath: null,
+    });
   });
 
-  it("submits successfully when editing an existing flashcard without changes", async () => {
+  it("submits successfully when editing an existing flashcard without changes, keeping its image paths", async () => {
     const { onSubmit } = renderDialog(EXISTING_FLASHCARD);
 
     await clickSave();
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
-    expect(onSubmit).toHaveBeenCalledWith(
-      EXISTING_FLASHCARD.front,
-      EXISTING_FLASHCARD.back
-    );
+    expect(onSubmit).toHaveBeenCalledWith({
+      back: EXISTING_FLASHCARD.back,
+      backImagePath: EXISTING_FLASHCARD.backImagePath,
+      front: EXISTING_FLASHCARD.front,
+      frontImagePath: EXISTING_FLASHCARD.frontImagePath,
+    });
+  });
+
+  it("renders an image attachment control for both the front and the back", () => {
+    renderDialog(EXISTING_FLASHCARD);
+
+    expect(
+      screen.getAllByRole("button", { name: i18n.t("attachImageAction") })
+    ).toHaveLength(1);
+    expect(
+      screen.getAllByRole("button", { name: i18n.t("removeImageAction") })
+    ).toHaveLength(1);
   });
 });

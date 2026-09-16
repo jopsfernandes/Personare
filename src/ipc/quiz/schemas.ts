@@ -6,11 +6,13 @@ export const listQuestionsInputSchema = z.object({
 
 export const createQuestionInputSchema = z.object({
   activityId: z.string(),
+  imagePath: z.string().nullable().optional(),
   text: z.string().min(1),
 });
 
 export const updateQuestionInputSchema = z.object({
   id: z.string(),
+  imagePath: z.string().nullable().optional(),
   text: z.string().min(1),
 });
 
@@ -23,6 +25,7 @@ export const listOptionsInputSchema = z.object({
 });
 
 export const createOptionInputSchema = z.object({
+  imagePath: z.string().nullable().optional(),
   isCorrect: z.boolean().default(false),
   questionId: z.string(),
   text: z.string().min(1),
@@ -30,6 +33,7 @@ export const createOptionInputSchema = z.object({
 
 export const updateOptionInputSchema = z.object({
   id: z.string(),
+  imagePath: z.string().nullable().optional(),
   isCorrect: z.boolean(),
   text: z.string().min(1),
 });

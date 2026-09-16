@@ -4,12 +4,20 @@ export function listQuizQuestions(activityId: string) {
   return ipc.client.quiz.listQuestions({ activityId });
 }
 
-export function createQuizQuestion(activityId: string, text: string) {
-  return ipc.client.quiz.createQuestion({ activityId, text });
+export function createQuizQuestion(
+  activityId: string,
+  text: string,
+  imagePath: string | null = null
+) {
+  return ipc.client.quiz.createQuestion({ activityId, imagePath, text });
 }
 
-export function updateQuizQuestion(id: string, text: string) {
-  return ipc.client.quiz.updateQuestion({ id, text });
+export function updateQuizQuestion(
+  id: string,
+  text: string,
+  imagePath: string | null = null
+) {
+  return ipc.client.quiz.updateQuestion({ id, imagePath, text });
 }
 
 export function softDeleteQuizQuestion(id: string) {
@@ -23,13 +31,24 @@ export function listQuizOptions(questionId: string) {
 export function createQuizOption(
   questionId: string,
   text: string,
-  isCorrect: boolean
+  isCorrect: boolean,
+  imagePath: string | null = null
 ) {
-  return ipc.client.quiz.createOption({ isCorrect, questionId, text });
+  return ipc.client.quiz.createOption({
+    imagePath,
+    isCorrect,
+    questionId,
+    text,
+  });
 }
 
-export function updateQuizOption(id: string, text: string, isCorrect: boolean) {
-  return ipc.client.quiz.updateOption({ id, isCorrect, text });
+export function updateQuizOption(
+  id: string,
+  text: string,
+  isCorrect: boolean,
+  imagePath: string | null = null
+) {
+  return ipc.client.quiz.updateOption({ id, imagePath, isCorrect, text });
 }
 
 export function softDeleteQuizOption(id: string) {
@@ -47,8 +66,10 @@ export async function listQuizQuestionsWithOptions(activityId: string) {
 
       return {
         id: question.id,
+        imagePath: question.imagePath,
         options: options.map((option) => ({
           id: option.id,
+          imagePath: option.imagePath,
           isCorrect: option.isCorrect,
           text: option.text,
         })),

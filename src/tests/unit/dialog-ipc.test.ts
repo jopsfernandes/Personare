@@ -93,6 +93,58 @@ describe("dialog IPC namespace (Issue #13)", () => {
     await expect(dialogClient.selectPdfFile()).resolves.toBeNull();
   });
 
+  describe("selectImageFile (Issue #96)", () => {
+    it("exposes a selectImageFile procedure", async () => {
+      const { dialog } = await import("@/ipc/dialog");
+
+      expect(dialog.selectImageFile).toBeDefined();
+    });
+
+    it("opens a native file picker restricted to common image extensions", async () => {
+      showOpenDialogMock.mockResolvedValue({
+        canceled: false,
+        filePaths: ["C:\\Users\\aluno\\Pictures\\diagrama.png"],
+      });
+      const { dialog } = await import("@/ipc/dialog");
+      const dialogClient = createRouterClient(dialog);
+
+      await dialogClient.selectImageFile();
+
+      expect(showOpenDialogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filters: [
+            {
+              extensions: ["png", "jpg", "jpeg", "gif", "webp"],
+              name: "Image",
+            },
+          ],
+          properties: ["openFile"],
+        })
+      );
+    });
+
+    it("returns the selected file path when the user picks a file", async () => {
+      showOpenDialogMock.mockResolvedValue({
+        canceled: false,
+        filePaths: ["C:\\Users\\aluno\\Pictures\\diagrama.png"],
+      });
+      const { dialog } = await import("@/ipc/dialog");
+      const dialogClient = createRouterClient(dialog);
+
+      await expect(dialogClient.selectImageFile()).resolves.toBe(
+        "C:\\Users\\aluno\\Pictures\\diagrama.png"
+      );
+    });
+
+    it("returns null when the user cancels the dialog", async () => {
+      showOpenDialogMock.mockResolvedValue({ canceled: true, filePaths: [] });
+      const { dialog } = await import("@/ipc/dialog");
+      const dialogClient = createRouterClient(dialog);
+
+      await expect(dialogClient.selectImageFile()).resolves.toBeNull();
+    });
+  });
+
   describe("selectBackupExportPath (Issue #21)", () => {
     it("exposes a selectBackupExportPath procedure", async () => {
       const { dialog } = await import("@/ipc/dialog");
