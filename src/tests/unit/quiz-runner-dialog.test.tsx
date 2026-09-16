@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import i18n from "i18next";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -289,6 +289,14 @@ describe("QuizRunnerDialog (Issue #95)", () => {
       );
     }
 
+    async function findReview() {
+      return within(
+        await screen.findByRole("region", {
+          name: i18n.t("quizReviewHeading"),
+        })
+      );
+    }
+
     it("shows the review heading, each question's text, and the chosen answer", async () => {
       const user = userEvent.setup({
         advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
@@ -296,20 +304,15 @@ describe("QuizRunnerDialog (Issue #95)", () => {
       renderRunner();
 
       await finishWithAnswers(user, { q1: 1, q2: 1 });
+      const review = await findReview();
 
+      expect(review.getByText(RUNNER_QUESTIONS[0].text)).toBeInTheDocument();
+      expect(review.getByText(RUNNER_QUESTIONS[1].text)).toBeInTheDocument();
       expect(
-        await screen.findByText(i18n.t("quizReviewHeading"))
-      ).toBeInTheDocument();
-      expect(screen.getByText(RUNNER_QUESTIONS[0].text)).toBeInTheDocument();
-      expect(screen.getByText(RUNNER_QUESTIONS[1].text)).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          i18n.t("quizReviewYourAnswerLabel", { answer: "Brasilia" })
-        )
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(i18n.t("quizReviewYourAnswerLabel", { answer: "4" }))
-      ).toBeInTheDocument();
+        review.getAllByText(i18n.t("quizReviewYourAnswerLabel"))
+      ).toHaveLength(2);
+      expect(review.getByText("Brasilia")).toBeInTheDocument();
+      expect(review.getByText("4")).toBeInTheDocument();
     });
 
     it("marks a correct answer without repeating the correct-answer text", async () => {
@@ -319,19 +322,15 @@ describe("QuizRunnerDialog (Issue #95)", () => {
       renderRunner();
 
       await finishWithAnswers(user, { q1: 1, q2: 1 });
+      const review = await findReview();
 
       expect(
-        await screen.findByText(i18n.t("quizReviewHeading"))
-      ).toBeInTheDocument();
-      expect(
-        screen.getAllByRole("img", {
+        review.getAllByRole("img", {
           name: i18n.t("quizReviewCorrectStatusLabel"),
         })
       ).toHaveLength(2);
       expect(
-        screen.queryByText(
-          i18n.t("quizReviewCorrectAnswerLabel", { answer: "Brasilia" })
-        )
+        review.queryByText(i18n.t("quizReviewCorrectAnswerLabel"))
       ).not.toBeInTheDocument();
     });
 
@@ -342,25 +341,21 @@ describe("QuizRunnerDialog (Issue #95)", () => {
       renderRunner();
 
       await finishWithAnswers(user, { q1: 0, q2: 1 });
+      const review = await findReview();
 
       expect(
-        await screen.findByText(i18n.t("quizReviewHeading"))
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("img", {
+        review.getByRole("img", {
           name: i18n.t("quizReviewIncorrectStatusLabel"),
         })
       ).toBeInTheDocument();
       expect(
-        screen.getByText(
-          i18n.t("quizReviewYourAnswerLabel", { answer: "Sao Paulo" })
-        )
-      ).toBeInTheDocument();
+        review.getAllByText(i18n.t("quizReviewYourAnswerLabel"))
+      ).toHaveLength(2);
+      expect(review.getByText("Sao Paulo")).toBeInTheDocument();
       expect(
-        screen.getByText(
-          i18n.t("quizReviewCorrectAnswerLabel", { answer: "Brasilia" })
-        )
+        review.getByText(i18n.t("quizReviewCorrectAnswerLabel"))
       ).toBeInTheDocument();
+      expect(review.getByText("Brasilia")).toBeInTheDocument();
     });
 
     it("shows a no-answer label and the correct answer for a question left unanswered", async () => {
@@ -370,18 +365,15 @@ describe("QuizRunnerDialog (Issue #95)", () => {
       renderRunner();
 
       await finishWithAnswers(user, { q1: 1, q2: null });
+      const review = await findReview();
 
       expect(
-        await screen.findByText(i18n.t("quizReviewHeading"))
+        review.getByText(i18n.t("quizReviewNoAnswerLabel"))
       ).toBeInTheDocument();
       expect(
-        screen.getByText(i18n.t("quizReviewNoAnswerLabel"))
+        review.getByText(i18n.t("quizReviewCorrectAnswerLabel"))
       ).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          i18n.t("quizReviewCorrectAnswerLabel", { answer: "4" })
-        )
-      ).toBeInTheDocument();
+      expect(review.getByText("4")).toBeInTheDocument();
     });
   });
 });

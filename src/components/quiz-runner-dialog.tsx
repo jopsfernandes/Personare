@@ -1,5 +1,5 @@
 import { CheckCircle2, XCircle } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listQuizQuestionsWithOptions } from "@/actions/quiz";
 import type { Activity } from "@/components/activities-data-table";
@@ -108,17 +108,21 @@ function QuizRunnerReviewRow({ answers, question }: QuizRunnerReviewRowProps) {
           <MarkdownContent content={question.text} />
           <ImageAttachmentViewer fileName={question.imagePath} />
         </div>
-        <p className="text-muted-foreground">
-          {selectedOption
-            ? t("quizReviewYourAnswerLabel", { answer: selectedOption.text })
-            : t("quizReviewNoAnswerLabel")}
-        </p>
-        {isCorrect || !correctOption ? null : (
+        {selectedOption ? (
+          <div className="flex flex-wrap items-center gap-1 text-muted-foreground">
+            <span>{t("quizReviewYourAnswerLabel")}</span>
+            <MarkdownContent content={selectedOption.text} />
+          </div>
+        ) : (
           <p className="text-muted-foreground">
-            {t("quizReviewCorrectAnswerLabel", {
-              answer: correctOption.text,
-            })}
+            {t("quizReviewNoAnswerLabel")}
           </p>
+        )}
+        {isCorrect || !correctOption ? null : (
+          <div className="flex flex-wrap items-center gap-1 text-muted-foreground">
+            <span>{t("quizReviewCorrectAnswerLabel")}</span>
+            <MarkdownContent content={correctOption.text} />
+          </div>
         )}
       </div>
     </div>
@@ -141,6 +145,7 @@ function QuizRunnerResult({
   totalTimeMs,
 }: QuizRunnerResultProps) {
   const { t } = useTranslation();
+  const reviewHeadingId = useId();
   const percent =
     result.total === 0 ? 0 : Math.round((result.correct / result.total) * 100);
 
@@ -168,8 +173,13 @@ function QuizRunnerResult({
           </p>
         </div>
       </div>
-      <div className="flex flex-col gap-3">
-        <h3 className="font-medium text-sm">{t("quizReviewHeading")}</h3>
+      <section
+        aria-labelledby={reviewHeadingId}
+        className="flex flex-col gap-3"
+      >
+        <h3 className="font-medium text-sm" id={reviewHeadingId}>
+          {t("quizReviewHeading")}
+        </h3>
         {questions.map((question) => (
           <QuizRunnerReviewRow
             answers={answers}
@@ -177,7 +187,7 @@ function QuizRunnerResult({
             question={question}
           />
         ))}
-      </div>
+      </section>
     </div>
   );
 }
