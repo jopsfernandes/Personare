@@ -120,12 +120,11 @@ describe("QuizRunnerDialog (Issue #95)", () => {
   it("renders only the current question, not the others, with a radio option per alternative", async () => {
     renderRunner();
 
-    expect(
-      await screen.findByText(RUNNER_QUESTIONS[0].text)
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText(RUNNER_QUESTIONS[1].text)
-    ).not.toBeInTheDocument();
+    expect(await screen.findByText(RUNNER_QUESTIONS[0].text)).toBeVisible();
+    // Every question is mounted (Questionnaire.Item hides inactive ones via
+    // the `hidden` attribute instead of unmounting them), so the other
+    // question's text is present but not visible.
+    expect(screen.getByText(RUNNER_QUESTIONS[1].text)).not.toBeVisible();
     expect(screen.getAllByRole("radio")).toHaveLength(2);
   });
 
@@ -180,7 +179,7 @@ describe("QuizRunnerDialog (Issue #95)", () => {
     await user.click(
       screen.getByRole("button", { name: i18n.t("nextQuestionAction") })
     );
-    await screen.findByText(RUNNER_QUESTIONS[1].text);
+    expect(screen.getByText(RUNNER_QUESTIONS[1].text)).toBeVisible();
 
     expect(
       screen.getByRole("button", { name: i18n.t("finishQuizAction") })
@@ -205,12 +204,8 @@ describe("QuizRunnerDialog (Issue #95)", () => {
       screen.getByRole("button", { name: i18n.t("nextQuestionAction") })
     );
 
-    expect(
-      await screen.findByText(RUNNER_QUESTIONS[1].text)
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText(RUNNER_QUESTIONS[0].text)
-    ).not.toBeInTheDocument();
+    expect(screen.getByText(RUNNER_QUESTIONS[1].text)).toBeVisible();
+    expect(screen.getByText(RUNNER_QUESTIONS[0].text)).not.toBeVisible();
     expect(screen.getAllByRole("radio")).toHaveLength(2);
   });
 

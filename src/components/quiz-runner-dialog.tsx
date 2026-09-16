@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useId, useState } from "react";
+import { CheckCircle2, XCircle } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listQuizQuestionsWithOptions } from "@/actions/quiz";
 import type { Activity } from "@/components/activities-data-table";
@@ -13,12 +14,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Questionnaire,
+  QuestionnaireChoice,
+  QuestionnaireChoices,
+  QuestionnaireItem,
+  QuestionnaireTitle,
+} from "@/components/ui/questionnaire";
 import {
   calculateQuizScore,
   formatQuizDuration,
+  type QuizAnswers,
   type QuizScore,
 } from "@/utils/quiz-scoring";
 
@@ -43,61 +50,93 @@ interface QuizRunnerDialogProps {
 }
 
 interface QuizRunnerQuestionStepProps {
-  groupName: string;
-  onAnswerChange: (questionId: string, optionId: string) => void;
   question: QuizRunnerQuestion;
-  selectedOptionId: string | undefined;
 }
 
-function QuizRunnerQuestionStep({
-  groupName,
-  onAnswerChange,
-  question,
-  selectedOptionId,
-}: QuizRunnerQuestionStepProps) {
-  const handleValueChange = useCallback(
-    (optionId: string) => {
-      onAnswerChange(question.id, optionId);
-    },
-    [onAnswerChange, question.id]
-  );
-
+function QuizRunnerQuestionStep({ question }: QuizRunnerQuestionStepProps) {
   return (
-    <fieldset className="flex flex-col gap-4">
-      <legend className="flex items-center gap-2 font-medium">
+    <QuestionnaireItem name={question.id}>
+      <QuestionnaireTitle className="flex items-center gap-2">
         <MarkdownContent content={question.text} />
         <ImageAttachmentViewer fileName={question.imagePath} />
-      </legend>
-      <RadioGroup
-        onValueChange={handleValueChange}
-        value={selectedOptionId ?? ""}
-      >
-        {question.options.map((option) => {
-          const optionInputId = `${groupName}-${option.id}`;
+      </QuestionnaireTitle>
+      <QuestionnaireChoices>
+        {question.options.map((option) => (
+          <div className="flex items-center gap-2" key={option.id}>
+            <QuestionnaireChoice className="flex-1" value={option.id}>
+              <MarkdownContent content={option.text} />
+            </QuestionnaireChoice>
+            <ImageAttachmentViewer fileName={option.imagePath} />
+          </div>
+        ))}
+      </QuestionnaireChoices>
+    </QuestionnaireItem>
+  );
+}
 
-          return (
-            <div className="flex items-center gap-2" key={option.id}>
-              <RadioGroupItem id={optionInputId} value={option.id} />
-              <Label htmlFor={optionInputId}>
-                <MarkdownContent content={option.text} />
-              </Label>
-              <ImageAttachmentViewer fileName={option.imagePath} />
-            </div>
-          );
-        })}
-      </RadioGroup>
-    </fieldset>
+interface QuizRunnerReviewRowProps {
+  answers: QuizAnswers;
+  question: QuizRunnerQuestion;
+}
+
+function QuizRunnerReviewRow({ answers, question }: QuizRunnerReviewRowProps) {
+  const { t } = useTranslation();
+  const selectedOptionId = answers[question.id];
+  const selectedOption = question.options.find(
+    (option) => option.id === selectedOptionId
+  );
+  const correctOption = question.options.find((option) => option.isCorrect);
+  const isCorrect = selectedOption?.isCorrect ?? false;
+
+  return (
+    <div className="flex items-start gap-2 border-b pb-3 text-sm last:border-b-0 last:pb-0">
+      {isCorrect ? (
+        <CheckCircle2
+          aria-label={t("quizReviewCorrectStatusLabel")}
+          className="mt-0.5 size-4 shrink-0 text-primary"
+          role="img"
+        />
+      ) : (
+        <XCircle
+          aria-label={t("quizReviewIncorrectStatusLabel")}
+          className="mt-0.5 size-4 shrink-0 text-destructive"
+          role="img"
+        />
+      )}
+      <div className="flex flex-1 flex-col gap-1">
+        <div className="flex items-center gap-2 font-medium">
+          <MarkdownContent content={question.text} />
+          <ImageAttachmentViewer fileName={question.imagePath} />
+        </div>
+        <p className="text-muted-foreground">
+          {selectedOption
+            ? t("quizReviewYourAnswerLabel", { answer: selectedOption.text })
+            : t("quizReviewNoAnswerLabel")}
+        </p>
+        {isCorrect || !correctOption ? null : (
+          <p className="text-muted-foreground">
+            {t("quizReviewCorrectAnswerLabel", {
+              answer: correctOption.text,
+            })}
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 
 interface QuizRunnerResultProps {
+  answers: QuizAnswers;
   averageTimeMs: number;
+  questions: QuizRunnerQuestion[];
   result: QuizScore;
   totalTimeMs: number;
 }
 
 function QuizRunnerResult({
+  answers,
   averageTimeMs,
+  questions,
   result,
   totalTimeMs,
 }: QuizRunnerResultProps) {
@@ -106,26 +145,38 @@ function QuizRunnerResult({
     result.total === 0 ? 0 : Math.round((result.correct / result.total) * 100);
 
   return (
-    <div className="flex flex-col items-center gap-4 py-4">
-      <RadialChartText
-        centerLabel={`${percent}%`}
-        centerSublabel={t("quizResultMessage", {
-          correct: result.correct,
-          total: result.total,
-        })}
-        value={percent}
-      />
-      <div className="flex flex-col items-center gap-1 text-muted-foreground text-sm">
-        <p>
-          {t("quizTotalTimeLabel", {
-            duration: formatQuizDuration(totalTimeMs),
+    <div className="flex flex-col gap-4 py-4">
+      <div className="flex flex-col items-center gap-4">
+        <RadialChartText
+          centerLabel={`${percent}%`}
+          centerSublabel={t("quizResultMessage", {
+            correct: result.correct,
+            total: result.total,
           })}
-        </p>
-        <p>
-          {t("quizAverageTimeLabel", {
-            duration: formatQuizDuration(averageTimeMs),
-          })}
-        </p>
+          value={percent}
+        />
+        <div className="flex flex-col items-center gap-1 text-muted-foreground text-sm">
+          <p>
+            {t("quizTotalTimeLabel", {
+              duration: formatQuizDuration(totalTimeMs),
+            })}
+          </p>
+          <p>
+            {t("quizAverageTimeLabel", {
+              duration: formatQuizDuration(averageTimeMs),
+            })}
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-3">
+        <h3 className="font-medium text-sm">{t("quizReviewHeading")}</h3>
+        {questions.map((question) => (
+          <QuizRunnerReviewRow
+            answers={answers}
+            key={question.id}
+            question={question}
+          />
+        ))}
       </div>
     </div>
   );
@@ -137,9 +188,9 @@ export default function QuizRunnerDialog({
   open,
 }: QuizRunnerDialogProps) {
   const { t } = useTranslation();
-  const groupNamePrefix = useId();
+  const formRef = useRef<HTMLFormElement>(null);
   const [questions, setQuestions] = useState<QuizRunnerQuestion[]>([]);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<QuizAnswers>({});
   const [currentIndex, setCurrentIndex] = useState(0);
   const [result, setResult] = useState<QuizScore | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
@@ -161,25 +212,40 @@ export default function QuizRunnerDialog({
     }
   }, [activity]);
 
-  const handleAnswerChange = useCallback(
-    (questionId: string, optionId: string) => {
-      setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
+  const handleItemChange = useCallback(
+    (item: string) => {
+      const index = questions.findIndex((question) => question.id === item);
+      if (index !== -1) {
+        setCurrentIndex(index);
+      }
     },
-    []
+    [questions]
   );
 
   const isLastQuestion =
     questions.length > 0 && currentIndex >= questions.length - 1;
 
   const handleAdvanceClick = useCallback(() => {
-    if (isLastQuestion) {
-      setResult(calculateQuizScore(questions, answers));
-      setFinishedAt(Date.now());
+    if (!isLastQuestion) {
+      setCurrentIndex((prev) => prev + 1);
       return;
     }
 
-    setCurrentIndex((prev) => prev + 1);
-  }, [answers, isLastQuestion, questions]);
+    const formElement = formRef.current;
+    if (!formElement) {
+      return;
+    }
+
+    const formData = new FormData(formElement);
+    const submittedAnswers: QuizAnswers = {};
+    for (const question of questions) {
+      submittedAnswers[question.id] = String(formData.get(question.id) ?? "");
+    }
+
+    setAnswers(submittedAnswers);
+    setResult(calculateQuizScore(questions, submittedAnswers));
+    setFinishedAt(Date.now());
+  }, [isLastQuestion, questions]);
 
   const currentQuestion = questions[currentIndex] ?? null;
   const totalTimeMs =
@@ -195,7 +261,9 @@ export default function QuizRunnerDialog({
         </DialogHeader>
         {result ? (
           <QuizRunnerResult
+            answers={answers}
             averageTimeMs={averageTimeMs}
+            questions={questions}
             result={result}
             totalTimeMs={totalTimeMs}
           />
@@ -216,18 +284,28 @@ export default function QuizRunnerDialog({
                 })}
               </p>
             </div>
-            {currentQuestion ? (
+            <Questionnaire
+              item={currentQuestion?.id}
+              items={questions.map((question) => ({
+                choices: question.options.map((option) => ({
+                  value: option.id,
+                })),
+                name: question.id,
+              }))}
+              onItemChange={handleItemChange}
+              ref={formRef}
+            >
               <div className="flex flex-col gap-4 py-4">
-                <QuizRunnerQuestionStep
-                  groupName={`${groupNamePrefix}-${currentQuestion.id}`}
-                  onAnswerChange={handleAnswerChange}
-                  question={currentQuestion}
-                  selectedOptionId={answers[currentQuestion.id]}
-                />
+                {questions.map((question) => (
+                  <QuizRunnerQuestionStep
+                    key={question.id}
+                    question={question}
+                  />
+                ))}
               </div>
-            ) : null}
+            </Questionnaire>
             <DialogFooter>
-              <Button onClick={handleAdvanceClick}>
+              <Button onClick={handleAdvanceClick} type="button">
                 {isLastQuestion
                   ? t("finishQuizAction")
                   : t("nextQuestionAction")}
