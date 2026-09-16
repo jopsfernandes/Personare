@@ -2,6 +2,8 @@ import { useCallback, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listQuizQuestionsWithOptions } from "@/actions/quiz";
 import type { Activity } from "@/components/activities-data-table";
+import ImageAttachmentViewer from "@/components/image-attachment-viewer";
+import MarkdownContent from "@/components/markdown-content";
 import { RadialChartText } from "@/components/radial-chart-text";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,9 +22,17 @@ import {
   type QuizScore,
 } from "@/utils/quiz-scoring";
 
+interface QuizRunnerOption {
+  id: string;
+  imagePath: string | null;
+  isCorrect: boolean;
+  text: string;
+}
+
 interface QuizRunnerQuestion {
   id: string;
-  options: { id: string; isCorrect: boolean; text: string }[];
+  imagePath: string | null;
+  options: QuizRunnerOption[];
   text: string;
 }
 
@@ -54,7 +64,10 @@ function QuizRunnerQuestionStep({
 
   return (
     <fieldset className="flex flex-col gap-4">
-      <legend className="font-medium">{question.text}</legend>
+      <legend className="flex items-center gap-2 font-medium">
+        <MarkdownContent content={question.text} />
+        <ImageAttachmentViewer fileName={question.imagePath} />
+      </legend>
       <RadioGroup
         onValueChange={handleValueChange}
         value={selectedOptionId ?? ""}
@@ -65,7 +78,10 @@ function QuizRunnerQuestionStep({
           return (
             <div className="flex items-center gap-2" key={option.id}>
               <RadioGroupItem id={optionInputId} value={option.id} />
-              <Label htmlFor={optionInputId}>{option.text}</Label>
+              <Label htmlFor={optionInputId}>
+                <MarkdownContent content={option.text} />
+              </Label>
+              <ImageAttachmentViewer fileName={option.imagePath} />
             </div>
           );
         })}
