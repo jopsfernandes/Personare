@@ -10,8 +10,11 @@ import {
   updateQuizQuestion,
 } from "@/actions/quiz";
 import type { Activity } from "@/components/activities-data-table";
+import ImageAttachmentViewer from "@/components/image-attachment-viewer";
+import MarkdownContent from "@/components/markdown-content";
 import QuizQuestionFormDialog, {
   type QuizQuestionFormValue,
+  type QuizQuestionSubmitOption,
 } from "@/components/quiz-question-form-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +26,13 @@ import {
 
 interface QuizQuestionWithOptions {
   id: string;
-  options: { id: string; isCorrect: boolean; text: string }[];
+  imagePath: string | null;
+  options: {
+    id: string;
+    imagePath: string | null;
+    isCorrect: boolean;
+    text: string;
+  }[];
   text: string;
 }
 
@@ -52,7 +61,10 @@ function QuizQuestionRow({
 
   return (
     <li className="flex items-center justify-between gap-2">
-      <span>{question.text}</span>
+      <div className="flex items-center gap-2">
+        <MarkdownContent content={question.text} />
+        <ImageAttachmentViewer fileName={question.imagePath} />
+      </div>
       <div className="flex gap-2">
         <Button
           aria-label={editLabel}
@@ -112,6 +124,7 @@ export default function QuizQuestionManagerDialog({
   const handleEditClick = useCallback((question: QuizQuestionWithOptions) => {
     setFormQuestion({
       id: question.id,
+      imagePath: question.imagePath,
       options: question.options,
       text: question.text,
     });
@@ -132,7 +145,11 @@ export default function QuizQuestionManagerDialog({
   }, []);
 
   const handleFormSubmit = useCallback(
-    (text: string, options: { isCorrect: boolean; text: string }[]) => {
+    (
+      text: string,
+      imagePath: string | null,
+      options: QuizQuestionSubmitOption[]
+    ) => {
       if (!activity) {
         return;
       }
@@ -141,14 +158,19 @@ export default function QuizQuestionManagerDialog({
         const questionId = formQuestion.id;
         const staleOptionIds = formQuestion.options.map((option) => option.id);
 
-        updateQuizQuestion(questionId, text)
+        updateQuizQuestion(questionId, text, imagePath)
           .then(() =>
             Promise.all(staleOptionIds.map((id) => softDeleteQuizOption(id)))
           )
           .then(() =>
             Promise.all(
               options.map((option) =>
-                createQuizOption(questionId, option.text, option.isCorrect)
+                createQuizOption(
+                  questionId,
+                  option.text,
+                  option.isCorrect,
+                  option.imagePath
+                )
               )
             )
           )
@@ -157,11 +179,16 @@ export default function QuizQuestionManagerDialog({
             refreshQuestions();
           });
       } else {
-        createQuizQuestion(activity.id, text)
+        createQuizQuestion(activity.id, text, imagePath)
           .then((created) =>
             Promise.all(
               options.map((option) =>
-                createQuizOption(created.id, option.text, option.isCorrect)
+                createQuizOption(
+                  created.id,
+                  option.text,
+                  option.isCorrect,
+                  option.imagePath
+                )
               )
             )
           )

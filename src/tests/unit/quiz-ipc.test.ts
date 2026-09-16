@@ -186,6 +186,21 @@ describe("quiz IPC namespace (Issue #14)", () => {
           quizClient.createQuestion({ activityId, text: "" })
         ).rejects.toThrow();
       });
+
+      it("persists imagePath, defaulting to null when omitted (Issue #96)", async () => {
+        const withImage = await quizClient.createQuestion({
+          activityId,
+          imagePath: "question123.png",
+          text: "Com imagem",
+        });
+        const withoutImage = await quizClient.createQuestion({
+          activityId,
+          text: "Sem imagem",
+        });
+
+        expect(withImage.imagePath).toBe("question123.png");
+        expect(withoutImage.imagePath).toBeNull();
+      });
     });
 
     describe("updateQuestion", () => {
@@ -217,6 +232,21 @@ describe("quiz IPC namespace (Issue #14)", () => {
         await expect(
           quizClient.updateQuestion({ id: created.id, text: "" })
         ).rejects.toThrow();
+      });
+
+      it("updates imagePath (Issue #96)", async () => {
+        const created = await quizClient.createQuestion({
+          activityId,
+          text: "Pergunta",
+        });
+
+        const updated = await quizClient.updateQuestion({
+          id: created.id,
+          imagePath: "updated123.png",
+          text: "Pergunta",
+        });
+
+        expect(updated.imagePath).toBe("updated123.png");
       });
     });
 
@@ -338,6 +368,23 @@ describe("quiz IPC namespace (Issue #14)", () => {
           quizClient.createOption({ isCorrect: false, questionId, text: "" })
         ).rejects.toThrow();
       });
+
+      it("persists imagePath, defaulting to null when omitted (Issue #96)", async () => {
+        const withImage = await quizClient.createOption({
+          imagePath: "option123.png",
+          isCorrect: false,
+          questionId,
+          text: "Com imagem",
+        });
+        const withoutImage = await quizClient.createOption({
+          isCorrect: false,
+          questionId,
+          text: "Sem imagem",
+        });
+
+        expect(withImage.imagePath).toBe("option123.png");
+        expect(withoutImage.imagePath).toBeNull();
+      });
     });
 
     describe("updateOption", () => {
@@ -378,6 +425,23 @@ describe("quiz IPC namespace (Issue #14)", () => {
             text: "",
           })
         ).rejects.toThrow();
+      });
+
+      it("updates imagePath (Issue #96)", async () => {
+        const created = await quizClient.createOption({
+          isCorrect: false,
+          questionId,
+          text: "Opcao",
+        });
+
+        const updated = await quizClient.updateOption({
+          id: created.id,
+          imagePath: "updated456.png",
+          isCorrect: false,
+          text: "Opcao",
+        });
+
+        expect(updated.imagePath).toBe("updated456.png");
       });
     });
 

@@ -1,6 +1,8 @@
 import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import ImageAttachmentField from "@/components/image-attachment-field";
+import MarkdownEditor from "@/components/markdown-editor";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,16 +11,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 export interface QuizQuestionFormValue {
   id: string;
-  options: { id: string; isCorrect: boolean; text: string }[];
+  imagePath: string | null;
+  options: {
+    id: string;
+    imagePath: string | null;
+    isCorrect: boolean;
+    text: string;
+  }[];
+  text: string;
+}
+
+export interface QuizQuestionSubmitOption {
+  imagePath: string | null;
+  isCorrect: boolean;
   text: string;
 }
 
 interface OptionRow {
+  imagePath: string | null;
   isCorrect: boolean;
   key: string;
   text: string;
@@ -28,13 +41,14 @@ const MIN_OPTIONS = 2;
 
 function emptyRows(): OptionRow[] {
   return [
-    { isCorrect: false, key: "new-option-0", text: "" },
-    { isCorrect: false, key: "new-option-1", text: "" },
+    { imagePath: null, isCorrect: false, key: "new-option-0", text: "" },
+    { imagePath: null, isCorrect: false, key: "new-option-1", text: "" },
   ];
 }
 
 function rowsFromQuestion(question: QuizQuestionFormValue): OptionRow[] {
   return question.options.map((option) => ({
+    imagePath: option.imagePath,
     isCorrect: option.isCorrect,
     key: option.id,
     text: option.text,
@@ -44,6 +58,7 @@ function rowsFromQuestion(question: QuizQuestionFormValue): OptionRow[] {
 interface QuizOptionRowProps {
   disableRemove: boolean;
   onCorrectChange: (key: string) => void;
+  onImagePathChange: (key: string, imagePath: string | null) => void;
   onRemove: (key: string) => void;
   onTextChange: (key: string, value: string) => void;
   optionTextId: string;
@@ -56,6 +71,7 @@ interface QuizOptionRowProps {
 function QuizOptionRow({
   disableRemove,
   onCorrectChange,
+  onImagePathChange,
   onRemove,
   onTextChange,
   optionTextId,
@@ -69,10 +85,17 @@ function QuizOptionRow({
   }, [onCorrectChange, row.key]);
 
   const handleTextChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      onTextChange(row.key, event.target.value);
+    (value: string) => {
+      onTextChange(row.key, value);
     },
     [onTextChange, row.key]
+  );
+
+  const handleImagePathChange = useCallback(
+    (imagePath: string | null) => {
+      onImagePathChange(row.key, imagePath);
+    },
+    [onImagePathChange, row.key]
   );
 
   const handleRemoveClick = useCallback(() => {
@@ -80,17 +103,27 @@ function QuizOptionRow({
   }, [onRemove, row.key]);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-start gap-2">
       <input
         checked={row.isCorrect}
+        className="mt-2"
         name={radioGroupName}
         onChange={handleCorrectChange}
         type="radio"
       />
-      <Label className="sr-only" htmlFor={optionTextId}>
-        {optionTextLabel}
-      </Label>
-      <Input id={optionTextId} onChange={handleTextChange} value={row.text} />
+      <div className="flex flex-1 flex-col gap-2">
+        <MarkdownEditor
+          id={optionTextId}
+          label={optionTextLabel}
+          onChange={handleTextChange}
+          value={row.text}
+        />
+        <ImageAttachmentField
+          fileName={row.imagePath}
+          label={optionTextLabel}
+          onChange={handleImagePathChange}
+        />
+      </div>
       <Button
         aria-label={removeOptionLabel}
         disabled={disableRemove}
@@ -109,7 +142,8 @@ interface QuizQuestionFormDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (
     text: string,
-    options: { isCorrect: boolean; text: string }[]
+    imagePath: string | null,
+    options: QuizQuestionSubmitOption[]
   ) => void;
   open: boolean;
   question: QuizQuestionFormValue | null;
@@ -126,6 +160,7 @@ export default function QuizQuestionFormDialog({
   const radioGroupName = useId();
   const nextNewRowIndex = useRef(0);
   const [text, setText] = useState(question?.text ?? "");
+  const [imagePath, setImagePath] = useState(question?.imagePath ?? null);
   const [rows, setRows] = useState<OptionRow[]>(
     question ? rowsFromQuestion(question) : emptyRows()
   );
@@ -133,23 +168,28 @@ export default function QuizQuestionFormDialog({
   useEffect(() => {
     if (open) {
       setText(question?.text ?? "");
+      setImagePath(question?.imagePath ?? null);
       setRows(question ? rowsFromQuestion(question) : emptyRows());
       nextNewRowIndex.current = 0;
     }
   }, [open, question]);
-
-  const handleTextChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setText(event.target.value);
-    },
-    []
-  );
 
   const handleOptionTextChange = useCallback((key: string, value: string) => {
     setRows((prev) =>
       prev.map((row) => (row.key === key ? { ...row, text: value } : row))
     );
   }, []);
+
+  const handleOptionImagePathChange = useCallback(
+    (key: string, optionImagePath: string | null) => {
+      setRows((prev) =>
+        prev.map((row) =>
+          row.key === key ? { ...row, imagePath: optionImagePath } : row
+        )
+      );
+    },
+    []
+  );
 
   const handleOptionCorrectChange = useCallback((key: string) => {
     setRows((prev) =>
@@ -162,6 +202,7 @@ export default function QuizQuestionFormDialog({
     setRows((prev) => [
       ...prev,
       {
+        imagePath: null,
         isCorrect: false,
         key: `added-option-${nextNewRowIndex.current}`,
         text: "",
@@ -185,7 +226,11 @@ export default function QuizQuestionFormDialog({
 
       const filledOptions = rows
         .filter((row) => row.text.trim() !== "")
-        .map((row) => ({ isCorrect: row.isCorrect, text: row.text }));
+        .map((row) => ({
+          imagePath: row.imagePath,
+          isCorrect: row.isCorrect,
+          text: row.text,
+        }));
 
       if (filledOptions.length < MIN_OPTIONS) {
         return;
@@ -194,9 +239,9 @@ export default function QuizQuestionFormDialog({
         return;
       }
 
-      onSubmit(text, filledOptions);
+      onSubmit(text, imagePath, filledOptions);
     },
-    [rows, text, onSubmit]
+    [rows, text, imagePath, onSubmit]
   );
 
   return (
@@ -211,15 +256,18 @@ export default function QuizQuestionFormDialog({
             </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-4">
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={questionTextId}>
-                {t("quizQuestionTextLabel")}
-              </Label>
-              <Input
+            <div className="flex flex-col gap-2">
+              <MarkdownEditor
                 id={questionTextId}
-                onChange={handleTextChange}
+                label={t("quizQuestionTextLabel")}
+                onChange={setText}
                 required
                 value={text}
+              />
+              <ImageAttachmentField
+                fileName={imagePath}
+                label={t("quizQuestionTextLabel")}
+                onChange={setImagePath}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -228,6 +276,7 @@ export default function QuizQuestionFormDialog({
                   disableRemove={rows.length <= MIN_OPTIONS}
                   key={row.key}
                   onCorrectChange={handleOptionCorrectChange}
+                  onImagePathChange={handleOptionImagePathChange}
                   onRemove={handleRemoveOption}
                   onTextChange={handleOptionTextChange}
                   optionTextId={`${questionTextId}-${row.key}`}

@@ -72,6 +72,7 @@ describe("quiz actions (Issue #14)", () => {
       );
       expect(ipc.client.quiz.createQuestion).toHaveBeenCalledWith({
         activityId: "a1",
+        imagePath: null,
         text: "Pergunta 1",
       });
     });
@@ -85,6 +86,7 @@ describe("quiz actions (Issue #14)", () => {
       );
       expect(ipc.client.quiz.updateQuestion).toHaveBeenCalledWith({
         id: "q1",
+        imagePath: null,
         text: "Pergunta editada",
       });
     });
@@ -124,6 +126,7 @@ describe("quiz actions (Issue #14)", () => {
         created
       );
       expect(ipc.client.quiz.createOption).toHaveBeenCalledWith({
+        imagePath: null,
         isCorrect: true,
         questionId: "q1",
         text: "Opcao 1",
@@ -144,6 +147,7 @@ describe("quiz actions (Issue #14)", () => {
       ).resolves.toBe(updated);
       expect(ipc.client.quiz.updateOption).toHaveBeenCalledWith({
         id: "o1",
+        imagePath: null,
         isCorrect: false,
         text: "Opcao editada",
       });
@@ -161,19 +165,31 @@ describe("quiz actions (Issue #14)", () => {
   describe("listQuizQuestionsWithOptions", () => {
     it("composes listQuestions with listOptions per question", async () => {
       const questions = [
-        { activityId: "a1", id: "q1", text: "Pergunta 1" },
-        { activityId: "a1", id: "q2", text: "Pergunta 2" },
+        { activityId: "a1", id: "q1", imagePath: null, text: "Pergunta 1" },
+        { activityId: "a1", id: "q2", imagePath: null, text: "Pergunta 2" },
       ];
       vi.mocked(ipc.client.quiz.listQuestions).mockResolvedValue(questions);
       vi.mocked(ipc.client.quiz.listOptions).mockImplementation(
         ({ questionId }: { questionId: string }) => {
           if (questionId === "q1") {
             return Promise.resolve([
-              { id: "o1", isCorrect: true, questionId: "q1", text: "A" },
+              {
+                id: "o1",
+                imagePath: null,
+                isCorrect: true,
+                questionId: "q1",
+                text: "A",
+              },
             ]);
           }
           return Promise.resolve([
-            { id: "o2", isCorrect: false, questionId: "q2", text: "B" },
+            {
+              id: "o2",
+              imagePath: null,
+              isCorrect: false,
+              questionId: "q2",
+              text: "B",
+            },
           ]);
         }
       );
@@ -192,12 +208,16 @@ describe("quiz actions (Issue #14)", () => {
       expect(result).toEqual([
         {
           id: "q1",
-          options: [{ id: "o1", isCorrect: true, text: "A" }],
+          imagePath: null,
+          options: [{ id: "o1", imagePath: null, isCorrect: true, text: "A" }],
           text: "Pergunta 1",
         },
         {
           id: "q2",
-          options: [{ id: "o2", isCorrect: false, text: "B" }],
+          imagePath: null,
+          options: [
+            { id: "o2", imagePath: null, isCorrect: false, text: "B" },
+          ],
           text: "Pergunta 2",
         },
       ]);
