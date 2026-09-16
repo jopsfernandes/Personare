@@ -19,6 +19,24 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
     Recharts) mostrando a pontuação em %, mais tempo total do quiz e tempo médio por questão (dois
     timestamps -- início e fim -- já que média é sempre soma/contagem, sem precisar de um cronômetro
     por pergunta).
+- **Markdown, LaTeX e anexo de imagem em flashcards e quizzes** ([#96](https://github.com/jopsfernandes/Personare/issues/96)).
+  Conteúdo de flashcards e de perguntas/opções de quiz agora aceita Markdown, com fórmulas em LaTeX
+  (`$...$` em linha, `$$` em bloco) renderizadas como matemática de verdade em vez de texto cru, e pode
+  ter uma imagem opcional anexada.
+  - `MarkdownContent` (renderer somente-leitura, `react-markdown` + `remark-math` + `rehype-katex`) e
+    `MarkdownEditor` (campo de formulário com abas Escrever/Pré-visualizar sobre um `Textarea`)
+    substituem o `<Input>` de uma linha usado antes em `flashcard-form-dialog.tsx` e
+    `quiz-question-form-dialog.tsx`.
+  - Imagens são copiadas para `app.getPath("userData")/attachments/` sob um nome gerado (nunca o
+    caminho original do usuário) via o novo namespace de IPC `attachments`
+    (`saveImage`/`getImageDataUrl`/`deleteImage`) e `dialog.selectImageFile`; `flashcards` ganha
+    `frontImagePath`/`backImagePath` e `quiz_questions`/`quiz_options` ganham `imagePath`
+    (`drizzle/0008_mighty_genesis.sql`), todos nullable e retrocompatíveis.
+  - `ImageAttachmentField` (anexar/remover, usado nos formulários) e `ImageAttachmentViewer` (um botão
+    "Ver imagem" que abre a imagem num Dialog sob demanda, usado nas telas de listagem/revisão/quiz)
+    garantem que a imagem nunca aparece inline — não há como ela quebrar o layout.
+  - Telas de exibição atualizadas: `flashcard-manager-dialog.tsx`, `quiz-question-manager-dialog.tsx`,
+    `review-session-dialog.tsx` e `quiz-runner-dialog.tsx`.
 - **Parser de arquivos .apkg do Anki** ([#29](https://github.com/jopsfernandes/Personare/issues/29)).
   Primeira etapa da importação de Anki (Plan.md seção 6, Fase 3): extrai o zip `.apkg` e abre o banco
   SQLite interno para leitura, sem UI nem mapeamento de conteúdo ainda (isso fica para as Issues #30 e
