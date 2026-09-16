@@ -215,9 +215,7 @@ describe("quiz actions (Issue #14)", () => {
         {
           id: "q2",
           imagePath: null,
-          options: [
-            { id: "o2", imagePath: null, isCorrect: false, text: "B" },
-          ],
+          options: [{ id: "o2", imagePath: null, isCorrect: false, text: "B" }],
           text: "Pergunta 2",
         },
       ]);

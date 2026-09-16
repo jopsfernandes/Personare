@@ -103,8 +103,9 @@ export default function FlashcardManagerDialog({
 }: FlashcardManagerDialogProps) {
   const { t } = useTranslation();
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
-  const [formFlashcard, setFormFlashcard] =
-    useState<FlashcardFormValue | null>(null);
+  const [formFlashcard, setFormFlashcard] = useState<FlashcardFormValue | null>(
+    null
+  );
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const refreshFlashcards = useCallback(() => {

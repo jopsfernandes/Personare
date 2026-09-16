@@ -103,9 +103,7 @@ function QuizRunnerResult({
 }: QuizRunnerResultProps) {
   const { t } = useTranslation();
   const percent =
-    result.total === 0
-      ? 0
-      : Math.round((result.correct / result.total) * 100);
+    result.total === 0 ? 0 : Math.round((result.correct / result.total) * 100);
 
   return (
     <div className="flex flex-col items-center gap-4 py-4">
