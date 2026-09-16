@@ -15,6 +15,18 @@ export interface QuizScore {
   total: number;
 }
 
+export function formatQuizDuration(milliseconds: number): string {
+  const totalSeconds = Math.round(Math.max(0, milliseconds) / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes === 0) {
+    return `${seconds}s`;
+  }
+
+  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+}
+
 export function calculateQuizScore(
   questions: QuizScoringQuestion[],
   answers: QuizAnswers
