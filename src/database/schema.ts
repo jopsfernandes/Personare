@@ -63,6 +63,8 @@ export const quizQuestions = sqliteTable("quiz_questions", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
+  /** File name of an optional attached image, under userData/attachments/. */
+  imagePath: text("image_path"),
   text: text("text").notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
@@ -73,6 +75,8 @@ export const quizOptions = sqliteTable("quiz_options", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
+  /** File name of an optional attached image, under userData/attachments/. */
+  imagePath: text("image_path"),
   isCorrect: integer("is_correct", { mode: "boolean" })
     .notNull()
     .default(false),
@@ -88,9 +92,13 @@ export const flashcards = sqliteTable("flashcards", {
     .notNull()
     .references(() => activities.id),
   back: text("back").notNull(),
+  /** File name of an optional attached image, under userData/attachments/. */
+  backImagePath: text("back_image_path"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   deletedAt: integer("deleted_at", { mode: "timestamp" }),
   front: text("front").notNull(),
+  /** File name of an optional attached image, under userData/attachments/. */
+  frontImagePath: text("front_image_path"),
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
