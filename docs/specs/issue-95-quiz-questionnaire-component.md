@@ -22,6 +22,7 @@ Herdadas da issue: manter a navegação só-pra-frente e o layout do resultado j
 - **`Questionnaire.Progress` não é usado.** O primitivo expõe `current`/`total`/`first`/`last` via um `render` prop cujo formato não é coberto pela documentação pública, e reimplementar a barra+rótulo já testados (`Progress` do shadcn base + `quizQuestionProgressLabel`) não muda o comportamento visível. Continuamos derivando `currentIndex` do nosso próprio estado, sincronizado a partir de `onItemChange` do `Questionnaire.Root`.
 - **Todas as perguntas ficam no DOM, escondidas via `hidden`.** `Questionnaire.Item` aplica `hidden` no `<fieldset>` quando não é o item ativo (`QuestionnaireItemState.active`) — confirmado lendo `node_modules/@shadcn/react/dist/questionnaire/index.js`. Isso é o que já é esperado pelos testes existentes (`getAllByRole("radio")` só retorna os da pergunta visível, porque elementos com `hidden` são inacessíveis para queries de role no jsdom), então a suíte não precisa de nenhuma mudança nesse ponto — só troca `input type="radio"` por `Questionnaire.Choice`/`ChoiceInput` (ainda `role="radio"` quando `multiple` não é passado).
 - **Sem `required` nos itens.** Mantém a tolerância a pergunta não respondida (decisão da #93/`calculateQuizScore`) — se marcássemos `required`, o `Questionnaire.Next`/`Submit` bloqueariam o avanço.
+- **O botão "ver imagem" de cada opção fica fora do `Questionnaire.Choice`.** `Questionnaire.Choice` renderiza um `<label>` nativo envolvendo o `<input>` da alternativa; um `<button>` descendente desse `<label>` ainda ativa o controle associado ao ser clicado (mesma armadilha já resolvida na Issue #96 para `RadioGroup`/`Label` do Radix). Por isso `ImageAttachmentViewer` vira irmão do `Questionnaire.Choice` (os dois dentro de um `<div className="flex items-center gap-2">` por opção), nunca filho dele. No cabeçalho da pergunta não há esse risco: `Questionnaire.Title` renderiza um `<legend>`, que não tem controle associado.
 - **Sem estado de resposta por clique.** Diferente da implementação anterior (`handleAnswerChange` a cada clique), as respostas ficam nos controles nativos do formulário (`Questionnaire.ChoiceInput`, um `<input type="radio" name={question.id} value={option.id}>` por baixo) e só são lidas uma vez, no `onSubmit` do `Questionnaire.Root` (disparado pelo clique em `Questionnaire.Submit`, depois da validação nativa), via `new FormData(event.currentTarget)`. Isso simplifica o componente (menos um `useState`) e é exatamente o padrão documentado pelo shadcn para este primitivo.
 - **`Questionnaire.Next`/`Questionnaire.Submit` decidem sua própria visibilidade** (`QuestionnaireNavigationState.visible`, baseado em `first`/`last` do item ativo) — os dois ficam sempre montados dentro de `Questionnaire.Actions`; não precisamos mais de um `isLastQuestion` para escolher qual botão renderizar (só para calcular o rótulo do progresso, que é nosso).
 
@@ -40,10 +41,12 @@ Herdadas da issue: manter a navegação só-pra-frente e o layout do resultado j
     </Questionnaire.Title>
     <Questionnaire.Choices>
       {question.options.map((option) => (
-        <Questionnaire.Choice key={option.id} value={option.id}>
-          <MarkdownContent content={option.text} />
+        <div className="flex items-center gap-2" key={option.id}>
+          <Questionnaire.Choice className="flex-1" value={option.id}>
+            <MarkdownContent content={option.text} />
+          </Questionnaire.Choice>
           <ImageAttachmentViewer fileName={option.imagePath} />
-        </Questionnaire.Choice>
+        </div>
       ))}
     </Questionnaire.Choices>
   </Questionnaire.Item>
@@ -75,13 +78,13 @@ Abaixo das duas linhas de tempo já existentes, uma lista (`<ol>`/`<li>` ou `<di
 - O texto da pergunta (`MarkdownContent`) + `ImageAttachmentViewer` do cabeçalho.
 - `quizReviewYourAnswerLabel` interpolando o texto da opção escolhida (ou `quizReviewNoAnswerLabel` quando a pergunta não foi respondida).
 - `quizReviewCorrectAnswerLabel` interpolando o texto da opção correta — **omitido quando a resposta escolhida já é a correta** (evita redundância visual).
-- Um indicador de acerto/erro: `CheckCircle2` (`text-primary`) quando a resposta escolhida é a correta, `XCircle` (`text-destructive`) quando não é — ambos de `lucide-react`, mesma lib de ícones já usada no projeto (`components.json` → `iconLibrary: "lucide"`).
+- Um indicador de acerto/erro: `CheckCircle2` (`text-primary`) quando a resposta escolhida é a correta, `XCircle` (`text-destructive`) quando não é — ambos de `lucide-react`, mesma lib de ícones já usada no projeto (`components.json` → `iconLibrary: "lucide"`). Cada ícone recebe `role="img"` + `aria-label` (`quizReviewCorrectStatusLabel`/`quizReviewIncorrectStatusLabel`) para não depender só da cor.
 
 `QuizRunnerResult` passa a receber `answers`/`questions` (hoje só recebe `result`/`averageTimeMs`/`totalTimeMs`) para montar essa lista.
 
 ### Novas chaves i18n (`en` e `pt-BR`)
 
-`quizReviewCorrectAnswerLabel`, `quizReviewHeading`, `quizReviewNoAnswerLabel`, `quizReviewYourAnswerLabel`. (`nextQuestionAction`/`finishQuizAction`/`viewImageAction` já existem e são reaproveitadas tal qual pelos primitivos `Questionnaire.Next`/`Submit`.)
+`quizReviewCorrectAnswerLabel`, `quizReviewCorrectStatusLabel`, `quizReviewHeading`, `quizReviewIncorrectStatusLabel`, `quizReviewNoAnswerLabel`, `quizReviewYourAnswerLabel`. (`nextQuestionAction`/`finishQuizAction`/`viewImageAction` já existem e são reaproveitadas tal qual pelos primitivos `Questionnaire.Next`/`Submit`.)
 
 ## Fora de escopo
 

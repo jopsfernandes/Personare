@@ -6,13 +6,14 @@ import "@/localization/i18n";
 import type { Activity } from "@/components/activities-data-table";
 
 /**
- * RED phase (Issue #93, Spec Driven TDD): src/components/quiz-runner-dialog
- * is rewritten for a multi-step flow, per
- * docs/specs/issue-93-quiz-multistep-radial-results.md AC-3. Every test
- * below is expected to fail until the dialog renders one question per step
- * (with a top progress bar), navigates forward-only via a
- * next-question/finish action, and shows a radial-chart-text result with
- * total/average time on finish.
+ * RED phase (Issue #95, Spec Driven TDD): src/components/quiz-runner-dialog
+ * swaps the hand-rolled RadioGroup for the shadcn/ui Questionnaire
+ * primitives, per docs/specs/issue-95-quiz-questionnaire-component.md AC-2,
+ * and adds a per-question review list to the result screen (AC-3). The
+ * one-question-at-a-time flow, progress label, and next/finish navigation
+ * inherited from Issue #93 stay observably the same; only the answer
+ * capture mechanism changes (final native form submit + FormData instead of
+ * per-click state).
  *
  * Fake timers make startedAt/finishedAt deterministic (the component reads
  * Date.now() when the dialog opens and again when the finish action fires).
@@ -109,7 +110,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("QuizRunnerDialog (Issue #93)", () => {
+describe("QuizRunnerDialog (Issue #95)", () => {
   it("does not attempt to load questions when there is no activity", () => {
     renderRunner(null);
 
@@ -162,7 +163,7 @@ describe("QuizRunnerDialog (Issue #93)", () => {
       screen.getAllByRole("button", { name: i18n.t("viewImageAction") })[1]
     );
 
-    expect(radios[1]).toHaveAttribute("aria-checked", "false");
+    expect(radios[1]).not.toBeChecked();
   });
 
   it("shows the next-question action before the last question, and the finish action on the last one", async () => {
@@ -270,5 +271,122 @@ describe("QuizRunnerDialog (Issue #93)", () => {
     expect(
       screen.getByText(i18n.t("quizResultMessage", { correct: 1, total: 2 }))
     ).toBeInTheDocument();
+  });
+
+  describe("per-question review list", () => {
+    async function finishWithAnswers(
+      user: ReturnType<typeof userEvent.setup>,
+      { q1, q2 }: { q1: 0 | 1; q2: 0 | 1 | null }
+    ) {
+      await screen.findByText(RUNNER_QUESTIONS[0].text);
+      const q1Radios = screen.getAllByRole("radio") as HTMLInputElement[];
+      await user.click(q1Radios[q1]);
+      await user.click(
+        screen.getByRole("button", { name: i18n.t("nextQuestionAction") })
+      );
+      await screen.findByText(RUNNER_QUESTIONS[1].text);
+      if (q2 !== null) {
+        const q2Radios = screen.getAllByRole("radio") as HTMLInputElement[];
+        await user.click(q2Radios[q2]);
+      }
+      await user.click(
+        screen.getByRole("button", { name: i18n.t("finishQuizAction") })
+      );
+    }
+
+    it("shows the review heading, each question's text, and the chosen answer", async () => {
+      const user = userEvent.setup({
+        advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
+      });
+      renderRunner();
+
+      await finishWithAnswers(user, { q1: 1, q2: 1 });
+
+      expect(
+        await screen.findByText(i18n.t("quizReviewHeading"))
+      ).toBeInTheDocument();
+      expect(screen.getByText(RUNNER_QUESTIONS[0].text)).toBeInTheDocument();
+      expect(screen.getByText(RUNNER_QUESTIONS[1].text)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          i18n.t("quizReviewYourAnswerLabel", { answer: "Brasilia" })
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(i18n.t("quizReviewYourAnswerLabel", { answer: "4" }))
+      ).toBeInTheDocument();
+    });
+
+    it("marks a correct answer without repeating the correct-answer text", async () => {
+      const user = userEvent.setup({
+        advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
+      });
+      renderRunner();
+
+      await finishWithAnswers(user, { q1: 1, q2: 1 });
+
+      expect(
+        await screen.findByText(i18n.t("quizReviewHeading"))
+      ).toBeInTheDocument();
+      expect(
+        screen.getAllByRole("img", {
+          name: i18n.t("quizReviewCorrectStatusLabel"),
+        })
+      ).toHaveLength(2);
+      expect(
+        screen.queryByText(
+          i18n.t("quizReviewCorrectAnswerLabel", { answer: "Brasilia" })
+        )
+      ).not.toBeInTheDocument();
+    });
+
+    it("marks a wrong answer and shows the correct answer text", async () => {
+      const user = userEvent.setup({
+        advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
+      });
+      renderRunner();
+
+      await finishWithAnswers(user, { q1: 0, q2: 1 });
+
+      expect(
+        await screen.findByText(i18n.t("quizReviewHeading"))
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("img", {
+          name: i18n.t("quizReviewIncorrectStatusLabel"),
+        })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          i18n.t("quizReviewYourAnswerLabel", { answer: "Sao Paulo" })
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          i18n.t("quizReviewCorrectAnswerLabel", { answer: "Brasilia" })
+        )
+      ).toBeInTheDocument();
+    });
+
+    it("shows a no-answer label and the correct answer for a question left unanswered", async () => {
+      const user = userEvent.setup({
+        advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
+      });
+      renderRunner();
+
+      await finishWithAnswers(user, { q1: 1, q2: null });
+
+      expect(
+        await screen.findByText(i18n.t("quizReviewHeading"))
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(i18n.t("quizReviewNoAnswerLabel"))
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          i18n.t("quizReviewCorrectAnswerLabel", { answer: "4" })
+        )
+      ).toBeInTheDocument();
+    });
   });
 });
