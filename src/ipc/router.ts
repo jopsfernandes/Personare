@@ -1,5 +1,6 @@
 import { activities } from "./activities";
 import { app } from "./app";
+import { attachments } from "./attachments";
 import { auth } from "./auth";
 import { backup } from "./backup";
 import { calendarSync } from "./calendar-sync";
@@ -19,6 +20,7 @@ import { window } from "./window";
 export const router = {
   activities,
   app,
+  attachments,
   auth,
   backup,
   calendarSync,
