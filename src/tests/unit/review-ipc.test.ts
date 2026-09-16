@@ -378,6 +378,22 @@ describe("review IPC namespace (Issue #16)", () => {
 
       await expect(reviewClient.listDue({ activityId })).resolves.toEqual([]);
     });
+
+    it("includes the flashcard's frontImagePath and backImagePath (Issue #96)", async () => {
+      await flashcardsClient.create({
+        activityId,
+        back: "Verso",
+        backImagePath: "back123.png",
+        front: "Frente",
+        frontImagePath: "front123.png",
+      });
+      await reviewClient.ensureReviewItems({ activityId });
+
+      const [due] = await reviewClient.listDue({ activityId });
+
+      expect(due.frontImagePath).toBe("front123.png");
+      expect(due.backImagePath).toBe("back123.png");
+    });
   });
 
   describe("submitRating", () => {

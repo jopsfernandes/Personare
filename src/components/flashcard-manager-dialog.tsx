@@ -9,8 +9,11 @@ import {
 } from "@/actions/flashcards";
 import type { Activity } from "@/components/activities-data-table";
 import FlashcardFormDialog, {
+  type FlashcardFormSubmitValue,
   type FlashcardFormValue,
 } from "@/components/flashcard-form-dialog";
+import ImageAttachmentViewer from "@/components/image-attachment-viewer";
+import MarkdownContent from "@/components/markdown-content";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,7 +24,9 @@ import {
 
 interface Flashcard {
   back: string;
+  backImagePath: string | null;
   front: string;
+  frontImagePath: string | null;
   id: string;
 }
 
@@ -50,9 +55,18 @@ function FlashcardRow({
 
   return (
     <li className="flex items-center justify-between gap-2">
-      <div className="flex flex-col">
-        <span>{flashcard.front}</span>
-        <span className="text-muted-foreground">{flashcard.back}</span>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <MarkdownContent content={flashcard.front} />
+          <ImageAttachmentViewer fileName={flashcard.frontImagePath} />
+        </div>
+        <div className="flex items-center gap-2">
+          <MarkdownContent
+            className="text-muted-foreground"
+            content={flashcard.back}
+          />
+          <ImageAttachmentViewer fileName={flashcard.backImagePath} />
+        </div>
       </div>
       <div className="flex gap-2">
         <Button
@@ -89,9 +103,8 @@ export default function FlashcardManagerDialog({
 }: FlashcardManagerDialogProps) {
   const { t } = useTranslation();
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
-  const [formFlashcard, setFormFlashcard] = useState<FlashcardFormValue | null>(
-    null
-  );
+  const [formFlashcard, setFormFlashcard] =
+    useState<FlashcardFormValue | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const refreshFlashcards = useCallback(() => {
@@ -130,14 +143,14 @@ export default function FlashcardManagerDialog({
   }, []);
 
   const handleFormSubmit = useCallback(
-    (front: string, back: string) => {
+    (values: FlashcardFormSubmitValue) => {
       if (!activity) {
         return;
       }
 
       const submit = formFlashcard
-        ? updateFlashcard(formFlashcard.id, front, back)
-        : createFlashcard(activity.id, front, back);
+        ? updateFlashcard(formFlashcard.id, values)
+        : createFlashcard(activity.id, values);
 
       submit.then(() => {
         setIsFormOpen(false);

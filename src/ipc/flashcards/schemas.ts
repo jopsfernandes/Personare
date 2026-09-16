@@ -7,12 +7,16 @@ export const listFlashcardsInputSchema = z.object({
 export const createFlashcardInputSchema = z.object({
   activityId: z.string(),
   back: z.string().min(1),
+  backImagePath: z.string().nullable().optional(),
   front: z.string().min(1),
+  frontImagePath: z.string().nullable().optional(),
 });
 
 export const updateFlashcardInputSchema = z.object({
   back: z.string().min(1),
+  backImagePath: z.string().nullable().optional(),
   front: z.string().min(1),
+  frontImagePath: z.string().nullable().optional(),
   id: z.string(),
 });
 

@@ -281,6 +281,55 @@ describe("flashcards IPC namespace (Issue #15)", () => {
     });
   });
 
+  describe("image attachments (Issue #96)", () => {
+    it("persists frontImagePath and backImagePath when creating a flashcard", async () => {
+      const created = await flashcardsClient.create({
+        activityId,
+        back: "Verso",
+        backImagePath: "back123.png",
+        front: "Frente",
+        frontImagePath: "front123.png",
+      });
+
+      expect(created.frontImagePath).toBe("front123.png");
+      expect(created.backImagePath).toBe("back123.png");
+      const list = await flashcardsClient.list({ activityId });
+      const persisted = list.find((flashcard) => flashcard.id === created.id);
+      expect(persisted?.frontImagePath).toBe("front123.png");
+      expect(persisted?.backImagePath).toBe("back123.png");
+    });
+
+    it("defaults frontImagePath and backImagePath to null when omitted", async () => {
+      const created = await flashcardsClient.create({
+        activityId,
+        back: "Verso",
+        front: "Frente",
+      });
+
+      expect(created.frontImagePath).toBeNull();
+      expect(created.backImagePath).toBeNull();
+    });
+
+    it("updates frontImagePath and backImagePath", async () => {
+      const created = await flashcardsClient.create({
+        activityId,
+        back: "Verso",
+        front: "Frente",
+      });
+
+      const updated = await flashcardsClient.update({
+        back: "Verso",
+        backImagePath: "back456.png",
+        front: "Frente",
+        frontImagePath: "front456.png",
+        id: created.id,
+      });
+
+      expect(updated.frontImagePath).toBe("front456.png");
+      expect(updated.backImagePath).toBe("back456.png");
+    });
+  });
+
   describe("softDelete", () => {
     it("sets deletedAt on the row instead of removing it from the database", async () => {
       const created = await flashcardsClient.create({

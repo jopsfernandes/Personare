@@ -152,8 +152,10 @@ export const listDue = os.input(listDueInputSchema).handler(({ input }) => {
   return db
     .select({
       back: flashcardsTable.back,
+      backImagePath: flashcardsTable.backImagePath,
       dueDate: reviewItemsTable.dueDate,
       front: flashcardsTable.front,
+      frontImagePath: flashcardsTable.frontImagePath,
       id: reviewItemsTable.id,
     })
     .from(reviewItemsTable)
