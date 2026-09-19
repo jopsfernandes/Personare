@@ -1,0 +1,245 @@
+# Spec — Issue #99: Programas em cards com heatmap de uso e Context Menu
+
+- **Issue:** #99 — "Programas: cards com heatmap de uso e context menu (substituindo tabela e ícones
+  de ação)".
+- **Branch:** `feature/99-programs-cards-heatmap`
+- **Motivação:** a tela de Programas (`/`) lista programas em uma `<table>` simples
+  (`ProgramsDataTable`), com uma coluna de três botões-ícone (editar, excluir, ver módulos). Esta
+  issue substitui a listagem por cards — um por programa —, cada um mostrando um heatmap de uso
+  (estilo gráfico de contribuições do GitHub), remove o ícone de "ver módulos" (o clique no próprio
+  card já navega) e agrupa renomear/excluir em um Context Menu (clique direito no card).
+- **Metodologia:** Spec Driven Development + TDD (Red-Green-Refactor), conforme `CONTRIBUTING.md`.
+- **Decisões do usuário (confirmadas antes deste spec, não deduzidas)**:
+  1. **Métrica do heatmap**: revisões concluídas por dia (contagem de entradas de
+     `review_items.ratingHistory` cujo `reviewedAt` cai naquele dia), não criação/edição de
+     atividades.
+  2. **Layout**: grid de cards responsivo (vários por linha), com heatmap **compacto** (~3 meses),
+     não o heatmap completo de 12 meses do GitHub — que é largo demais (~700px) para caber em um
+     grid de múltiplos cards por linha.
+  3. **Clique no card**: clique simples navega para os módulos do programa (substitui o antigo botão
+     "ver módulos"). Clique direito abre o Context Menu com "Editar" e "Excluir".
+
+## Escolhas técnicas (registradas para o Revisor)
+
+- **Sem tabela de log de revisões**: o schema não tem uma tabela `review_log` (uma linha por
+  avaliação). O histórico vive serializado em `review_items.ratingHistory` (JSON,
+  `{ rating, reviewedAt }[]`), uma coluna por Flashcard/Activity, não por dia. A agregação por dia
+  precisa então: (1) buscar todo `ratingHistory` acessível a partir de cada Programa (reaproveitando
+  o mesmo padrão de `unionAll` Flashcard-scoped/Activity-scoped já usado por `listSchedule` em
+  `src/ipc/review/handlers.ts`), (2) fazer `JSON.parse` de cada linha e (3) "achatar"/agrupar os
+  timestamps em contagens por dia — tudo em código de aplicação (SQLite deste projeto não expõe
+  função de expansão de array JSON usada em nenhum outro lugar do código). Introduzir uma tabela
+  `review_log` normalizada é uma alternativa mais idiomática de longo prazo, mas está fora de escopo
+  desta issue (nenhuma migration de schema é necessária para a métrica pedida).
+- **Sem `date-fns` no processo principal**: todo o parsing/soma de contagens por dia acontece dentro
+  do handler oRPC (processo principal do Electron). Para evitar introduzir uma dependência nova nesse
+  processo só para formatar `"yyyy-MM-dd"`, um helper local (`getFullYear`/`getMonth`/`getDate` do
+  próprio `Date`, hora local da máquina) resolve isso — a mesma técnica de "dia local, não UTC" que
+  `src/routes/calendar.tsx` já documenta para `dueDate`. `date-fns` continua sendo usado normalmente
+  no lado do renderer (onde já é dependência estabelecida), para a lógica de grade do heatmap.
+- **Sem `Card` genérico em `src/components/ui`**: diferente do Context Menu (que tem lógica real de
+  posicionamento/teclado que vale a pena encapsular como primitivo Radix), um "card" aqui é só um
+  contêiner com `border`/`rounded`/`shadow`, usado em exatamente um lugar. Adicionar
+  `src/components/ui/card.tsx` inteiro (Header/Title/Description/Action/Content/Footer) para um único
+  consumidor seria abstração prematura; o botão-card em `programs-card-grid.tsx` usa as mesmas
+  classes de superfície já convencionadas no projeto (`rounded-lg border-border bg-card ring-1
+  ring-foreground/10`, como em `dropdown-menu.tsx`) diretamente.
+- **`src/components/ui/context-menu.tsx` (novo)**: não existe ainda neste projeto. Espelha
+  `dropdown-menu.tsx` 1:1 (mesmo estilo "radix-mira": `data-slot`, classes `data-open:`/`data-closed:`,
+  `ring-1 ring-foreground/10`), trocando o primitivo Radix de `DropdownMenu` para `ContextMenu` (ambos
+  vêm do mesmo pacote unificado `radix-ui` já usado em todo `src/components/ui`). Superfície completa
+  (Root/Trigger/Portal/Content/Group/Label/Item/CheckboxItem/RadioGroup/RadioItem/Separator/Shortcut/
+  Sub/SubTrigger/SubContent), mesmo que este card use só Root/Trigger/Content/Item/Separator —
+  consistente com como `dropdown-menu.tsx` já foi instalado por completo neste repo, não recortado ao
+  uso imediato.
+- **Acessibilidade do Context Menu por teclado**: sem um botão "•••" dedicado (removido a pedido),
+  usuários de teclado abrem o menu de contexto do jeito nativo do sistema/navegador para qualquer
+  elemento focado — tecla Menu ou Shift+F10, que disparam o mesmo evento `contextmenu` que o
+  `ContextMenuTrigger` do Radix já escuta. Não é necessário nenhum código adicional para isso.
+- **Bucket de intensidade do heatmap**: relativo ao próprio programa (não a um valor absoluto global),
+  em 5 níveis (0 = sem revisão, 1–4 proporcional ao dia de maior contagem daquele programa dentro da
+  janela visível) — mesma ideia do GitHub, mas escalado por card em vez de por conta inteira, já que
+  cada Programa pode ter volumes de revisão bem diferentes. Cores reaproveitadas de
+  `--chart-1`..`--chart-4` (já definidas em `src/styles/global.css`, mesma família usada por
+  `radial-chart-text.tsx`), nível 0 em `bg-muted`.
+
+## AC-1 — `src/ipc/review/handlers.ts`: novo handler `listActivityCounts`
+
+```ts
+export const listActivityCounts = os.handler(() => { /* ... */ });
+```
+
+Retorna `{ programId: string; date: string; count: number }[]` — uma linha por combinação
+programa/dia com pelo menos uma revisão, `date` no formato `"yyyy-MM-dd"` (dia local da máquina, via
+helper próprio, não `date-fns`). Implementação: reaproveita o par `viaFlashcard`/`viaActivity` +
+`unionAll` de `listSchedule` (mesmo join até `programsTable`), mas selecionando
+`{ programId, ratingHistory }`; depois, em memória, faz `JSON.parse(ratingHistory)`, itera
+`{ reviewedAt }[]`, converte cada `reviewedAt` (epoch ms) para a chave de dia local e acumula num
+`Map<string, Map<string, number>>` (programId → dia → contagem) antes de achatar para o array de
+retorno. Exportado de `src/ipc/review/index.ts` junto aos demais.
+
+## AC-2 — `src/actions/programs.ts`: `listProgramActivityCounts` + `groupActivityCountsByProgram`
+
+```ts
+export interface ProgramActivityCount {
+  count: number;
+  date: string;
+  programId: string;
+}
+
+export function listProgramActivityCounts(): Promise<ProgramActivityCount[]>;
+
+export function groupActivityCountsByProgram(
+  rows: ProgramActivityCount[]
+): Map<string, { count: number; date: string }[]>;
+```
+
+`listProgramActivityCounts` chama `ipc.client.review.listActivityCounts()`.
+`groupActivityCountsByProgram` é uma função pura (testável sem mocks) que agrupa o array plano por
+`programId`, descartando o campo (redundante depois de agrupado) na fatia de cada programa.
+
+## AC-3 — `src/utils/activity-heatmap.ts`: `buildHeatmapWeeks`
+
+```ts
+export interface ActivityHeatmapDay {
+  count: number;
+  date: string;
+}
+
+export type HeatmapLevel = 0 | 1 | 2 | 3 | 4;
+
+export type HeatmapCell = { count: number; date: string; level: HeatmapLevel } | null;
+
+export function buildHeatmapWeeks(
+  counts: ActivityHeatmapDay[],
+  options?: { today?: Date; weeks?: number }
+): HeatmapCell[][];
+```
+
+Função pura (sem I/O), grade estilo GitHub: `weeks` colunas (default `13`, ~3 meses) × 7 linhas
+(domingo a sábado). `today` (default `new Date()`) cai na **última** coluna; essa última coluna é a
+semana (domingo–sábado) que contém `today` — ou seja, a primeira coluna começa `(weeks - 1)` semanas
+antes dela: `gridStart = subDays(startOfWeek(today, { weekStartsOn: 0 }), (weeks - 1) * 7)` (via
+`date-fns`: `startOfWeek`, `subDays`, `addDays`, `format`). Dias da grade que caem **depois** de
+`today` (preenchimento da última coluna até completar 7 linhas) são `null` (célula não renderizada,
+só mantém o alinhamento da grade). Contagens de `counts` fora do intervalo `[gridStart, today]` são
+ignoradas. Nível: `0` quando a contagem do dia é `0`; senão
+`Math.min(4, Math.ceil((count / maiorContagemNaJanela) * 4))`, sempre um inteiro entre 1 e 4 (a maior
+contagem dentro da janela sempre cai em `4`).
+
+## AC-4 — `src/components/activity-heatmap.tsx`: `ActivityHeatmap`
+
+```ts
+export interface ActivityHeatmapProps {
+  counts: ActivityHeatmapDay[];
+  weeks?: number;
+}
+export function ActivityHeatmap(props: ActivityHeatmapProps): JSX.Element;
+```
+
+Usa `buildHeatmapWeeks` e renderiza colunas de células `10px` (`size-2.5 rounded-xs`,
+`gap-[3px]`), cor por nível (`bg-muted` para nível 0, `bg-chart-1`..`bg-chart-4` para 1–4), células
+`null` renderizadas como espaço vazio do mesmo tamanho (mantém o grid alinhado). O contêiner é
+`role="img"` com `aria-label` = nova chave `programActivityHeatmapSummary` (interpola o total de
+revisões na janela, ex. "12 revisões nos últimos 3 meses"); a grade interna de células é
+`aria-hidden`, e cada célula individual carrega `title="{data}: {contagem}"` só como dica visual do
+mouse (não é a fonte de informação acessível — essa é o `aria-label` do contêiner).
+
+## AC-5 — `src/components/ui/context-menu.tsx` (novo)
+
+Ver "Escolhas técnicas" acima — espelho estrutural de `dropdown-menu.tsx` usando o primitivo
+`ContextMenu` de `radix-ui`.
+
+## AC-6 — `src/components/programs-card-grid.tsx` (substitui `programs-data-table.tsx`)
+
+```ts
+export interface Program {
+  createdAt: Date;
+  id: string;
+  name: string;
+  updatedAt: Date;
+}
+
+interface ProgramsCardGridProps {
+  activityCountsByProgramId: Map<string, { count: number; date: string }[]>;
+  onEdit: (program: Program) => void;
+  onNavigateToModules: (program: Program) => void;
+  onRequestDelete: (program: Program) => void;
+  programs: Program[];
+}
+export default function ProgramsCardGrid(props: ProgramsCardGridProps): JSX.Element;
+```
+
+- Grid responsivo (`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3`); lista vazia mantém a
+  mensagem `programsTableEmptyMessage` (chave reaproveitada, sem mudança de texto).
+  Um card por programa: `<ContextMenu>` envolvendo um `<ContextMenuTrigger asChild>` cujo filho é um
+  único `<button>` (não uma `<div>` com `onClick` — precisa ser focável/acionável por teclado) com o
+  nome do programa e o `ActivityHeatmap` da fatia de `activityCountsByProgramId.get(program.id)`
+  (`?? []` se o programa ainda não tem nenhuma revisão). Clique no botão chama
+  `onNavigateToModules(program)`. **Nenhum ícone/botão de "ver módulos" é renderizado** — a
+  chave `viewModulesAction` e o ícone `BookOpen` (antes importado de `lucide-react`) são removidos
+  por completo, junto com sua entrada em `en`/`pt-BR` de `src/localization/i18n.ts` (fica órfã depois
+  desta issue).
+- `<ContextMenuContent>` com dois itens: `editProgramAction` (ícone `Pencil`, chama `onEdit(program)`
+  em `onSelect`) e `deleteProgramAction` (ícone `Trash2`, `variant="destructive"`, chama
+  `onRequestDelete(program)` em `onSelect`) — mesmos rótulos/callbacks de antes, só a forma de
+  acioná-los muda (menu em vez de botões sempre visíveis).
+
+## AC-7 — `src/routes/index.tsx` (wiring)
+
+- Novo estado `activityCounts` (`ProgramActivityCount[]`), buscado uma vez no mount (mesmo padrão do
+  `getCalendarConnectionStatus` em `calendar.tsx` — não depende do ciclo de refresh de
+  criar/editar/excluir Programa, já que revisões não mudam por causa de um CRUD de Programa).
+  `activityCountsByProgramId` é `useMemo(() => groupActivityCountsByProgram(activityCounts),
+  [activityCounts])`.
+- `<ProgramsDataTable ... />` → `<ProgramsCardGrid activityCountsByProgramId={...} ... />` (demais
+  props — `onEdit`/`onNavigateToModules`/`onRequestDelete`/`programs` — inalteradas).
+- `program-form-dialog.tsx` e `delete-program-dialog.tsx`: só o caminho do `import type { Program }`
+  muda, de `@/components/programs-data-table` para `@/components/programs-card-grid`.
+
+## AC-8 — `src/tests/e2e/activities-navigation.test.ts` (atualizado, não novo)
+
+O teste hoje navega para Módulos via
+`page.getByRole("row", { name: ... }).getByLabel("View modules")`. Sem `<table>`/`<tr>` nem botão de
+ícone, isso não existe mais — passa a ser `page.getByRole("button", { name: new
+RegExp(programName) }).click()` (o card inteiro é o botão, seu nome acessível contém o nome do
+programa). Resto do teste (Módulos → Atividades, ambos ainda em `<table>`) inalterado.
+
+### Novas chaves i18n (`en` e `pt-BR`)
+
+`programActivityHeatmapSummary` (interpola `{{count}}`, plural: revisão/revisões — ver
+`Intl.PluralRules`/i18next `_one`/`_other` já usado em outras chaves do projeto, ex.
+`calendarWeekNumberLabel` não é plural mas `activityReviewStateColumnLabel` etc. — conferir se o
+projeto já usa `_one`/`_other` em algum lugar antes de decidir a forma; caso não haja precedente,
+uma única forma neutra "N revisões nos últimos 3 meses"/"N reviews in the last 3 months" é aceitável
+mesmo com N=1, evitando introduzir pluralização nova sem padrão local a seguir).
+
+### Chaves removidas (ficam órfãs)
+
+`viewModulesAction` (`en` e `pt-BR`) — sem nenhum outro consumidor no código (confirmado por busca
+antes deste spec).
+
+## Fora de escopo
+
+- Tabela `review_log` normalizada (ver "Escolhas técnicas") — a agregação em memória a partir de
+  `ratingHistory` é suficiente para o volume de dados de um app local single-user.
+- Heatmap de 12 meses completo (decisão do usuário: layout em grid compacto).
+- Qualquer mudança em Módulos/Atividades (`ModulesDataTable`, etc.) — só a tela de Programas muda
+  nesta issue.
+- Reordenar/arrastar cards, filtros ou busca na grid de Programas.
+
+## Ordem do pipeline
+
+1. **Testador**: `src/tests/unit/activity-heatmap-util.test.ts` (AC-3, puro),
+   `src/tests/unit/activity-heatmap.test.tsx` (AC-4), substituir
+   `src/tests/unit/programs-data-table.test.tsx` por
+   `src/tests/unit/programs-card-grid.test.tsx` (AC-6, incluindo clique simples/clique
+   direito+menu), e um teste mínimo para `groupActivityCountsByProgram` (AC-2). Confirmar RED,
+   commitar.
+2. **Desenvolvedor**: implementar até GREEN (AC-1 a AC-7), depois atualizar o e2e (AC-8) — o e2e não
+   roda no CI de unit tests, então precisa de uma passada manual (`npm run test:e2e`) por tocar a
+   rota `/`, conforme `CONTRIBUTING.md`.
+3. **Revisor**: `npm run test:unit`, `npm run test:e2e`, `npm run check`; conferir visualmente (app
+   rodando) que o heatmap não estoura a largura do card em telas pequenas e que o Context Menu
+   fecha corretamente após cada ação.
+4. **Redator de Docs**: `CHANGELOG.md`.

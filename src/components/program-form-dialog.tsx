@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Program } from "@/components/programs-data-table";
+import type { Program } from "@/components/programs-card-grid";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

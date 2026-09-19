@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { Program } from "@/components/programs-data-table";
+import type { Program } from "@/components/programs-card-grid";
 import {
   AlertDialog,
   AlertDialogAction,

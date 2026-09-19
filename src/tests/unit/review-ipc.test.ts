@@ -865,6 +865,171 @@ describe("review IPC namespace (Issue #16)", () => {
     });
 
     /**
+     * RED phase (Issue #99, Spec Driven TDD): src/ipc/review does not expose
+     * a `listActivityCounts` procedure yet. Per
+     * docs/specs/issue-99-programs-cards-heatmap.md AC-1, this powers the
+     * Programs page's per-card activity heatmap: one row per
+     * program/day-with-at-least-one-rating, `date` a local "yyyy-MM-dd" key
+     * (not UTC), derived from every `ratingHistory` entry reachable from
+     * that program (same Flashcard-scoped/Activity-scoped union as
+     * listSchedule above).
+     */
+    describe("listActivityCounts", () => {
+      function todayDateKey(): string {
+        const now = new Date();
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const day = String(now.getDate()).padStart(2, "0");
+        return `${now.getFullYear()}-${month}-${day}`;
+      }
+
+      it("is exposed as a procedure on the review namespace", () => {
+        expect(reviewNamespace.listActivityCounts).toBeDefined();
+      });
+
+      it("returns an empty array when there are no ratings yet", async () => {
+        await expect(reviewClient.listActivityCounts()).resolves.toEqual([]);
+      });
+
+      it("counts a Flashcard-scoped rating toward its program, keyed by the local day it was recorded", async () => {
+        const program = await programsClient.create({ name: "Programa H1" });
+        const moduleRow = await modulesClient.create({
+          name: "Modulo H1",
+          programId: program.id,
+        });
+        const activity = await activitiesClient.create({
+          moduleId: moduleRow.id,
+          title: "Baralho H1",
+          type: "flashcard_deck",
+        });
+        await flashcardsClient.create({
+          activityId: activity.id,
+          back: "Verso",
+          front: "Frente",
+        });
+        await reviewClient.ensureReviewItems({ activityId: activity.id });
+        const [due] = await reviewClient.listDue({ activityId: activity.id });
+        await reviewClient.submitRating({
+          rating: "good",
+          reviewItemId: due.id,
+        });
+
+        const counts = await reviewClient.listActivityCounts();
+
+        expect(counts).toEqual([
+          { count: 1, date: todayDateKey(), programId: program.id },
+        ]);
+      });
+
+      it("counts an Activity-scoped rating (quiz/pdf/link) toward its program too", async () => {
+        const program = await programsClient.create({ name: "Programa H2" });
+        const moduleRow = await modulesClient.create({
+          name: "Modulo H2",
+          programId: program.id,
+        });
+        const quiz = await activitiesClient.create({
+          moduleId: moduleRow.id,
+          title: "Quiz H2",
+          type: "quiz",
+        });
+        await reviewClient.markActivityDifficulty({
+          activityId: quiz.id,
+          rating: "good",
+        });
+
+        const counts = await reviewClient.listActivityCounts();
+
+        expect(counts).toEqual([
+          { count: 1, date: todayDateKey(), programId: program.id },
+        ]);
+      });
+
+      it("aggregates multiple ratings on the same day under one program into a single count", async () => {
+        const program = await programsClient.create({ name: "Programa H3" });
+        const moduleRow = await modulesClient.create({
+          name: "Modulo H3",
+          programId: program.id,
+        });
+        const activity = await activitiesClient.create({
+          moduleId: moduleRow.id,
+          title: "Baralho H3",
+          type: "flashcard_deck",
+        });
+        await flashcardsClient.create({
+          activityId: activity.id,
+          back: "Verso 1",
+          front: "Frente 1",
+        });
+        await flashcardsClient.create({
+          activityId: activity.id,
+          back: "Verso 2",
+          front: "Frente 2",
+        });
+        await reviewClient.ensureReviewItems({ activityId: activity.id });
+        const due = await reviewClient.listDue({ activityId: activity.id });
+        await reviewClient.submitRating({
+          rating: "good",
+          reviewItemId: due[0].id,
+        });
+        await reviewClient.submitRating({
+          rating: "easy",
+          reviewItemId: due[1].id,
+        });
+
+        const counts = await reviewClient.listActivityCounts();
+
+        expect(counts).toEqual([
+          { count: 2, date: todayDateKey(), programId: program.id },
+        ]);
+      });
+
+      it("keeps counts for different programs separate", async () => {
+        const firstProgram = await programsClient.create({
+          name: "Programa H4",
+        });
+        const firstModule = await modulesClient.create({
+          name: "Modulo H4",
+          programId: firstProgram.id,
+        });
+        const firstQuiz = await activitiesClient.create({
+          moduleId: firstModule.id,
+          title: "Quiz H4",
+          type: "quiz",
+        });
+        const secondProgram = await programsClient.create({
+          name: "Programa H5",
+        });
+        const secondModule = await modulesClient.create({
+          name: "Modulo H5",
+          programId: secondProgram.id,
+        });
+        const secondQuiz = await activitiesClient.create({
+          moduleId: secondModule.id,
+          title: "Quiz H5",
+          type: "quiz",
+        });
+
+        await reviewClient.markActivityDifficulty({
+          activityId: firstQuiz.id,
+          rating: "good",
+        });
+        await reviewClient.markActivityDifficulty({
+          activityId: secondQuiz.id,
+          rating: "easy",
+        });
+
+        const counts = await reviewClient.listActivityCounts();
+
+        expect(counts).toEqual(
+          expect.arrayContaining([
+            { count: 1, date: todayDateKey(), programId: firstProgram.id },
+            { count: 1, date: todayDateKey(), programId: secondProgram.id },
+          ])
+        );
+        expect(counts).toHaveLength(2);
+      });
+    });
+
+    /**
      * RED phase (Issue #77, Spec Driven TDD): listSchedule only unions the
      * Flashcard-scoped branch so far -- these cover the new Activity-scoped
      * branch (quiz/pdf/link review_items, no flashcardId) added alongside

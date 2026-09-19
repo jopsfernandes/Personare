@@ -8,6 +8,17 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Added
 
+- **Programas: cards com heatmap de uso e Context Menu**
+  ([#99](https://github.com/jopsfernandes/Personare/issues/99)).
+  A tela de Programas (`/`) troca a `<table>`/`ProgramsDataTable` por uma grid de cards
+  (`ProgramsCardGrid`), um por programa.
+  - Cada card mostra um heatmap de uso estilo GitHub (`ActivityHeatmap`), com a intensidade de cada dia
+    proporcional ao número de revisões concluídas naquele programa nos últimos ~3 meses (13 semanas) --
+    agregado a partir de `review_items.ratingHistory` por um novo procedimento
+    `review.listActivityCounts`, já que o schema não tem uma tabela de log por revisão.
+  - O ícone de "ver módulos" some: um clique simples no card já navega para os módulos do programa.
+  - Editar e excluir passam a viver num Context Menu (shadcn/ui, novo `src/components/ui/context-menu.tsx`)
+    acionado por clique direito no card, em vez de dois botões-ícone sempre visíveis.
 - **Quiz: fluxo multi-step com progress-bar e resultado com radial chart** ([#93](https://github.com/jopsfernandes/Personare/issues/93)).
   Redesenha a experiência de responder um Quiz (`QuizRunnerDialog`), que antes renderizava todas as
   perguntas de uma vez com `<input type="radio">` cru e mostrava o resultado como uma única frase.
