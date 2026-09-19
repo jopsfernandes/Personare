@@ -218,6 +218,81 @@ describe("ProgramsCardGrid", () => {
     expect(onEdit).toHaveBeenCalledWith(PROGRAMS[1]);
   });
 
+  /**
+   * RED phase (bug report): DropdownMenuContent/ContextMenuContent render
+   * through a React portal (to document.body), but React bubbles synthetic
+   * events through the *React tree*, not the DOM tree -- a click on
+   * "Editar"/"Excluir" still bubbles up to the card's own onClick and fires
+   * onNavigateToModules too, so selecting either action also navigates away.
+   * Every action-selection test above only checked the intended callback
+   * fired, never that navigation did NOT also fire.
+   */
+  it("does not also navigate when selecting the three-dot menu's edit item", async () => {
+    const user = userEvent.setup();
+    const { onNavigateToModules } = renderGrid();
+
+    const menuButtons = screen.getAllByRole("button", {
+      name: i18n.t("programCardMenuAction"),
+    });
+    await user.click(menuButtons[1]);
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: i18n.t("editProgramAction"),
+      })
+    );
+
+    expect(onNavigateToModules).not.toHaveBeenCalled();
+  });
+
+  it("does not also navigate when selecting the three-dot menu's delete item", async () => {
+    const user = userEvent.setup();
+    const { onNavigateToModules } = renderGrid();
+
+    const menuButtons = screen.getAllByRole("button", {
+      name: i18n.t("programCardMenuAction"),
+    });
+    await user.click(menuButtons[0]);
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: i18n.t("deleteProgramAction"),
+      })
+    );
+
+    expect(onNavigateToModules).not.toHaveBeenCalled();
+  });
+
+  it("does not also navigate when selecting the right-click context menu's edit item", async () => {
+    const user = userEvent.setup();
+    const { onNavigateToModules } = renderGrid();
+
+    fireEvent.contextMenu(
+      screen.getByRole("button", { name: new RegExp(PROGRAMS[0].name) })
+    );
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: i18n.t("editProgramAction"),
+      })
+    );
+
+    expect(onNavigateToModules).not.toHaveBeenCalled();
+  });
+
+  it("does not also navigate when selecting the right-click context menu's delete item", async () => {
+    const user = userEvent.setup();
+    const { onNavigateToModules } = renderGrid();
+
+    fireEvent.contextMenu(
+      screen.getByRole("button", { name: new RegExp(PROGRAMS[1].name) })
+    );
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: i18n.t("deleteProgramAction"),
+      })
+    );
+
+    expect(onNavigateToModules).not.toHaveBeenCalled();
+  });
+
   it("renders the activity heatmap for a program using its own slice of activityCountsByProgramId", () => {
     const activityCountsByProgramId = new Map([
       [PROGRAMS[0].id, [{ count: 4, date: "2026-03-10" }]],

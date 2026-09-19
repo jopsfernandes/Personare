@@ -72,13 +72,26 @@ function ProgramCard({
     [onNavigateToModules, program]
   );
 
-  const handleEditClick = useCallback(() => {
-    onEdit(program);
-  }, [onEdit, program]);
+  const handleEditClick = useCallback(
+    (event: MouseEvent) => {
+      // DropdownMenuContent (unlike ContextMenuContent, which already stops
+      // this itself) renders through a React portal to document.body -- React
+      // bubbles synthetic events through the *React tree*, not the DOM tree,
+      // so without this the click still reaches the card's own onClick below
+      // and navigates to the modules instead of/alongside editing.
+      event.stopPropagation();
+      onEdit(program);
+    },
+    [onEdit, program]
+  );
 
-  const handleDeleteClick = useCallback(() => {
-    onRequestDelete(program);
-  }, [onRequestDelete, program]);
+  const handleDeleteClick = useCallback(
+    (event: MouseEvent) => {
+      event.stopPropagation();
+      onRequestDelete(program);
+    },
+    [onRequestDelete, program]
+  );
 
   const handleMenuTriggerClick = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
@@ -98,7 +111,7 @@ function ProgramCard({
           onKeyDown={handleKeyDown}
           role="button"
           style={{
-            backgroundImage: `radial-gradient(circle at 0% 0%, ${color}26, transparent 70%)`,
+            backgroundImage: `linear-gradient(to bottom, ${color}26, transparent 70%)`,
           }}
           tabIndex={0}
         >
