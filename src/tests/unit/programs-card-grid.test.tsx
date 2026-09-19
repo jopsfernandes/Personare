@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import ProgramsCardGrid, {
   type Program,
 } from "@/components/programs-card-grid";
+import { DEFAULT_PROGRAM_COLOR } from "@/constants/program-appearance";
 import "@/localization/i18n";
 
 /**
@@ -26,13 +27,17 @@ import "@/localization/i18n";
 
 const PROGRAMS: Program[] = [
   {
+    color: "#3b82f6",
     createdAt: new Date("2026-01-01"),
+    icon: "Brain",
     id: "11111111-1111-1111-1111-111111111111",
     name: "Bacharelado II",
     updatedAt: new Date("2026-01-01"),
   },
   {
+    color: null,
     createdAt: new Date("2026-02-01"),
+    icon: null,
     id: "22222222-2222-2222-2222-222222222222",
     name: "Pos I",
     updatedAt: new Date("2026-02-01"),
@@ -147,6 +152,72 @@ describe("ProgramsCardGrid", () => {
     expect(onRequestDelete).toHaveBeenCalledWith(PROGRAMS[0]);
   });
 
+  it("renders the card as cursor-pointer, since the whole card is clickable", () => {
+    renderGrid();
+
+    expect(
+      screen.getByRole("button", { name: new RegExp(PROGRAMS[0].name) })
+    ).toHaveClass("cursor-pointer");
+  });
+
+  it("applies the program's own color as the icon square's background", () => {
+    renderGrid();
+
+    const card = screen.getByRole("button", {
+      name: new RegExp(PROGRAMS[0].name),
+    });
+    const iconSquare = card.querySelector("span");
+    expect(iconSquare).toHaveStyle({ backgroundColor: "#3b82f6" });
+  });
+
+  it("falls back to the default color when the program has none", () => {
+    renderGrid();
+
+    const card = screen.getByRole("button", {
+      name: new RegExp(PROGRAMS[1].name),
+    });
+    const iconSquare = card.querySelector("span");
+    expect(iconSquare).toHaveStyle({ backgroundColor: DEFAULT_PROGRAM_COLOR });
+  });
+
+  it("opens a menu with edit and delete actions from the three-dot button, without triggering navigation", async () => {
+    const user = userEvent.setup();
+    const { onNavigateToModules } = renderGrid();
+
+    const menuButtons = screen.getAllByRole("button", {
+      name: i18n.t("programCardMenuAction"),
+    });
+    await user.click(menuButtons[0]);
+
+    expect(
+      await screen.findByRole("menuitem", {
+        name: i18n.t("editProgramAction"),
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: i18n.t("deleteProgramAction") })
+    ).toBeInTheDocument();
+    expect(onNavigateToModules).not.toHaveBeenCalled();
+  });
+
+  it("calls onEdit when the three-dot menu's edit item is selected", async () => {
+    const user = userEvent.setup();
+    const { onEdit } = renderGrid();
+
+    const menuButtons = screen.getAllByRole("button", {
+      name: i18n.t("programCardMenuAction"),
+    });
+    await user.click(menuButtons[1]);
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: i18n.t("editProgramAction"),
+      })
+    );
+
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onEdit).toHaveBeenCalledWith(PROGRAMS[1]);
+  });
+
   it("renders the activity heatmap for a program using its own slice of activityCountsByProgramId", () => {
     const activityCountsByProgramId = new Map([
       [PROGRAMS[0].id, [{ count: 4, date: "2026-03-10" }]],
@@ -172,6 +243,7 @@ describe("Programs screen i18n keys (Issue #99)", () => {
     "editProgramAction",
     "deleteProgramAction",
     "programsTableEmptyMessage",
+    "programCardMenuAction",
   ];
 
   it.each(["en", "pt-BR"] as const)(

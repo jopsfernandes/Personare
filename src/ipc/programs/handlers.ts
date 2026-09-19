@@ -42,7 +42,9 @@ export const create = os
     return db
       .insert(programsTable)
       .values({
+        color: input.color ?? null,
         createdAt: now,
+        icon: input.icon ?? null,
         name: input.name,
         updatedAt: now,
       })
@@ -57,7 +59,12 @@ export const update = os
 
     return db
       .update(programsTable)
-      .set({ name: input.name, updatedAt: new Date() })
+      .set({
+        color: input.color ?? null,
+        icon: input.icon ?? null,
+        name: input.name,
+        updatedAt: new Date(),
+      })
       .where(eq(programsTable.id, input.id))
       .returning()
       .get();

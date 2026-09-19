@@ -13,7 +13,8 @@ export type HeatmapCell = {
   level: HeatmapLevel;
 } | null;
 
-const DEFAULT_WEEKS = 13;
+/** 365 days, GitHub's own "last year" column count (ceil(365 / 7)). */
+const DEFAULT_WEEKS = 53;
 const DAYS_PER_WEEK = 7;
 const MAX_LEVEL = 4;
 

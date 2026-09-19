@@ -17,7 +17,9 @@ import {
   updateProgram,
 } from "@/actions/programs";
 import DeleteProgramDialog from "@/components/delete-program-dialog";
-import ProgramFormDialog from "@/components/program-form-dialog";
+import ProgramFormDialog, {
+  type ProgramFormSubmitValues,
+} from "@/components/program-form-dialog";
 import ProgramsCardGrid, {
   type Program,
 } from "@/components/programs-card-grid";
@@ -84,10 +86,10 @@ function ProgramsPage() {
   }, []);
 
   const handleFormSubmit = useCallback(
-    (name: string) => {
+    ({ color, icon, name }: ProgramFormSubmitValues) => {
       const submit = formProgram
-        ? updateProgram(formProgram.id, name)
-        : createProgram(name);
+        ? updateProgram(formProgram.id, name, { color, icon })
+        : createProgram(name, { color, icon });
 
       submit.then(() => {
         setIsFormOpen(false);

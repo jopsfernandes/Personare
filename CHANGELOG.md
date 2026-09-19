@@ -8,17 +8,27 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Added
 
-- **Programas: cards com heatmap de uso e Context Menu**
+- **Programas: cards com ícone/cor, heatmap de uso de 365 dias e Context Menu**
   ([#99](https://github.com/jopsfernandes/Personare/issues/99)).
   A tela de Programas (`/`) troca a `<table>`/`ProgramsDataTable` por uma grid de cards
   (`ProgramsCardGrid`), um por programa.
-  - Cada card mostra um heatmap de uso estilo GitHub (`ActivityHeatmap`), com a intensidade de cada dia
-    proporcional ao número de revisões concluídas naquele programa nos últimos ~3 meses (13 semanas) --
-    agregado a partir de `review_items.ratingHistory` por um novo procedimento
-    `review.listActivityCounts`, já que o schema não tem uma tabela de log por revisão.
+  - Cada card tem um ícone (curado, ~32 ícones Lucide relevantes a áreas de estudo) sobre uma cor
+    própria (paleta fixa de 19 cores), escolhidos num formulário redesenhado
+    (`ProgramFormDialog`) inspirado em pickers de ícone/cor de apps de hábito: preview circular,
+    grade de ícones e swatches de cor. `programs.icon`/`programs.color` são novas colunas
+    nullable (`drizzle/0009_steep_albert_cleary.sql`); programas existentes sem valor caem num
+    ícone/cor padrão via `resolveProgramIcon`/`resolveProgramColor`.
+  - Abaixo do nome, um heatmap de uso estilo GitHub (`ActivityHeatmap`) cobrindo os últimos 365 dias
+    (53 semanas), tingido na cor do próprio programa, com a intensidade de cada dia proporcional ao
+    número de revisões concluídas -- agregado a partir de `review_items.ratingHistory` por um novo
+    procedimento `review.listActivityCounts`, já que o schema não tem uma tabela de log por revisão.
+    Quando as 53 semanas não cabem na largura do card, o heatmap rola horizontalmente (já começando
+    no fim, mostrando os dias mais recentes) com uma máscara de fade-out do lado esquerdo, em vez de
+    um corte abrupto.
   - O ícone de "ver módulos" some: um clique simples no card já navega para os módulos do programa.
-  - Editar e excluir passam a viver num Context Menu (shadcn/ui, novo `src/components/ui/context-menu.tsx`)
-    acionado por clique direito no card, em vez de dois botões-ícone sempre visíveis.
+  - Editar e excluir vivem tanto num Context Menu (shadcn/ui, novo `src/components/ui/context-menu.tsx`,
+    clique direito no card) quanto num botão de três pontos no canto do card (`DropdownMenu`),
+    em vez de dois botões-ícone sempre visíveis.
 - **Quiz: fluxo multi-step com progress-bar e resultado com radial chart** ([#93](https://github.com/jopsfernandes/Personare/issues/93)).
   Redesenha a experiência de responder um Quiz (`QuizRunnerDialog`), que antes renderizava todas as
   perguntas de uma vez com `<input type="radio">` cru e mostrava o resultado como uma única frase.

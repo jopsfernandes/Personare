@@ -219,6 +219,101 @@ mesmo com N=1, evitando introduzir pluralização nova sem padrão local a segui
 `viewModulesAction` (`en` e `pt-BR`) — sem nenhum outro consumidor no código (confirmado por busca
 antes deste spec).
 
+## Revisão (ainda na Issue #99, antes do merge do PR #100)
+
+Depois do primeiro GREEN, o usuário pediu ajustes visuais com base em duas referências (um app de
+hábitos estilo Streaks): o card ganha ícone + cor próprios, o heatmap passa a cobrir 365 dias (não
+mais ~3 meses) e o formulário ganha um seletor de ícone/cor. Decisões confirmadas com o usuário:
+
+1. **Escopo continua sendo o card de Programa** (não um card novo para Atividades) — só evolui o que
+   já existe.
+2. **O botão de check da referência vira um ícone de três pontos** (`MoreHorizontal`) que abre o
+   mesmo menu Editar/Excluir do Context Menu (agora via `DropdownMenu`, clique simples), **em
+   adição** ao clique direito no card (que continua abrindo o Context Menu) — não o substitui. O
+   card inteiro também ganha `cursor-pointer` explícito.
+3. **Seletor de ícone usa Lucide** (`lucide-react`, já é a lib de ícones do projeto) — não uma lib
+   nova.
+
+### Escolhas técnicas adicionais
+
+- **`programs.icon`/`programs.color` (novas colunas, nullable)**: `icon` guarda o nome literal do
+  ícone Lucide exportado (ex. `"BookOpen"`), resolvido para o componente em tempo de render via um
+  mapa (`src/constants/program-appearance.ts`). `color` guarda um hex (`"#ef4444"`) de uma paleta fixa
+  de 19 cores (mesmo espírito da paleta do app de referência, usando os tons 500 do Tailwind para
+  ficarem consistentes com o resto do design). Ambas nullable porque programas criados antes desta
+  revisão não têm valor — `resolveProgramIcon`/`resolveProgramColor` (funções puras, testáveis)
+  aplicam um fallback (`BookOpen` / primeira cor da paleta) para esse caso, em vez de a UI precisar
+  tratar `null` em todo lugar que usa ícone/cor.
+- **Conjunto de ícones é curado, não a biblioteca inteira**: Lucide tem milhares de ícones; a grade do
+  formulário mostra ~32 ícones relevantes para "programas de estudo" (livro, cálculo, ciências,
+  idiomas, código, artes, etc.), não todos os ícones existentes -- mesmo espírito de um picker de
+  hábito (curado por categoria), adaptado ao domínio do app.
+- **Sem os campos "Descrição" e "Tipo de Hábito" (Criar/Largar) da referência**: o pedido do usuário
+  foi reaproveitar a *estética* (preview circular do ícone, grade de ícones, paleta de cores em
+  swatches), não replicar campos que não existem no domínio de "Programa" -- `Program` não ganha uma
+  coluna de descrição nesta revisão (não foi pedido), e não há um conceito de "hábito a largar" para
+  um programa de estudo.
+- **Nested interactive elements**: o botão de três pontos (um `<button>` real, disparando o
+  `DropdownMenu`) não pode ficar dentro de outro `<button>` (HTML inválido -- botão dentro de botão).
+  O contêiner clicável do card deixa de ser um `<button>` e passa a ser um `<div role="button"
+  tabIndex={0}>` com `onClick`/`onKeyDown` (Enter/Espaço) equivalentes, e `aria-label={program.name}`
+  explícito (sem isso, o nome acessível do card acabaria incluindo o rótulo do botão de três pontos
+  aninhado). O clique no botão de três pontos chama `event.stopPropagation()` para não also disparar a
+  navegação do card.
+- **Heatmap de 365 dias com scroll horizontal + máscara de fade**: `ActivityHeatmap` passa a aceitar
+  uma prop `color` (obrigatória agora que só tem um consumidor, o card de Programa) usada para as 4
+  cores de intensidade via `style` inline (opacidade crescente sobre o hex do programa, em vez das
+  classes fixas `bg-chart-1..4`) -- nível 0 continua `bg-muted`. `buildHeatmapWeeks`'s `DEFAULT_WEEKS`
+  passa de `13` para `53` (⌈365 / 7⌉, mesma contagem de colunas que o GitHub usa pra "último ano"). O
+  contêiner da grade vira `overflow-x-auto`, e um `useEffect` mede `scrollWidth`/`clientWidth` depois
+  de montar: **só quando o conteúdo realmente não cabe**, aplica uma classe de `mask-image` (fade da
+  esquerda, onde ficam os dias mais antigos) e rola para o final (`scrollLeft = scrollWidth`), deixando
+  os dias mais recentes visíveis por padrão -- pedido explícito do usuário ("caso não caiba... aplique
+  uma máscara"), não incondicional. A barra de rolagem em si fica oculta via uma nova utility
+  `no-scrollbar` em `src/styles/global.css` (Tailwind v4 `@utility`) -- reaproveita o nome de classe já
+  referenciado (mas nunca definido) em `sidebar.tsx`, corrigindo de brinde essa referência morta.
+  `scrollWidth`/`clientWidth` são sempre `0` no jsdom (sem layout real), então esse "liga/desliga" da
+  máscara não é coberto por teste unitário, só por verificação visual manual.
+
+### AC-9 — `src/database/schema.ts` + migration: `programs.icon`, `programs.color`
+
+`icon: text("icon")` e `color: text("color")` (ambas nullable, sem default no banco -- o fallback é
+só na camada de apresentação). Migration gerada via `drizzle-kit generate`.
+
+### AC-10 — `src/constants/program-appearance.ts` (novo)
+
+```ts
+export const PROGRAM_ICONS: { Icon: LucideIcon; name: string }[];
+export const PROGRAM_COLORS: string[]; // 19 hex, tons 500 do Tailwind
+export const DEFAULT_PROGRAM_ICON_NAME: string; // "BookOpen"
+export const DEFAULT_PROGRAM_COLOR: string; // PROGRAM_COLORS[0]
+export function resolveProgramIcon(name: string | null): LucideIcon;
+export function resolveProgramColor(color: string | null): string;
+```
+
+### AC-11 — `src/ipc/programs/schemas.ts` + `handlers.ts`
+
+`createProgramInputSchema`/`updateProgramInputSchema` ganham `icon`/`color` opcionais
+(`z.string().nullable().optional()`); `create`/`update` persistem os valores recebidos (`null` quando
+omitidos, mesmo comportamento de "sem ícone/cor escolhidos" que uma linha pré-existente já tem).
+
+### AC-12 — `src/components/program-form-dialog.tsx` (redesenhado)
+
+Preview circular (ícone atual sobre a cor atual, `size-16 rounded-full`), grade dos ~32 ícones
+curados (grid `flex flex-wrap gap-2`, cada um um `button` que seta o ícone selecionado, destacado com
+anel quando ativo), campo Nome (inalterado), paleta de 19 cores em swatches (`button` circular/quadrado
+por cor, anel quando selecionada). Estado novo (`icon`, `color`) inicializado a partir do `program`
+em edição ou dos defaults (`DEFAULT_PROGRAM_ICON_NAME`/`DEFAULT_PROGRAM_COLOR`) na criação;
+`onSubmit` passa a receber `{ color, icon, name }`.
+
+### AC-13 — `src/components/programs-card-grid.tsx` (redesenhado)
+
+Ver "Escolhas técnicas adicionais" acima. Ícone quadrado (`size-10 rounded-xl`, fundo = cor do
+programa, ícone branco) + nome à esquerda; `DropdownMenu` (três pontos) à direita, mesmos itens do
+Context Menu já existente (mantido, para o clique direito). Fundo do card ganha um leve gradiente
+radial na cor do programa (`style` inline, `radial-gradient` de baixa opacidade), sutil, não a cor
+sólida.
+
 ## Fora de escopo
 
 - Tabela `review_log` normalizada (ver "Escolhas técnicas") — a agregação em memória a partir de

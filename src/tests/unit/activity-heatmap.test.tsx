@@ -14,6 +14,7 @@ describe("ActivityHeatmap (Issue #99)", () => {
   it("renders an accessible img role summarizing the total count in the window", () => {
     render(
       <ActivityHeatmap
+        color="#ef4444"
         counts={[
           { count: 2, date: "2026-03-10" },
           { count: 3, date: "2026-03-11" },
@@ -26,7 +27,7 @@ describe("ActivityHeatmap (Issue #99)", () => {
   });
 
   it("renders without crashing when there is no activity at all", () => {
-    render(<ActivityHeatmap counts={[]} />);
+    render(<ActivityHeatmap color="#ef4444" counts={[]} />);
 
     const img = screen.getByRole("img");
     expect(img.getAttribute("aria-label")).toContain("0");

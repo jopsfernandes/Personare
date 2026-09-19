@@ -1,5 +1,5 @@
-import { Pencil, Trash2 } from "lucide-react";
-import { useCallback } from "react";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { type KeyboardEvent, type MouseEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityHeatmap } from "@/components/activity-heatmap";
 import {
@@ -8,9 +8,21 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  resolveProgramColor,
+  resolveProgramIcon,
+} from "@/constants/program-appearance";
 
 export interface Program {
+  color: string | null;
   createdAt: Date;
+  icon: string | null;
   id: string;
   name: string;
   updatedAt: Date;
@@ -32,6 +44,8 @@ interface ProgramCardProps {
   program: Program;
 }
 
+const ACTIVATE_KEYS = new Set(["Enter", " "]);
+
 function ProgramCard({
   activityCounts,
   onEdit,
@@ -40,10 +54,23 @@ function ProgramCard({
   program,
 }: ProgramCardProps) {
   const { t } = useTranslation();
+  const Icon = resolveProgramIcon(program.icon);
+  const color = resolveProgramColor(program.color);
 
   const handleClick = useCallback(() => {
     onNavigateToModules(program);
   }, [onNavigateToModules, program]);
+
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (!ACTIVATE_KEYS.has(event.key)) {
+        return;
+      }
+      event.preventDefault();
+      onNavigateToModules(program);
+    },
+    [onNavigateToModules, program]
+  );
 
   const handleEditClick = useCallback(() => {
     onEdit(program);
@@ -53,17 +80,68 @@ function ProgramCard({
     onRequestDelete(program);
   }, [onRequestDelete, program]);
 
+  const handleMenuTriggerClick = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+    },
+    []
+  );
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <button
-          className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-left ring-1 ring-foreground/10 transition-colors hover:bg-accent/50"
+        {/* biome-ignore lint/a11y/useSemanticElements: must not be a real <button> -- it wraps the three-dot menu's own <button>, and a button can't contain another button. */}
+        <div
+          aria-label={program.name}
+          className="flex cursor-pointer flex-col gap-3 rounded-lg border border-border bg-card p-4 text-left ring-1 ring-foreground/10 transition-colors hover:bg-accent/50"
           onClick={handleClick}
-          type="button"
+          onKeyDown={handleKeyDown}
+          role="button"
+          style={{
+            backgroundImage: `radial-gradient(circle at 0% 0%, ${color}26, transparent 70%)`,
+          }}
+          tabIndex={0}
         >
-          <span className="font-medium text-sm">{program.name}</span>
-          <ActivityHeatmap counts={activityCounts} />
-        </button>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-3">
+              <span
+                className="flex size-10 shrink-0 items-center justify-center rounded-xl"
+                style={{ backgroundColor: color }}
+              >
+                <Icon className="size-5 text-white" />
+              </span>
+              <span className="truncate font-medium text-sm">
+                {program.name}
+              </span>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  aria-label={t("programCardMenuAction")}
+                  className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                  onClick={handleMenuTriggerClick}
+                  type="button"
+                >
+                  <MoreHorizontal className="size-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleEditClick}>
+                  <Pencil />
+                  {t("editProgramAction")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={handleDeleteClick}
+                  variant="destructive"
+                >
+                  <Trash2 />
+                  {t("deleteProgramAction")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <ActivityHeatmap color={color} counts={activityCounts} />
+        </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem onClick={handleEditClick}>

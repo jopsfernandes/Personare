@@ -21,12 +21,12 @@ describe("buildHeatmapWeeks (Issue #99)", () => {
     }
   });
 
-  it("defaults to 13 weeks when none is given", () => {
+  it("defaults to 53 weeks (365 days) when none is given", () => {
     const weeks = buildHeatmapWeeks([], {
       today: new Date("2026-03-15T12:00:00"),
     });
 
-    expect(weeks).toHaveLength(13);
+    expect(weeks).toHaveLength(53);
   });
 
   it("places today's cell as the last non-null cell of the grid", () => {

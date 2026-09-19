@@ -28,12 +28,21 @@ export function groupActivityCountsByProgram(
   return grouped;
 }
 
-export function createProgram(name: string) {
-  return ipc.client.programs.create({ name });
+export interface ProgramAppearance {
+  color: string | null;
+  icon: string | null;
 }
 
-export function updateProgram(id: string, name: string) {
-  return ipc.client.programs.update({ id, name });
+export function createProgram(name: string, appearance: ProgramAppearance) {
+  return ipc.client.programs.create({ ...appearance, name });
+}
+
+export function updateProgram(
+  id: string,
+  name: string,
+  appearance: ProgramAppearance
+) {
+  return ipc.client.programs.update({ ...appearance, id, name });
 }
 
 export function softDeleteProgram(id: string) {

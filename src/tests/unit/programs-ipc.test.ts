@@ -116,6 +116,30 @@ describe("programs IPC namespace (Issue #8)", () => {
     it("rejects an empty name", async () => {
       await expect(client.create({ name: "" })).rejects.toThrow();
     });
+
+    /**
+     * RED phase (Issue #99 revision, Spec Driven TDD): programs.icon/color
+     * do not exist yet. Every test below is expected to fail until the
+     * Developer adds the columns and persists them, per
+     * docs/specs/issue-99-programs-cards-heatmap.md AC-9/AC-11.
+     */
+    it("persists the given icon and color", async () => {
+      const created = await client.create({
+        color: "#ef4444",
+        icon: "Brain",
+        name: "Com Aparencia",
+      });
+
+      expect(created.icon).toBe("Brain");
+      expect(created.color).toBe("#ef4444");
+    });
+
+    it("defaults icon and color to null when omitted", async () => {
+      const created = await client.create({ name: "Sem Aparencia" });
+
+      expect(created.icon).toBeNull();
+      expect(created.color).toBeNull();
+    });
   });
 
   describe("update", () => {
@@ -142,6 +166,20 @@ describe("programs IPC namespace (Issue #8)", () => {
       await expect(
         client.update({ id: created.id, name: "" })
       ).rejects.toThrow();
+    });
+
+    it("updates the icon and color of an existing program", async () => {
+      const created = await client.create({ name: "Original" });
+
+      const updated = await client.update({
+        color: "#3b82f6",
+        icon: "Rocket",
+        id: created.id,
+        name: "Original",
+      });
+
+      expect(updated.icon).toBe("Rocket");
+      expect(updated.color).toBe("#3b82f6");
     });
   });
 

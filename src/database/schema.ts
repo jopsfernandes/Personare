@@ -6,8 +6,10 @@ export const healthCheck = sqliteTable("health_check", {
 });
 
 export const programs = sqliteTable("programs", {
+  color: text("color"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   deletedAt: integer("deleted_at", { mode: "timestamp" }),
+  icon: text("icon"),
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
