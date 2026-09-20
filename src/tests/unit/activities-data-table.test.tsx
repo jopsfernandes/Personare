@@ -94,7 +94,7 @@ function renderTable(
   const onEdit = vi.fn();
   const onManageFlashcards = vi.fn();
   const onManageQuiz = vi.fn();
-  const onMarkDifficulty = vi.fn();
+  const onOpenLink = vi.fn();
   const onRequestDelete = vi.fn();
   const onStartReview = vi.fn();
   const onTakeQuiz = vi.fn();
@@ -106,7 +106,7 @@ function renderTable(
       onEdit={onEdit}
       onManageFlashcards={onManageFlashcards}
       onManageQuiz={onManageQuiz}
-      onMarkDifficulty={onMarkDifficulty}
+      onOpenLink={onOpenLink}
       onRequestDelete={onRequestDelete}
       onStartReview={onStartReview}
       onTakeQuiz={onTakeQuiz}
@@ -119,7 +119,7 @@ function renderTable(
     onEdit,
     onManageFlashcards,
     onManageQuiz,
-    onMarkDifficulty,
+    onOpenLink,
     onRequestDelete,
     onStartReview,
     onTakeQuiz,
@@ -228,6 +228,27 @@ describe("ActivitiesDataTable", () => {
 
     expect(openExternalLink).toHaveBeenCalledTimes(1);
     expect(openExternalLink).toHaveBeenCalledWith(ACTIVITIES[0].url);
+  });
+
+  /**
+   * RED phase (Issue #103, Spec Driven TDD): ActivitiesDataTable does not
+   * call onOpenLink yet -- this test is expected to fail until the
+   * Developer adds it, per
+   * docs/specs/issue-103-pdf-native-open-difficulty-flow.md AC-6. Bubbles
+   * up alongside (not instead of) the existing openExternalLink call, so
+   * the caller can arm a pending difficulty rating for the Activity.
+   */
+  it("also calls onOpenLink with the activity when its open action is triggered", async () => {
+    const user = userEvent.setup();
+    const { onOpenLink } = renderTable();
+
+    const openButton = screen.getByRole("button", {
+      name: i18n.t("openActivityUrlAction"),
+    });
+    await user.click(openButton);
+
+    expect(onOpenLink).toHaveBeenCalledTimes(1);
+    expect(onOpenLink).toHaveBeenCalledWith(ACTIVITIES[0]);
   });
 
   /**
@@ -377,35 +398,17 @@ describe("ActivitiesDataTable", () => {
   });
 
   /**
-   * RED phase (Issue #77, Spec Driven TDD): ActivitiesDataTable does not
-   * render a "mark as done" action yet -- these tests are expected to fail
-   * until it's added, visible only for quiz/pdf/link (not flashcard_deck,
-   * which already has its own per-Flashcard review flow via
-   * onStartReview). Mirrors onViewPdf/onManageQuiz: the table only bubbles
-   * the request up, since opening the difficulty dialog is the caller's
-   * responsibility.
+   * RED phase (Issue #103, Spec Driven TDD): the separate "mark as done"
+   * action is removed -- opening the PDF/Link/finishing the Quiz is now the
+   * trigger for the difficulty rating (see activity-difficulty-dialog and
+   * quiz-runner-dialog tests), not a second manual click here.
    */
-  it("renders a mark-as-done action only for link/quiz/pdf activities, not flashcard_deck", () => {
+  it("no longer renders a separate mark-as-done action", () => {
     renderTable();
 
-    const markButtons = screen.getAllByRole("button", {
-      name: i18n.t("markActivityDoneAction"),
-    });
-
-    expect(markButtons).toHaveLength(3);
-  });
-
-  it("calls onMarkDifficulty with the corresponding activity when mark-as-done is triggered", async () => {
-    const user = userEvent.setup();
-    const { onMarkDifficulty } = renderTable();
-
-    const markButtons = screen.getAllByRole("button", {
-      name: i18n.t("markActivityDoneAction"),
-    });
-    await user.click(markButtons[0]);
-
-    expect(onMarkDifficulty).toHaveBeenCalledTimes(1);
-    expect(onMarkDifficulty).toHaveBeenCalledWith(ACTIVITIES[0]);
+    expect(
+      screen.queryByRole("button", { name: "Mark as done" })
+    ).not.toBeInTheDocument();
   });
 
   it("shows nothing about review state for an activity that was never marked", () => {
@@ -459,7 +462,6 @@ describe("Activities screen i18n keys (Issue #10)", () => {
     // Issue #13 (Atividade tipo PDF)
     "selectPdfFileAction",
     "viewPdfAction",
-    "pdfViewerFrameTitle",
     // Issue #14 (Atividade tipo Quiz)
     "manageQuizQuestionsAction",
     "takeQuizAction",
@@ -468,7 +470,6 @@ describe("Activities screen i18n keys (Issue #10)", () => {
     // Issue #16 (Motor FSRS: sessao de revisao do Baralho)
     "startReviewAction",
     // Issue #77 (Dificuldade percebida em Quiz/PDF/Link -> FSRS)
-    "markActivityDoneAction",
     "activityDifficultyPromptMessage",
     "activityReviewStateColumnLabel",
     "activityNextReviewColumnLabel",

@@ -8,6 +8,7 @@ import {
   activities as activitiesTable,
   flashcards as flashcardsTable,
   modules as modulesTable,
+  pendingActivityRatings as pendingActivityRatingsTable,
   programs as programsTable,
   reviewItems as reviewItemsTable,
 } from "@/database/schema";
@@ -19,6 +20,7 @@ import {
   type ReviewItemRow,
 } from "@/utils/fsrs";
 import {
+  activityIdInputSchema,
   ensureReviewItemsInputSchema,
   listActivityReviewStateInputSchema,
   listDueInputSchema,
@@ -403,3 +405,71 @@ export const listActivityReviewState = os
       )
       .all();
   });
+
+/**
+ * Records that an Activity was opened/finished and still needs a rating
+ * (Issue #103) -- see docs/specs/issue-103-pdf-native-open-difficulty-flow.md
+ * for why this can't just be an unrated review_items row. Idempotent: a
+ * second arm for the same Activity (e.g. the user reopens the same PDF
+ * again before ever rating it) is a no-op, not a duplicate/refreshed row.
+ */
+export const armPendingActivityRating = os
+  .input(activityIdInputSchema)
+  .handler(({ input }) => {
+    const db = requireDatabaseClient();
+
+    db.insert(pendingActivityRatingsTable)
+      .values({ activityId: input.activityId, createdAt: new Date() })
+      .onConflictDoNothing()
+      .run();
+  });
+
+export const clearPendingActivityRating = os
+  .input(activityIdInputSchema)
+  .handler(({ input }) => {
+    const db = requireDatabaseClient();
+
+    db.delete(pendingActivityRatingsTable)
+      .where(eq(pendingActivityRatingsTable.activityId, input.activityId))
+      .run();
+  });
+
+/**
+ * The oldest pending rating, if any -- surfaced app-wide on launch
+ * (src/routes/__root.tsx) so it reopens ActivityDifficultyDialog even if the
+ * app was fully closed before the user picked a rating. Joined all the way
+ * to Program/Module (unlike every other review query, which stops at
+ * Activity) because the dialog needs to display them, and this is the one
+ * entry point with no route context of its own to already have them in
+ * scope.
+ */
+export const getPendingActivityRating = os.handler(() => {
+  const db = requireDatabaseClient();
+
+  return (
+    db
+      .select({
+        activityId: activitiesTable.id,
+        activityTitle: activitiesTable.title,
+        moduleName: modulesTable.name,
+        programName: programsTable.name,
+      })
+      .from(pendingActivityRatingsTable)
+      .innerJoin(
+        activitiesTable,
+        eq(pendingActivityRatingsTable.activityId, activitiesTable.id)
+      )
+      .innerJoin(modulesTable, eq(activitiesTable.moduleId, modulesTable.id))
+      .innerJoin(programsTable, eq(modulesTable.programId, programsTable.id))
+      .where(
+        and(
+          isNull(activitiesTable.deletedAt),
+          isNull(modulesTable.deletedAt),
+          isNull(programsTable.deletedAt)
+        )
+      )
+      .orderBy(asc(pendingActivityRatingsTable.createdAt))
+      .limit(1)
+      .get() ?? null
+  );
+});

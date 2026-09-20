@@ -1,11 +1,15 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { markActivityDifficulty, type RatingValue } from "@/actions/review";
-import type { Activity } from "@/components/activities-data-table";
+import {
+  clearPendingActivityRating,
+  markActivityDifficulty,
+  type RatingValue,
+} from "@/actions/review";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -35,10 +39,13 @@ function RatingButton({ label, onClick, rating }: RatingButtonProps) {
 }
 
 interface ActivityDifficultyDialogProps {
-  activity: Activity | null;
+  activityId: string | null;
+  activityTitle: string;
+  moduleName: string;
   onOpenChange: (open: boolean) => void;
   onRated: () => void;
   open: boolean;
+  programName: string;
 }
 
 /**
@@ -46,34 +53,47 @@ interface ActivityDifficultyDialogProps {
  * ReviewSessionDialog (a queue of Flashcards, each revealed before rating),
  * this is a single Again/Hard/Good/Easy step for the Activity as a whole --
  * no "reveal answer" step, since there is no answer to reveal here.
+ *
+ * Takes primitives (activityId/activityTitle/programName/moduleName)
+ * instead of a whole Activity (Issue #103): it's now opened both from the
+ * Activities route (which has a full Activity in hand) and from the app
+ * root on launch (which only has what getPendingActivityRating() returns --
+ * no filePath/url/moduleId, just enough to display and rate).
  */
 export default function ActivityDifficultyDialog({
-  activity,
+  activityId,
+  activityTitle,
+  moduleName,
   onOpenChange,
   onRated,
   open,
+  programName,
 }: ActivityDifficultyDialogProps) {
   const { t } = useTranslation();
 
   const handleRatingClick = useCallback(
     (rating: RatingValue) => {
-      if (!activity) {
+      if (!activityId) {
         return;
       }
 
-      Promise.resolve(markActivityDifficulty(activity.id, rating)).then(() => {
+      Promise.resolve(markActivityDifficulty(activityId, rating)).then(() => {
+        clearPendingActivityRating(activityId);
         onOpenChange(false);
         onRated();
       });
     },
-    [activity, onOpenChange, onRated]
+    [activityId, onOpenChange, onRated]
   );
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{activity?.title}</DialogTitle>
+          <DialogTitle>{activityTitle}</DialogTitle>
+          <DialogDescription>
+            {t("activityDifficultyContextLabel", { moduleName, programName })}
+          </DialogDescription>
         </DialogHeader>
         <p className="text-muted-foreground text-sm">
           {t("activityDifficultyPromptMessage")}

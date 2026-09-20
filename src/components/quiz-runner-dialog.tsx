@@ -45,6 +45,7 @@ interface QuizRunnerQuestion {
 
 interface QuizRunnerDialogProps {
   activity: Activity | null;
+  onFinished: (activity: Activity) => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }
@@ -194,6 +195,7 @@ function QuizRunnerResult({
 
 export default function QuizRunnerDialog({
   activity,
+  onFinished,
   onOpenChange,
   open,
 }: QuizRunnerDialogProps) {
@@ -263,8 +265,26 @@ export default function QuizRunnerDialog({
   const averageTimeMs =
     questions.length > 0 ? totalTimeMs / questions.length : 0;
 
+  /**
+   * Closing the dialog after the quiz was actually finished (result !==
+   * null) -- via the X button, Escape or an outside click, not just the
+   * "Finish quiz" click itself, which only computes the score and shows the
+   * result screen -- is the signal to move straight into
+   * ActivityDifficultyDialog (Issue #103). Abandoning mid-quiz (no result
+   * yet) does not trigger it.
+   */
+  const handleDialogOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen && result && activity) {
+        onFinished(activity);
+      }
+      onOpenChange(nextOpen);
+    },
+    [activity, onFinished, onOpenChange, result]
+  );
+
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
+    <Dialog onOpenChange={handleDialogOpenChange} open={open}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{activity?.title}</DialogTitle>

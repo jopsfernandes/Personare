@@ -375,6 +375,23 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Fixed
 
+- **PDF abria uma Dialog vazia; fluxo de avaliação de dificuldade unificado** ([#103](https://github.com/jopsfernandes/Personare/issues/103)).
+  `PdfViewerDialog` renderizava um iframe apontando para `` `file://${activity.filePath}` ``, que
+  ficava em branco por duas causas independentes: a concatenação gerava uma URL de `file://` inválida
+  no Windows (barras invertidas, sem o triplo `/` do drive-letter), e mesmo corrigida, o Electron não
+  habilita `webPreferences.plugins`, então o plugin de PDF do Chromium não estaria disponível de
+  qualquer forma. Em vez de consertar o viewer embutido, PDF passa a abrir nativamente no sistema
+  (`shell.openPath`), igual Link já fazia (`shell.openExternal`) -- `PdfViewerDialog` é removido.
+  - Aproveitando a mudança, o botão separado de "marcar como feito" some para PDF, Link e Quiz: agora
+    abrir o PDF/Link e, ao voltar o foco para a janela do app, ou fechar a Dialog do Quiz depois de
+    finalizá-lo, já abre a Dialog de Dificuldade da Atividade automaticamente.
+  - Se o app for fechado antes de uma avaliação pendente ser respondida, a Dialog de Dificuldade
+    reabre imediatamente na próxima abertura do app (`review.getPendingActivityRating`, verificado uma
+    vez na raiz do app), agora sobre a tela em que o app tiver restaurado -- nova tabela
+    `pending_activity_ratings`, já que `markActivityDifficulty` (Issue #77) cria seu `review_item`
+    já avaliado atomicamente, sem uma linha "pendente" para reaproveitar.
+  - A Dialog de Dificuldade passa a mostrar o nome do Programa e do Módulo, além da Atividade.
+
 - **Sincronização com Google Calendar não aparecia na agenda do usuário** (hotfix, follow-up da [#26](https://github.com/jopsfernandes/Personare/issues/26)).
   `POST /calendar/sync` (`Study-Butler-Backend`) sempre escreveu na agenda `primary` do usuário conectado, mas o escopo pedido (`calendar.events`) só permite ler/escrever eventos em agendas já existentes -- nunca permitiu `calendars.insert`, então não havia como criar uma agenda dedicada nem confirmar programaticamente que os eventos realmente apareciam na agenda certa do usuário.
   - Troca de abordagem: eventos agora vão para uma agenda secundária dedicada **"Personare"**, criada uma vez por usuário (`ensureCalendar`) e reaproveitada em todo sync seguinte via a nova coluna `calendar_id` em `google_calendar_connections`.

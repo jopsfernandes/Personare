@@ -24,3 +24,15 @@ export function markActivityDifficulty(
 export function listActivityReviewState(moduleId: string) {
   return ipc.client.review.listActivityReviewState({ moduleId });
 }
+
+export function armPendingActivityRating(activityId: string) {
+  return ipc.client.review.armPendingActivityRating({ activityId });
+}
+
+export function clearPendingActivityRating(activityId: string) {
+  return ipc.client.review.clearPendingActivityRating({ activityId });
+}
+
+export function getPendingActivityRating() {
+  return ipc.client.review.getPendingActivityRating();
+}

@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -17,7 +18,11 @@ import {
 } from "@/actions/activities";
 import { listModules } from "@/actions/modules";
 import { listPrograms } from "@/actions/programs";
-import { listActivityReviewState } from "@/actions/review";
+import {
+  armPendingActivityRating,
+  listActivityReviewState,
+} from "@/actions/review";
+import { openActivityFile } from "@/actions/shell";
 import ActivitiesDataTable, {
   type Activity,
   type ActivityReviewState,
@@ -26,7 +31,6 @@ import ActivityDifficultyDialog from "@/components/activity-difficulty-dialog";
 import ActivityFormDialog from "@/components/activity-form-dialog";
 import DeleteActivityDialog from "@/components/delete-activity-dialog";
 import FlashcardManagerDialog from "@/components/flashcard-manager-dialog";
-import PdfViewerDialog from "@/components/pdf-viewer-dialog";
 import QuizQuestionManagerDialog from "@/components/quiz-question-manager-dialog";
 import QuizRunnerDialog from "@/components/quiz-runner-dialog";
 import ReviewSessionDialog from "@/components/review-session-dialog";
@@ -56,8 +60,6 @@ function ModuleActivitiesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [activityPendingDelete, setActivityPendingDelete] =
     useState<Activity | null>(null);
-  const [activityBeingViewed, setActivityBeingViewed] =
-    useState<Activity | null>(null);
   const [activityBeingManaged, setActivityBeingManaged] =
     useState<Activity | null>(null);
   const [activityTakingQuiz, setActivityTakingQuiz] = useState<Activity | null>(
@@ -70,6 +72,13 @@ function ModuleActivitiesPage() {
   );
   const [activityMarkingDifficulty, setActivityMarkingDifficulty] =
     useState<Activity | null>(null);
+  /**
+   * Set right after opening a PDF/Link externally, cleared on the next
+   * window focus (Issue #103) -- the app never navigates away when the OS
+   * opens an external viewer/browser, so this route is still mounted when
+   * the user comes back to it.
+   */
+  const armedActivityRef = useRef<Activity | null>(null);
 
   const refreshActivities = useCallback(() => {
     startTransition(() => {
@@ -111,6 +120,19 @@ function ModuleActivitiesPage() {
     });
   }, [programId, moduleId]);
 
+  useEffect(() => {
+    function handleWindowFocus() {
+      const armed = armedActivityRef.current;
+      if (armed) {
+        armedActivityRef.current = null;
+        setActivityMarkingDifficulty(armed);
+      }
+    }
+
+    window.addEventListener("focus", handleWindowFocus);
+    return () => window.removeEventListener("focus", handleWindowFocus);
+  }, []);
+
   const handleCreateClick = useCallback(() => {
     setFormActivity(null);
     setIsFormOpen(true);
@@ -126,7 +148,21 @@ function ModuleActivitiesPage() {
   }, []);
 
   const handleViewPdf = useCallback((activity: Activity) => {
-    setActivityBeingViewed(activity);
+    if (!activity.filePath) {
+      return;
+    }
+
+    openActivityFile(activity.filePath).then((result) => {
+      if (!result.errorMessage) {
+        armPendingActivityRating(activity.id);
+        armedActivityRef.current = activity;
+      }
+    });
+  }, []);
+
+  const handleOpenLink = useCallback((activity: Activity) => {
+    armPendingActivityRating(activity.id);
+    armedActivityRef.current = activity;
   }, []);
 
   const handleManageQuiz = useCallback((activity: Activity) => {
@@ -137,16 +173,17 @@ function ModuleActivitiesPage() {
     setActivityTakingQuiz(activity);
   }, []);
 
+  const handleQuizFinished = useCallback((activity: Activity) => {
+    armPendingActivityRating(activity.id);
+    setActivityMarkingDifficulty(activity);
+  }, []);
+
   const handleManageFlashcards = useCallback((activity: Activity) => {
     setActivityBeingManagedFlashcards(activity);
   }, []);
 
   const handleStartReview = useCallback((activity: Activity) => {
     setActivityInReview(activity);
-  }, []);
-
-  const handleMarkDifficulty = useCallback((activity: Activity) => {
-    setActivityMarkingDifficulty(activity);
   }, []);
 
   const handleFormOpenChange = useCallback((open: boolean) => {
@@ -171,12 +208,6 @@ function ModuleActivitiesPage() {
     },
     [formActivity, moduleId, refreshActivities]
   );
-
-  const handlePdfViewerOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setActivityBeingViewed(null);
-    }
-  }, []);
 
   const handleQuizManagerOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -291,7 +322,7 @@ function ModuleActivitiesPage() {
         onEdit={handleEdit}
         onManageFlashcards={handleManageFlashcards}
         onManageQuiz={handleManageQuiz}
-        onMarkDifficulty={handleMarkDifficulty}
+        onOpenLink={handleOpenLink}
         onRequestDelete={handleRequestDelete}
         onStartReview={handleStartReview}
         onTakeQuiz={handleTakeQuiz}
@@ -310,11 +341,6 @@ function ModuleActivitiesPage() {
         onOpenChange={handleDeleteDialogOpenChange}
         open={activityPendingDelete !== null}
       />
-      <PdfViewerDialog
-        activity={activityBeingViewed}
-        onOpenChange={handlePdfViewerOpenChange}
-        open={activityBeingViewed !== null}
-      />
       <QuizQuestionManagerDialog
         activity={activityBeingManaged}
         onOpenChange={handleQuizManagerOpenChange}
@@ -322,6 +348,7 @@ function ModuleActivitiesPage() {
       />
       <QuizRunnerDialog
         activity={activityTakingQuiz}
+        onFinished={handleQuizFinished}
         onOpenChange={handleQuizRunnerOpenChange}
         open={activityTakingQuiz !== null}
       />
@@ -336,10 +363,13 @@ function ModuleActivitiesPage() {
         open={activityInReview !== null}
       />
       <ActivityDifficultyDialog
-        activity={activityMarkingDifficulty}
+        activityId={activityMarkingDifficulty?.id ?? null}
+        activityTitle={activityMarkingDifficulty?.title ?? ""}
+        moduleName={moduleName}
         onOpenChange={handleDifficultyDialogOpenChange}
         onRated={refreshReviewState}
         open={activityMarkingDifficulty !== null}
+        programName={programName}
       />
     </div>
   );

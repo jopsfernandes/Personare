@@ -70,17 +70,19 @@ const RUNNER_QUESTIONS = [
 ];
 
 function renderRunner(activity: Activity | null = QUIZ_ACTIVITY) {
+  const onFinished = vi.fn();
   const onOpenChange = vi.fn();
 
   render(
     <QuizRunnerDialog
       activity={activity}
+      onFinished={onFinished}
       onOpenChange={onOpenChange}
       open={activity !== null}
     />
   );
 
-  return { onOpenChange };
+  return { onFinished, onOpenChange };
 }
 
 beforeEach(() => {
@@ -242,6 +244,50 @@ describe("QuizRunnerDialog (Issue #95)", () => {
       screen.getByText(i18n.t("quizAverageTimeLabel", { duration: "10s" }))
     ).toBeInTheDocument();
     expect(screen.queryAllByRole("radio")).toHaveLength(0);
+  });
+
+  /**
+   * RED phase (Issue #103, Spec Driven TDD): QuizRunnerDialog does not
+   * expose an `onFinished` prop yet. Every test below is expected to fail
+   * until the Developer implements it, per
+   * docs/specs/issue-103-pdf-native-open-difficulty-flow.md AC-5.
+   */
+  it("calls onFinished with the activity when the dialog is closed after finishing the quiz", async () => {
+    const user = userEvent.setup({
+      advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
+    });
+    const { onFinished } = renderRunner();
+    await screen.findByText(RUNNER_QUESTIONS[0].text);
+
+    const q1Radios = screen.getAllByRole("radio") as HTMLInputElement[];
+    await user.click(q1Radios[1]);
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("nextQuestionAction") })
+    );
+    await screen.findByText(RUNNER_QUESTIONS[1].text);
+    const q2Radios = screen.getAllByRole("radio") as HTMLInputElement[];
+    await user.click(q2Radios[1]);
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("finishQuizAction") })
+    );
+    await screen.findByText("100%");
+
+    expect(onFinished).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(onFinished).toHaveBeenCalledWith(QUIZ_ACTIVITY);
+  });
+
+  it("does not call onFinished when the dialog is closed before finishing the quiz", async () => {
+    const user = userEvent.setup({
+      advanceTimers: (ms) => vi.advanceTimersByTimeAsync(ms),
+    });
+    const { onFinished } = renderRunner();
+    await screen.findByText(RUNNER_QUESTIONS[0].text);
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(onFinished).not.toHaveBeenCalled();
   });
 
   it("counts an unanswered question as incorrect when the finish action is triggered", async () => {

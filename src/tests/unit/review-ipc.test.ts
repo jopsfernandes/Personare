@@ -1079,4 +1079,98 @@ describe("review IPC namespace (Issue #16)", () => {
       await expect(reviewClient.listSchedule()).resolves.toEqual([]);
     });
   });
+
+  /**
+   * RED phase (Issue #103, Spec Driven TDD): src/ipc/review does not expose
+   * armPendingActivityRating/clearPendingActivityRating/
+   * getPendingActivityRating yet. Every test below is expected to fail
+   * until the Developer implements them, per
+   * docs/specs/issue-103-pdf-native-open-difficulty-flow.md AC-3.
+   */
+  describe("pending activity ratings (Issue #103)", () => {
+    async function createActivity(title: string) {
+      const program = await programsClient.create({
+        name: `Programa ${title}`,
+      });
+      const moduleRow = await modulesClient.create({
+        name: `Modulo ${title}`,
+        programId: program.id,
+      });
+      const activity = await activitiesClient.create({
+        moduleId: moduleRow.id,
+        title,
+        type: "pdf",
+      });
+      return { activity, moduleRow, program };
+    }
+
+    it("is exposed as procedures on the review namespace", () => {
+      expect(reviewNamespace.armPendingActivityRating).toBeDefined();
+      expect(reviewNamespace.clearPendingActivityRating).toBeDefined();
+      expect(reviewNamespace.getPendingActivityRating).toBeDefined();
+    });
+
+    it("returns null when there is nothing pending", async () => {
+      await expect(reviewClient.getPendingActivityRating()).resolves.toBeNull();
+    });
+
+    it("returns the activity/module/program names for a pending rating", async () => {
+      const { activity, moduleRow, program } =
+        await createActivity("Apostila em PDF");
+
+      await reviewClient.armPendingActivityRating({ activityId: activity.id });
+
+      await expect(reviewClient.getPendingActivityRating()).resolves.toEqual({
+        activityId: activity.id,
+        activityTitle: "Apostila em PDF",
+        moduleName: moduleRow.name,
+        programName: program.name,
+      });
+    });
+
+    it("is idempotent -- arming the same activity twice does not error or duplicate", async () => {
+      const { activity } = await createActivity("Apostila em PDF");
+
+      await reviewClient.armPendingActivityRating({ activityId: activity.id });
+      await reviewClient.armPendingActivityRating({ activityId: activity.id });
+
+      const pending = await reviewClient.getPendingActivityRating();
+      expect(pending?.activityId).toBe(activity.id);
+    });
+
+    it("returns the oldest pending activity when more than one is armed", async () => {
+      const first = await createActivity("Primeira");
+      const second = await createActivity("Segunda");
+
+      await reviewClient.armPendingActivityRating({
+        activityId: first.activity.id,
+      });
+      await reviewClient.armPendingActivityRating({
+        activityId: second.activity.id,
+      });
+
+      const pending = await reviewClient.getPendingActivityRating();
+      expect(pending?.activityId).toBe(first.activity.id);
+    });
+
+    it("clears the pending rating so it no longer surfaces", async () => {
+      const { activity } = await createActivity("Apostila em PDF");
+      await reviewClient.armPendingActivityRating({ activityId: activity.id });
+
+      await reviewClient.clearPendingActivityRating({
+        activityId: activity.id,
+      });
+
+      await expect(reviewClient.getPendingActivityRating()).resolves.toBeNull();
+    });
+
+    it("excludes a pending rating for a soft-deleted activity", async () => {
+      const { activity } = await createActivity("Apostila em PDF");
+      await reviewClient.armPendingActivityRating({ activityId: activity.id });
+
+      await activitiesClient.softDelete({ id: activity.id });
+
+      await expect(reviewClient.getPendingActivityRating()).resolves.toBeNull();
+    });
+  });
 });
