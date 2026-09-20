@@ -15,6 +15,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { resolveEventCalendarLocale } from "@/utils/event-calendar-i18n";
+import { onReviewCompleted } from "@/utils/review-events";
 import {
   buildMonthGrid,
   computeBestStreak,
@@ -44,9 +45,22 @@ export function StreakWidget() {
   const [now, setNow] = useState(() => new Date());
   const [displayMonth, setDisplayMonth] = useState(() => new Date());
 
-  useEffect(() => {
+  const refreshActiveDates = useCallback(() => {
     listActivityCounts().then((rows) => setActiveDates(toActiveDateSet(rows)));
   }, []);
+
+  useEffect(() => {
+    refreshActiveDates();
+  }, [refreshActiveDates]);
+
+  /**
+   * A rating can be persisted from deep inside a route (Activities page,
+   * the app-root pending-rating dialog) while this widget, mounted once in
+   * the sidebar, never remounts on navigation to pick up fresh data on its
+   * own -- see src/utils/review-events.ts for why this is a pub/sub instead
+   * of prop-drilled state.
+   */
+  useEffect(() => onReviewCompleted(refreshActiveDates), [refreshActiveDates]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), TICK_MS);

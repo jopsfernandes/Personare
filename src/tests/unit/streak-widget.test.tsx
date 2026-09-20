@@ -11,6 +11,7 @@ vi.mock("@/actions/streak", () => ({
 const { listActivityCounts } = await import("@/actions/streak");
 const { SidebarProvider } = await import("@/components/ui/sidebar");
 const { StreakWidget } = await import("@/components/streak-widget");
+const { notifyReviewCompleted } = await import("@/utils/review-events");
 
 function renderWidget() {
   return render(
@@ -81,6 +82,26 @@ describe("StreakWidget", () => {
     expect(screen.getByText(i18n.t("streakHintMessage"))).toBeInTheDocument();
     expect(
       screen.getByText(i18n.t("streakResetsAtMidnightMessage"))
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * RED phase (streak-refresh bug fix, Spec Driven TDD): the sidebar count
+   * never refreshes after mount -- reported bug: rating an Activity did not
+   * move the streak from 0 to 1 without relaunching the app.
+   */
+  it("refreshes the streak count when a review completes elsewhere in the app", async () => {
+    vi.mocked(listActivityCounts).mockResolvedValue([]);
+    renderWidget();
+    await screen.findByText(i18n.t("streakDaysLabel", { count: 0 }));
+
+    vi.mocked(listActivityCounts).mockResolvedValue([
+      { count: 1, date: "2026-03-15", programId: "p1" },
+    ]);
+    notifyReviewCompleted();
+
+    expect(
+      await screen.findByText(i18n.t("streakDaysLabel", { count: 1 }))
     ).toBeInTheDocument();
   });
 

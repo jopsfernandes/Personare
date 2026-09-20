@@ -1,4 +1,5 @@
 import { ipc } from "@/ipc/manager";
+import { notifyReviewCompleted } from "@/utils/review-events";
 
 export type RatingValue = "again" | "hard" | "good" | "easy";
 
@@ -11,14 +12,24 @@ export function listDue(activityId: string) {
 }
 
 export function submitRating(reviewItemId: string, rating: RatingValue) {
-  return ipc.client.review.submitRating({ rating, reviewItemId });
+  return ipc.client.review
+    .submitRating({ rating, reviewItemId })
+    .then((result) => {
+      notifyReviewCompleted();
+      return result;
+    });
 }
 
 export function markActivityDifficulty(
   activityId: string,
   rating: RatingValue
 ) {
-  return ipc.client.review.markActivityDifficulty({ activityId, rating });
+  return ipc.client.review
+    .markActivityDifficulty({ activityId, rating })
+    .then((result) => {
+      notifyReviewCompleted();
+      return result;
+    });
 }
 
 export function listActivityReviewState(moduleId: string) {

@@ -392,6 +392,17 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
     já avaliado atomicamente, sem uma linha "pendente" para reaproveitar.
   - A Dialog de Dificuldade passa a mostrar o nome do Programa e do Módulo, além da Atividade.
 
+- **Streak da sidebar não atualizava após avaliar uma Atividade** (follow-up da [#101](https://github.com/jopsfernandes/Personare/issues/101)).
+  `StreakWidget` buscava `review.listActivityCounts` uma única vez, no `mount` -- como o widget vive
+  fixo no rodapé da sidebar (nunca desmonta com a navegação), avaliar uma revisão em qualquer outro
+  lugar do app (Atividade, Flashcard, ou a Dialog de pendência na raiz) não tinha como chegar até ele;
+  o contador só se atualizava reabrindo o app.
+  - Novo `src/utils/review-events.ts`: um pub/sub mínimo (`notifyReviewCompleted`/`onReviewCompleted`),
+    já que o app não tem nenhum store global/query-cache para invalidar. `submitRating` e
+    `markActivityDifficulty` (`src/actions/review.ts`) disparam o evento assim que a avaliação é
+    persistida; `StreakWidget` assina o evento e refaz o fetch, atualizando a contagem e o calendário
+    do popover em tempo real, sem precisar relançar o app.
+
 - **Sincronização com Google Calendar não aparecia na agenda do usuário** (hotfix, follow-up da [#26](https://github.com/jopsfernandes/Personare/issues/26)).
   `POST /calendar/sync` (`Study-Butler-Backend`) sempre escreveu na agenda `primary` do usuário conectado, mas o escopo pedido (`calendar.events`) só permite ler/escrever eventos em agendas já existentes -- nunca permitiu `calendars.insert`, então não havia como criar uma agenda dedicada nem confirmar programaticamente que os eventos realmente apareciam na agenda certa do usuário.
   - Troca de abordagem: eventos agora vão para uma agenda secundária dedicada **"Personare"**, criada uma vez por usuário (`ensureCalendar`) e reaproveitada em todo sync seguinte via a nova coluna `calendar_id` em `google_calendar_connections`.
