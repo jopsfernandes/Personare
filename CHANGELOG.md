@@ -8,6 +8,16 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ### Added
 
+- **Sistema de streak na sidebar** ([#101](https://github.com/jopsfernandes/Personare/issues/101)).
+  Novo indicador de sequência de dias de estudo (ícone de chama + contagem), no rodapé da sidebar,
+  acima do menu de conta.
+  - Clicar abre um popover (`StreakWidget`) com "Day N" do mês + contagem regressiva até a meia-noite
+    local, um mini calendário mensal navegável (estilo painel do Notion) com o dia atual e os dias com
+    revisão marcados, e cards de "Current Streak"/"Best Streak".
+  - Critério de streak: qualquer revisão concluída no dia (mesma métrica do heatmap dos cards de
+    Programa, Issue #99) -- reaproveita o mesmo `review.listActivityCounts()`, sem endpoint novo.
+  - Funções puras testáveis em `src/utils/streak.ts` (`computeCurrentStreak`, `computeBestStreak`,
+    `buildMonthGrid`, `msUntilNextLocalMidnight`).
 - **Programas: cards com ícone/cor, heatmap de uso de 365 dias e Context Menu**
   ([#99](https://github.com/jopsfernandes/Personare/issues/99)).
   A tela de Programas (`/`) troca a `<table>`/`ProgramsDataTable` por uma grid de cards
