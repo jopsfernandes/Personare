@@ -258,8 +258,8 @@ mais ~3 meses) e o formulário ganha um seletor de ícone/cor. Decisões confirm
   O contêiner clicável do card deixa de ser um `<button>` e passa a ser um `<div role="button"
   tabIndex={0}>` com `onClick`/`onKeyDown` (Enter/Espaço) equivalentes, e `aria-label={program.name}`
   explícito (sem isso, o nome acessível do card acabaria incluindo o rótulo do botão de três pontos
-  aninhado). O clique no botão de três pontos chama `event.stopPropagation()` para não also disparar a
-  navegação do card.
+  aninhado). O clique no botão de três pontos chama `event.stopPropagation()` para não também
+  disparar a navegação do card.
 - **Heatmap de 365 dias com scroll horizontal + máscara de fade**: `ActivityHeatmap` passa a aceitar
   uma prop `color` (obrigatória agora que só tem um consumidor, o card de Programa) usada para as 4
   cores de intensidade via `style` inline (opacidade crescente sobre o hex do programa, em vez das
@@ -313,6 +313,36 @@ programa, ícone branco) + nome à esquerda; `DropdownMenu` (três pontos) à di
 Context Menu já existente (mantido, para o clique direito). Fundo do card ganha um leve gradiente
 radial na cor do programa (`style` inline, `radial-gradient` de baixa opacidade), sutil, não a cor
 sólida.
+
+## Revisão 3 (correção de bug + ajustes visuais)
+
+Duas mudanças pontuais pedidas depois do GREEN da Revisão 2:
+
+1. **Bug**: selecionar "Editar"/"Excluir" no menu de três pontos também navegava para os módulos do
+   programa (a ação em si funcionava, mas a navegação indesejada atrapalhava o fluxo). Causa:
+   `DropdownMenuContent` renderiza via `Portal` do Radix para `document.body`, e o React propaga
+   eventos sintéticos pela **árvore de componentes React**, não pela árvore do DOM -- um clique num
+   item dentro do portal ainda "sobe" até o `onClick` do card ancestral. `ContextMenuContent` (mesmo
+   sendo portalizado do mesmo jeito) já intercepta isso sozinho por conta do próprio Radix; o
+   `DropdownMenu` não. Fix: `handleEditClick`/`handleDeleteClick` (compartilhados pelos dois menus)
+   agora chamam `event.stopPropagation()` antes de disparar `onEdit`/`onRequestDelete`.
+2. **Contraste no tema claro**: `--muted` (`oklch(0.97 0 0)`) fica a só `0.03` de `--card`
+   (`oklch(1 0 0)`) no tema claro -- diferença imperceptível, por isso a grade do heatmap
+   praticamente sumia. O mesmo efeito (alpha-blend de uma cor saturada sobre branco produz um tom
+   pastel bem mais "lavado" do que o mesmo alpha sobre um fundo escuro) também lavava o tingimento de
+   fundo do card e os níveis 1-4 do heatmap. Fix: `src/styles/global.css` ganha variáveis dedicadas
+   (`--heatmap-empty-cell`, `--heatmap-level-1..4`, `--card-tint-strength`) com valores diferentes por
+   tema -- claro com contraste/opacidade mais alta, escuro mantendo exatamente os valores que já
+   funcionavam (sem regressão). `ActivityHeatmap` e `ProgramsCardGrid` passam a montar as cores via
+   `color-mix(in srgb, ${color} var(--...), transparent)` em vez de hex+alpha fixo (`${color}26`),
+   já que a cor em si (`program.color`) é dinâmica (por programa) mas a intensidade precisa reagir ao
+   tema.
+3. **Border glow effect** (pedido do usuário, ambos os temas): `box-shadow` de duas camadas na cor do
+   próprio programa -- um anel de 1px (`color-mix(... 35%, transparent)`, reforça a borda) mais um
+   brilho difuso (`0 0 20px 0`, `color-mix(... 25%, transparent)`) -- substitui o `ring-1
+   ring-foreground/10` neutro que existia antes.
+4. **Gradiente do card**: pedido do usuário para ir "de cima para baixo" -- troca de
+   `radial-gradient(circle at 0% 0%, ...)` para `linear-gradient(to bottom, ...)`.
 
 ## Fora de escopo
 

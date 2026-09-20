@@ -106,12 +106,13 @@ function ProgramCard({
         {/* biome-ignore lint/a11y/useSemanticElements: must not be a real <button> -- it wraps the three-dot menu's own <button>, and a button can't contain another button. */}
         <div
           aria-label={program.name}
-          className="flex cursor-pointer flex-col gap-3 rounded-lg border border-border bg-card p-4 text-left ring-1 ring-foreground/10 transition-colors hover:bg-accent/50"
+          className="flex cursor-pointer flex-col gap-3 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-accent/50"
           onClick={handleClick}
           onKeyDown={handleKeyDown}
           role="button"
           style={{
-            backgroundImage: `linear-gradient(to bottom, ${color}26, transparent 70%)`,
+            backgroundImage: `linear-gradient(to bottom, color-mix(in srgb, ${color} var(--card-tint-strength), transparent), transparent 70%)`,
+            boxShadow: `0 0 0 1px color-mix(in srgb, ${color} 35%, transparent), 0 0 20px 0 color-mix(in srgb, ${color} 25%, transparent)`,
           }}
           tabIndex={0}
         >

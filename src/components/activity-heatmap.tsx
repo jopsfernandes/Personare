@@ -9,12 +9,18 @@ export interface ActivityHeatmapProps {
   weeks?: number;
 }
 
-const LEVEL_OPACITY: Record<HeatmapLevel, number> = {
-  0: 0,
-  1: 0.25,
-  2: 0.45,
-  3: 0.7,
-  4: 1,
+/**
+ * Values come from --heatmap-level-1..4 (src/styles/global.css), not fixed
+ * numbers here: the same opacity reads as a washed-out pastel over a light
+ * theme's white card but a rich tint over a dark one, so light mode needs
+ * higher opacities for the same perceived intensity.
+ */
+const LEVEL_OPACITY: Record<HeatmapLevel, string> = {
+  0: "0",
+  1: "var(--heatmap-level-1)",
+  2: "var(--heatmap-level-2)",
+  3: "var(--heatmap-level-3)",
+  4: "var(--heatmap-level-4)",
 };
 
 export function ActivityHeatmap({
@@ -85,7 +91,8 @@ export function ActivityHeatmap({
               style={
                 day
                   ? {
-                      backgroundColor: day.level === 0 ? "var(--muted)" : color,
+                      backgroundColor:
+                        day.level === 0 ? "var(--heatmap-empty-cell)" : color,
                       opacity: day.level === 0 ? 1 : LEVEL_OPACITY[day.level],
                     }
                   : undefined

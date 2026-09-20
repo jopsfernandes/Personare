@@ -29,6 +29,11 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
   - Editar e excluir vivem tanto num Context Menu (shadcn/ui, novo `src/components/ui/context-menu.tsx`,
     clique direito no card) quanto num botão de três pontos no canto do card (`DropdownMenu`),
     em vez de dois botões-ícone sempre visíveis.
+  - Cada card ganha um efeito de "border glow" na cor do programa (`box-shadow` em duas camadas,
+    anel + brilho difuso), presente nos dois temas; o gradiente de fundo é vertical (de cima para
+    baixo), e o tema claro ganhou variáveis de cor dedicadas para o heatmap e o tingimento do card
+    (`--heatmap-empty-cell`, `--heatmap-level-1..4`, `--card-tint-strength`), já que os mesmos valores
+    do tema escuro ficavam quase invisíveis sobre um fundo branco.
 - **Quiz: fluxo multi-step com progress-bar e resultado com radial chart** ([#93](https://github.com/jopsfernandes/Personare/issues/93)).
   Redesenha a experiência de responder um Quiz (`QuizRunnerDialog`), que antes renderizava todas as
   perguntas de uma vez com `<input type="radio">` cru e mostrava o resultado como uma única frase.
