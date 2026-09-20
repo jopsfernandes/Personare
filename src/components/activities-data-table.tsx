@@ -1,7 +1,6 @@
 import type { VariantProps } from "class-variance-authority";
 import { format } from "date-fns";
 import {
-  CheckCircle2,
   ExternalLink,
   FileText,
   Layers,
@@ -49,13 +48,6 @@ const ACTIVITY_TYPE_TRANSLATION_KEYS: Record<string, string> = {
   quiz: "activityTypeQuiz",
 };
 
-/**
- * flashcard_deck already has its own per-Flashcard review flow
- * (onStartReview) -- markActivityDifficulty (Issue #77) is only for the 3
- * types that never had any FSRS scheduling before.
- */
-const MARKABLE_ACTIVITY_TYPES = new Set(["link", "pdf", "quiz"]);
-
 const RATING_TRANSLATION_KEYS: Record<string, string> = {
   again: "ratingAgainAction",
   easy: "ratingEasyAction",
@@ -77,7 +69,7 @@ interface ActivitiesDataTableProps {
   onEdit: (activity: Activity) => void;
   onManageFlashcards: (activity: Activity) => void;
   onManageQuiz: (activity: Activity) => void;
-  onMarkDifficulty: (activity: Activity) => void;
+  onOpenLink: (activity: Activity) => void;
   onRequestDelete: (activity: Activity) => void;
   onStartReview: (activity: Activity) => void;
   onTakeQuiz: (activity: Activity) => void;
@@ -90,7 +82,7 @@ interface ActivityRowProps {
   onEdit: (activity: Activity) => void;
   onManageFlashcards: (activity: Activity) => void;
   onManageQuiz: (activity: Activity) => void;
-  onMarkDifficulty: (activity: Activity) => void;
+  onOpenLink: (activity: Activity) => void;
   onRequestDelete: (activity: Activity) => void;
   onStartReview: (activity: Activity) => void;
   onTakeQuiz: (activity: Activity) => void;
@@ -103,7 +95,7 @@ function ActivityRow({
   onEdit,
   onManageFlashcards,
   onManageQuiz,
-  onMarkDifficulty,
+  onOpenLink,
   onRequestDelete,
   onStartReview,
   onTakeQuiz,
@@ -124,7 +116,8 @@ function ActivityRow({
     if (activity.url) {
       openExternalLink(activity.url);
     }
-  }, [activity.url]);
+    onOpenLink(activity);
+  }, [activity, onOpenLink]);
 
   const handleViewPdfClick = useCallback(() => {
     onViewPdf(activity);
@@ -145,10 +138,6 @@ function ActivityRow({
   const handleStartReviewClick = useCallback(() => {
     onStartReview(activity);
   }, [onStartReview, activity]);
-
-  const handleMarkDifficultyClick = useCallback(() => {
-    onMarkDifficulty(activity);
-  }, [onMarkDifficulty, activity]);
 
   const typeTranslationKey =
     ACTIVITY_TYPE_TRANSLATION_KEYS[activity.type] ?? activity.type;
@@ -226,14 +215,6 @@ function ActivityRow({
               <Repeat />
             </ActionIconButton>
           )}
-          {MARKABLE_ACTIVITY_TYPES.has(activity.type) && (
-            <ActionIconButton
-              label={t("markActivityDoneAction")}
-              onClick={handleMarkDifficultyClick}
-            >
-              <CheckCircle2 />
-            </ActionIconButton>
-          )}
           <ActionIconButton
             label={t("editActivityAction")}
             onClick={handleEditClick}
@@ -257,7 +238,7 @@ export default function ActivitiesDataTable({
   onEdit,
   onManageFlashcards,
   onManageQuiz,
-  onMarkDifficulty,
+  onOpenLink,
   onRequestDelete,
   onStartReview,
   onTakeQuiz,
@@ -291,7 +272,7 @@ export default function ActivitiesDataTable({
                 onEdit={onEdit}
                 onManageFlashcards={onManageFlashcards}
                 onManageQuiz={onManageQuiz}
-                onMarkDifficulty={onMarkDifficulty}
+                onOpenLink={onOpenLink}
                 onRequestDelete={onRequestDelete}
                 onStartReview={onStartReview}
                 onTakeQuiz={onTakeQuiz}

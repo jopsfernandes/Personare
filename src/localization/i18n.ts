@@ -17,6 +17,7 @@ i18n.use(initReactI18next).init({
         actionsColumnLabel: "Actions",
         activitiesPageTitle: "Activities",
         activitiesTableEmptyMessage: "No activities found.",
+        activityDifficultyContextLabel: "{{programName}} · {{moduleName}}",
         activityDifficultyPromptMessage: "How difficult was this activity?",
         activityNextReviewColumnLabel: "Next review",
         activityReviewStateColumnLabel: "Progress",
@@ -152,7 +153,6 @@ i18n.use(initReactI18next).init({
         madeBy: "Made by Personare",
         manageFlashcardsAction: "Manage flashcards",
         manageQuizQuestionsAction: "Manage questions",
-        markActivityDoneAction: "Mark as done",
         markdownLatexHintMessage:
           "Supports Markdown. Use $...$ for inline formulas (e.g. $E=mc^2$) and $$ on its own line before and after for block formulas.",
         markdownPreviewTabLabel: "Preview",
@@ -165,7 +165,6 @@ i18n.use(initReactI18next).init({
         navPrograms: "Programs",
         nextQuestionAction: "Next question",
         openActivityUrlAction: "Open URL",
-        pdfViewerFrameTitle: "PDF viewer",
         programActivityHeatmapSummary: "{{count}} reviews in the last year",
         programCardMenuAction: "More actions",
         programColorLabel: "Color",
@@ -238,6 +237,7 @@ i18n.use(initReactI18next).init({
         actionsColumnLabel: "Ações",
         activitiesPageTitle: "Atividades",
         activitiesTableEmptyMessage: "Nenhuma atividade encontrada.",
+        activityDifficultyContextLabel: "{{programName}} · {{moduleName}}",
         activityDifficultyPromptMessage:
           "Qual foi a dificuldade dessa atividade?",
         activityNextReviewColumnLabel: "Próxima revisão",
@@ -377,7 +377,6 @@ i18n.use(initReactI18next).init({
         madeBy: "Feito por Personare",
         manageFlashcardsAction: "Gerenciar flashcards",
         manageQuizQuestionsAction: "Gerenciar perguntas",
-        markActivityDoneAction: "Marcar como concluído",
         markdownLatexHintMessage:
           "Suporta Markdown. Use $...$ para fórmulas em linha (ex.: $E=mc^2$) e $$ sozinho antes e depois para fórmulas em bloco.",
         markdownPreviewTabLabel: "Pré-visualizar",
@@ -390,7 +389,6 @@ i18n.use(initReactI18next).init({
         navPrograms: "Programas",
         nextQuestionAction: "Próxima pergunta",
         openActivityUrlAction: "Abrir URL",
-        pdfViewerFrameTitle: "Visualizador de PDF",
         programActivityHeatmapSummary: "{{count}} revisões no último ano",
         programCardMenuAction: "Mais ações",
         programColorLabel: "Cor",

@@ -1,5 +1,8 @@
 import {
+  armPendingActivityRating,
+  clearPendingActivityRating,
   ensureReviewItems,
+  getPendingActivityRating,
   listActivityCounts,
   listActivityReviewState,
   listDue,
@@ -9,7 +12,10 @@ import {
 } from "./handlers";
 
 export const review = {
+  armPendingActivityRating,
+  clearPendingActivityRating,
   ensureReviewItems,
+  getPendingActivityRating,
   listActivityCounts,
   listActivityReviewState,
   listDue,

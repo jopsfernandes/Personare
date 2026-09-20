@@ -3,48 +3,42 @@ import userEvent from "@testing-library/user-event";
 import i18n from "i18next";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@/localization/i18n";
-import type { Activity } from "@/components/activities-data-table";
 
 /**
- * RED phase (Issue #77, Spec Driven TDD): src/components/activity-difficulty-dialog
- * does not exist yet. One review_item per whole Activity means this dialog
- * has no queue and no "reveal answer" step (structurally the closest
- * precedent, review-session-dialog.tsx, has both) -- it is just the four
- * Again/Hard/Good/Easy actions for the given Activity, straight away.
- * Picking one calls markActivityDifficulty(activity.id, rating), then
- * closes (onOpenChange(false)) and tells the caller to refresh (onRated()).
+ * RED phase (Issue #103, Spec Driven TDD): activity-difficulty-dialog still
+ * takes a whole `Activity` and does not show Program/Module context or
+ * clear a pending rating. Every test below is expected to fail until the
+ * Developer updates it, per
+ * docs/specs/issue-103-pdf-native-open-difficulty-flow.md AC-4.
  */
 
 vi.mock("@/actions/review", () => ({
+  clearPendingActivityRating: vi.fn(),
   markActivityDifficulty: vi.fn(),
 }));
 
-const { markActivityDifficulty } = await import("@/actions/review");
+const { clearPendingActivityRating, markActivityDifficulty } = await import(
+  "@/actions/review"
+);
 const { default: ActivityDifficultyDialog } = await import(
   "@/components/activity-difficulty-dialog"
 );
 
-const QUIZ_ACTIVITY: Activity = {
-  createdAt: new Date("2026-01-02"),
-  filePath: null,
-  id: "33333333-3333-3333-3333-333333333333",
-  moduleId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-  title: "Quiz de Historia",
-  type: "quiz",
-  updatedAt: new Date("2026-01-02"),
-  url: null,
-};
+const ACTIVITY_ID = "33333333-3333-3333-3333-333333333333";
 
-function renderDialog(activity: Activity | null = QUIZ_ACTIVITY) {
+function renderDialog(activityId: string | null = ACTIVITY_ID) {
   const onOpenChange = vi.fn();
   const onRated = vi.fn();
 
   render(
     <ActivityDifficultyDialog
-      activity={activity}
+      activityId={activityId}
+      activityTitle="Quiz de Historia"
+      moduleName="Historia do Brasil"
       onOpenChange={onOpenChange}
       onRated={onRated}
-      open={activity !== null}
+      open={activityId !== null}
+      programName="Bacharelado II"
     />
   );
 
@@ -58,11 +52,17 @@ beforeEach(() => {
   } as Awaited<ReturnType<typeof markActivityDifficulty>>);
 });
 
-describe("ActivityDifficultyDialog (Issue #77)", () => {
-  it("shows the Activity's title and the four rating actions right away, no reveal step", () => {
+describe("ActivityDifficultyDialog (Issue #103)", () => {
+  it("shows the activity title, program name and module name, and the four rating actions right away", () => {
     renderDialog();
 
-    expect(screen.getByText(QUIZ_ACTIVITY.title)).toBeInTheDocument();
+    expect(screen.getByText("Quiz de Historia")).toBeInTheDocument();
+    expect(
+      screen.getByText("Bacharelado II", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Historia do Brasil", { exact: false })
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: i18n.t("ratingAgainAction") })
     ).toBeInTheDocument();
@@ -85,10 +85,18 @@ describe("ActivityDifficultyDialog (Issue #77)", () => {
       screen.getByRole("button", { name: i18n.t("ratingHardAction") })
     );
 
-    expect(markActivityDifficulty).toHaveBeenCalledWith(
-      QUIZ_ACTIVITY.id,
-      "hard"
+    expect(markActivityDifficulty).toHaveBeenCalledWith(ACTIVITY_ID, "hard");
+  });
+
+  it("clears the pending rating after successfully rating", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("ratingGoodAction") })
     );
+
+    expect(clearPendingActivityRating).toHaveBeenCalledWith(ACTIVITY_ID);
   });
 
   it("closes the dialog and notifies the caller to refresh after rating", async () => {

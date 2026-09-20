@@ -21,3 +21,7 @@ export const markActivityDifficultyInputSchema = z.object({
 export const listActivityReviewStateInputSchema = z.object({
   moduleId: z.string(),
 });
+
+export const activityIdInputSchema = z.object({
+  activityId: z.string(),
+});

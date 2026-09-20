@@ -150,3 +150,19 @@ export const appSettings = sqliteTable("app_settings", {
     .default(false),
   id: integer("id").primaryKey(),
 });
+
+/**
+ * One row per Activity opened/finished but not yet rated (Issue #103):
+ * markActivityDifficulty (Issue #77) creates its review_items row already
+ * rated, get-or-create-and-rate atomically -- there is no "ensured but
+ * unrated" review_items row to key off of for "the app was closed before
+ * the user picked a rating, prompt again on next launch". This table is
+ * that separate, durable marker; a row is deleted as soon as the Activity
+ * is actually rated (see clearPendingActivityRating).
+ */
+export const pendingActivityRatings = sqliteTable("pending_activity_ratings", {
+  activityId: text("activity_id")
+    .primaryKey()
+    .references(() => activities.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
