@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { BookOpen, CalendarDays, GraduationCap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import AccountMenu from "@/components/account-menu";
+import { StreakWidget } from "@/components/streak-widget";
 import {
   Sidebar,
   SidebarContent,
@@ -70,6 +71,7 @@ export default function AppSidebar() {
         </TooltipProvider>
       </SidebarContent>
       <SidebarFooter>
+        <StreakWidget />
         <AccountMenu />
       </SidebarFooter>
     </Sidebar>
