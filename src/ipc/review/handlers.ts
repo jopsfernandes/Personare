@@ -301,6 +301,84 @@ export const markActivityDifficulty = os
     });
   });
 
+function toLocalDateKey(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/**
+ * Powers the Programs page's per-card activity heatmap (Issue #99): one row
+ * per program/day that had at least one rating, `date` a local calendar-day
+ * key (not UTC -- same reasoning as src/routes/calendar.tsx's dueDate
+ * handling). There is no normalized per-rating log table (see
+ * docs/specs/issue-99-programs-cards-heatmap.md "Escolhas técnicas"), so
+ * this flattens every review_item's `ratingHistory` JSON blob in memory,
+ * reusing listSchedule's Flashcard-scoped/Activity-scoped union to reach
+ * each review_item's program.
+ */
+export const listActivityCounts = os.handler(() => {
+  const db = requireDatabaseClient();
+
+  const viaFlashcard = db
+    .select({
+      programId: programsTable.id,
+      ratingHistory: reviewItemsTable.ratingHistory,
+    })
+    .from(reviewItemsTable)
+    .innerJoin(
+      flashcardsTable,
+      eq(reviewItemsTable.flashcardId, flashcardsTable.id)
+    )
+    .innerJoin(
+      activitiesTable,
+      eq(flashcardsTable.activityId, activitiesTable.id)
+    )
+    .innerJoin(modulesTable, eq(activitiesTable.moduleId, modulesTable.id))
+    .innerJoin(programsTable, eq(modulesTable.programId, programsTable.id))
+    .where(isNull(flashcardsTable.deletedAt));
+
+  const viaActivity = db
+    .select({
+      programId: programsTable.id,
+      ratingHistory: reviewItemsTable.ratingHistory,
+    })
+    .from(reviewItemsTable)
+    .innerJoin(
+      activitiesTable,
+      eq(reviewItemsTable.activityId, activitiesTable.id)
+    )
+    .innerJoin(modulesTable, eq(activitiesTable.moduleId, modulesTable.id))
+    .innerJoin(programsTable, eq(modulesTable.programId, programsTable.id))
+    .where(isNull(activitiesTable.deletedAt));
+
+  const rows = unionAll(viaFlashcard, viaActivity).all();
+
+  const countsByProgramAndDate = new Map<string, Map<string, number>>();
+
+  for (const row of rows) {
+    const history = JSON.parse(row.ratingHistory) as { reviewedAt: number }[];
+
+    for (const entry of history) {
+      const dateKey = toLocalDateKey(new Date(entry.reviewedAt));
+      const byDate =
+        countsByProgramAndDate.get(row.programId) ?? new Map<string, number>();
+      byDate.set(dateKey, (byDate.get(dateKey) ?? 0) + 1);
+      countsByProgramAndDate.set(row.programId, byDate);
+    }
+  }
+
+  const result: { count: number; date: string; programId: string }[] = [];
+
+  for (const [programId, byDate] of countsByProgramAndDate) {
+    for (const [date, count] of byDate) {
+      result.push({ count, date, programId });
+    }
+  }
+
+  return result;
+});
+
 export const listActivityReviewState = os
   .input(listActivityReviewStateInputSchema)
   .handler(({ input }) => {

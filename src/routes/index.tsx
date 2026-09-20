@@ -1,28 +1,47 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   createProgram,
+  groupActivityCountsByProgram,
+  listProgramActivityCounts,
   listPrograms,
+  type ProgramActivityCount,
   softDeleteProgram,
   updateProgram,
 } from "@/actions/programs";
 import DeleteProgramDialog from "@/components/delete-program-dialog";
-import ProgramFormDialog from "@/components/program-form-dialog";
-import ProgramsDataTable, {
+import ProgramFormDialog, {
+  type ProgramFormSubmitValues,
+} from "@/components/program-form-dialog";
+import ProgramsCardGrid, {
   type Program,
-} from "@/components/programs-data-table";
+} from "@/components/programs-card-grid";
 import { Button } from "@/components/ui/button";
 
 function ProgramsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [activityCounts, setActivityCounts] = useState<ProgramActivityCount[]>(
+    []
+  );
   const [, startTransition] = useTransition();
   const [formProgram, setFormProgram] = useState<Program | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [programPendingDelete, setProgramPendingDelete] =
     useState<Program | null>(null);
+
+  const activityCountsByProgramId = useMemo(
+    () => groupActivityCountsByProgram(activityCounts),
+    [activityCounts]
+  );
 
   const refreshPrograms = useCallback(() => {
     startTransition(() => {
@@ -33,6 +52,10 @@ function ProgramsPage() {
   useEffect(() => {
     refreshPrograms();
   }, [refreshPrograms]);
+
+  useEffect(() => {
+    listProgramActivityCounts().then(setActivityCounts);
+  }, []);
 
   const handleCreateClick = useCallback(() => {
     setFormProgram(null);
@@ -63,10 +86,10 @@ function ProgramsPage() {
   }, []);
 
   const handleFormSubmit = useCallback(
-    (name: string) => {
+    ({ color, icon, name }: ProgramFormSubmitValues) => {
       const submit = formProgram
-        ? updateProgram(formProgram.id, name)
-        : createProgram(name);
+        ? updateProgram(formProgram.id, name, { color, icon })
+        : createProgram(name, { color, icon });
 
       submit.then(() => {
         setIsFormOpen(false);
@@ -99,7 +122,8 @@ function ProgramsPage() {
         <h1 className="font-bold text-2xl">{t("programsPageTitle")}</h1>
         <Button onClick={handleCreateClick}>{t("createProgramAction")}</Button>
       </div>
-      <ProgramsDataTable
+      <ProgramsCardGrid
+        activityCountsByProgramId={activityCountsByProgramId}
         onEdit={handleEdit}
         onNavigateToModules={handleNavigateToModules}
         onRequestDelete={handleRequestDelete}

@@ -60,10 +60,9 @@ test("navigating Programs -> Modules -> Activities renders each page", async () 
   await page.getByLabel("Name").fill(programName);
   await page.getByRole("button", { name: "Save" }).click();
 
-  await page
-    .getByRole("row", { name: new RegExp(programName) })
-    .getByLabel("View modules")
-    .click();
+  // Issue #99: Programs is now a card grid, each card a single button that
+  // both shows the name and navigates -- no more "View modules" row/icon.
+  await page.getByRole("button", { name: new RegExp(programName) }).click();
   await expect(page.getByRole("heading", { name: "Modules" })).toBeVisible();
 
   await page.getByRole("button", { name: "New module" }).click();

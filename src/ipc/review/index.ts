@@ -1,5 +1,6 @@
 import {
   ensureReviewItems,
+  listActivityCounts,
   listActivityReviewState,
   listDue,
   listSchedule,
@@ -9,6 +10,7 @@ import {
 
 export const review = {
   ensureReviewItems,
+  listActivityCounts,
   listActivityReviewState,
   listDue,
   listSchedule,

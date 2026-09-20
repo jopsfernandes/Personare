@@ -39,6 +39,22 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /*
+   * Program cards (src/components/programs-card-grid.tsx,
+   * activity-heatmap.tsx) tint themselves with a per-program color via
+   * color-mix(), and the heatmap's "no activity" cell falls back to a flat
+   * gray. --muted (0.97) is only 0.03 away from --card (1.0) in light mode --
+   * indistinguishable in practice -- so both need their own, more-contrasted
+   * values here instead of reusing --muted directly. Dark mode already reads
+   * fine (--muted there is 0.269 against a 0.205 card), so its values below
+   * are kept equal to what dark already had before these existed.
+   */
+  --heatmap-empty-cell: oklch(0.88 0 0);
+  --heatmap-level-1: 0.35;
+  --heatmap-level-2: 0.55;
+  --heatmap-level-3: 0.8;
+  --heatmap-level-4: 1;
+  --card-tint-strength: 38%;
 }
 
 .dark {
@@ -73,6 +89,12 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --heatmap-empty-cell: oklch(0.269 0 0);
+  --heatmap-level-1: 0.25;
+  --heatmap-level-2: 0.45;
+  --heatmap-level-3: 0.7;
+  --heatmap-level-4: 1;
+  --card-tint-strength: 15%;
 }
 
 @theme inline {
@@ -131,5 +153,15 @@
 
   .draglayer {
     -webkit-app-region: drag;
+  }
+}
+
+/* Referenced (but never defined until now) by sidebar.tsx's own nav scroll container. */
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
   }
 }
