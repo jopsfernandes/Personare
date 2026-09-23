@@ -6,6 +6,8 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.1] - 2026-09-23
+
 ### Added
 
 - **Sistema de streak na sidebar** ([#101](https://github.com/jopsfernandes/Personare/issues/101)).
