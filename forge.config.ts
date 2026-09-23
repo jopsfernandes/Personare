@@ -54,7 +54,7 @@ const config: ForgeConfig = {
     {
       config: {
         draft: true,
-        prerelease: false,
+        prerelease: true,
         repository: {
           name: "Personare",
           owner: "jopsfernandes",
