@@ -48,8 +48,9 @@ describe("copyExternalModules (Issue #111)", () => {
     expect(copied.sort()).toEqual(["lib", "package.json", "prebuilds"]);
   });
 
-  it("skips the deps and src directories used only to compile", async () => {
+  it("skips the deps, src and build directories used only to compile or left by a local build", async () => {
     await writeFiles(projectRoot, {
+      "node_modules/mod-a/build/Release/mod.node": "local build",
       "node_modules/mod-a/deps/sqlite3.c": "c",
       "node_modules/mod-a/lib/index.js": "lib",
       "node_modules/mod-a/package.json": "{}",
@@ -59,6 +60,7 @@ describe("copyExternalModules (Issue #111)", () => {
     await copyExternalModules(buildPath, projectRoot, ["mod-a"]);
 
     const copied = await readdir(path.join(buildPath, "node_modules/mod-a"));
+    expect(copied).not.toContain("build");
     expect(copied).not.toContain("deps");
     expect(copied).not.toContain("src");
   });

@@ -2,8 +2,10 @@ import { access, cp } from "node:fs/promises";
 import path from "node:path";
 import { EXTERNAL_MODULES } from "./external-modules";
 
-// C/C++ sources only needed to compile the addon, never at runtime.
-const COMPILE_ONLY_DIRECTORIES = new Set(["deps", "src"]);
+// Never needed at runtime: C/C++ sources (deps, src) and whatever a local
+// `node-gyp` build left behind (build). The prebuilt binaries in `prebuilds/` are
+// what ships, so the packaged app does not depend on the machine that built it.
+const COMPILE_ONLY_DIRECTORIES = new Set(["build", "deps", "src"]);
 
 /**
  * The Forge Vite plugin only packages the `.vite` build output, so modules

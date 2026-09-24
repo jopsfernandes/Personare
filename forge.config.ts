@@ -8,6 +8,7 @@ import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import type { ForgeConfig } from "@electron-forge/shared-types";
 import { copyExternalModules } from "./scripts/copy-external-modules";
+import { EXTERNAL_MODULES } from "./scripts/external-modules";
 
 const config: ForgeConfig = {
   hooks: {
@@ -75,7 +76,11 @@ const config: ForgeConfig = {
       name: "@electron-forge/publisher-github",
     },
   ],
-  rebuildConfig: {},
+  rebuildConfig: {
+    // External modules ship N-API prebuilds that work on any Electron version,
+    // and copyExternalModules leaves out the sources a rebuild would need.
+    ignoreModules: EXTERNAL_MODULES,
+  },
 };
 
 export default config;

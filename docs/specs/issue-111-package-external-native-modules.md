@@ -18,7 +18,12 @@
 - **Hook `packageAfterCopy` (`scripts/copy-external-modules.ts`)** copia cada módulo externo de
   `node_modules/<nome>` para `<buildPath>/node_modules/<nome>`. É o mecanismo documentado do Forge
   para dependências que o Vite não bundla, já que o `plugin-vite` descarta tudo fora de `.vite`.
-  Ficam de fora `deps/` e `src/` (fontes C++ do SQLite/binding, ~10 MB que só servem para compilar).
+  Ficam de fora `deps/` e `src/` (fontes C++ do SQLite/binding, ~10 MB que só servem para compilar) e
+  `build/` (sobra de um `node-gyp` local): o binário enviado é sempre o de `prebuilds/`, e não um
+  compilado na máquina que empacotou.
+- **`rebuildConfig.ignoreModules`** com a mesma lista: o Forge recompilaria o módulo contra o Electron
+  depois da cópia, o que falha sem `deps/` (`deps/common.gypi not found`, visto no CI do #112) e é
+  desnecessário -- os prebuilds N-API do `better-sqlite3` não dependem da versão do Electron.
 - **`AutoUnpackNativesPlugin`** (já era devDependency, mas não estava ligado) move os `.node` para
   `app.asar.unpacked`, que é onde binários nativos precisam estar para carregar.
 - **Módulo ausente falha o build** com mensagem clara, em vez de gerar um instalador quebrado.
@@ -26,7 +31,7 @@
 ## Testes (TDD)
 
 - `src/tests/unit/copy-external-modules.test.ts` (novo): copia `package.json`, `lib/` e `prebuilds/`
-  de cada módulo; ignora `deps/` e `src/`; lança erro nomeando o módulo quando ele não existe em
+  de cada módulo; ignora `deps/`, `src/` e `build/`; lança erro nomeando o módulo quando ele não existe em
   `node_modules`; a lista exportada contém `better-sqlite3`.
 - **Verificação manual do empacotado** (não automatizável no vitest): `npm run package`, copiar
   `out/Personare-win32-x64` para **fora** do repositório e abrir o `.exe` — a janela principal precisa
