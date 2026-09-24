@@ -6,6 +6,8 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.2] - 2026-09-24
+
 ### Fixed
 
 - **App instalado não abria: `Cannot find module 'better-sqlite3'`** ([#111](https://github.com/jopsfernandes/Personare/issues/111)).
