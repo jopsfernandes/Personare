@@ -3,11 +3,19 @@ import { MakerDeb } from "@electron-forge/maker-deb";
 import { MakerRpm } from "@electron-forge/maker-rpm";
 import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerZIP } from "@electron-forge/maker-zip";
+import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-natives";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import type { ForgeConfig } from "@electron-forge/shared-types";
+import { copyExternalModules } from "./scripts/copy-external-modules";
+import { EXTERNAL_MODULES } from "./scripts/external-modules";
 
 const config: ForgeConfig = {
+  hooks: {
+    packageAfterCopy: async (_forgeConfig, buildPath) => {
+      await copyExternalModules(buildPath);
+    },
+  },
   makers: [
     new MakerSquirrel({}),
     new MakerZIP({}, ["darwin"]),
@@ -19,6 +27,7 @@ const config: ForgeConfig = {
     extraResource: ["./drizzle"],
   },
   plugins: [
+    new AutoUnpackNativesPlugin({}),
     new VitePlugin({
       build: [
         {
@@ -67,7 +76,11 @@ const config: ForgeConfig = {
       name: "@electron-forge/publisher-github",
     },
   ],
-  rebuildConfig: {},
+  rebuildConfig: {
+    // External modules ship N-API prebuilds that work on any Electron version,
+    // and copyExternalModules leaves out the sources a rebuild would need.
+    ignoreModules: EXTERNAL_MODULES,
+  },
 };
 
 export default config;

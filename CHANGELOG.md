@@ -6,6 +6,16 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **App instalado não abria: `Cannot find module 'better-sqlite3'`** ([#111](https://github.com/jopsfernandes/Personare/issues/111)).
+  `better-sqlite3` é `external` no Vite (o `.node` nativo não pode ser bundlado), mas o Forge só
+  empacota a saída `.vite`, então o módulo não ia para dentro do `app.asar`. O bug só aparecia
+  fora do repositório -- rodando de `out/`, o `require` subia até o `node_modules` do projeto.
+  Um hook `packageAfterCopy` (`scripts/copy-external-modules.ts`) agora copia os módulos externos
+  (lista única em `scripts/external-modules.ts`, compartilhada com o Vite) para o pacote, e o
+  `AutoUnpackNativesPlugin` move os `.node` para `app.asar.unpacked`.
+
 ## [0.1.0-alpha.1] - 2026-09-23
 
 ### Added
