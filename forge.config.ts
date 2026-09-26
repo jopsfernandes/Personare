@@ -19,8 +19,9 @@ const config: ForgeConfig = {
   makers: [
     new MakerSquirrel({}),
     new MakerZIP({}, ["darwin"]),
-    new MakerRpm({}),
-    new MakerDeb({}),
+    // Packager names the Linux binary after productName; these default to package.json's name.
+    new MakerRpm({ options: { bin: "Personare" } }),
+    new MakerDeb({ options: { bin: "Personare" } }),
     {
       // ESM-only package: referenced by name so Forge loads it with import().
       config: { options: { bin: "Personare", categories: ["Education"] } },

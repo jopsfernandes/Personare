@@ -25,7 +25,10 @@
 - **`platforms: ["linux"]` obrigatório**: o maker declara `isSupportedOnCurrentPlatform = () => true`.
   Sem a restrição, o job Windows tentaria gerar o AppImage e falharia por falta do `mksquashfs`.
 - **`bin: "Personare"`**: o `@electron/packager` nomeia o executável Linux com o `productName`, e o
-  maker, por padrão, procuraria pelo `name` do `package.json` (`personare`).
+  maker, por padrão, procuraria pelo `name` do `package.json` (`personare`). O mesmo vale para
+  `MakerDeb` e `MakerRpm`: o primeiro publish falhou no `.deb` com `could not find the Electron app
+  binary at ".../personare"`. Por isso os três recebem `bin`. Não usamos
+  `packagerConfig.executableName`, porque ele renomearia também o `.exe` do Windows usado pelo Squirrel.
 - **Matriz no workflow com `max-parallel: 1`**: os dois jobs publicam no mesmo release rascunho
   (`v<versão>`). Em paralelo, os dois poderiam não encontrar o rascunho e criar dois releases.
   Rodando em sequência, o segundo job encontra o rascunho do primeiro e anexa seus arquivos.
