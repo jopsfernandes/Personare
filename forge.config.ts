@@ -21,6 +21,13 @@ const config: ForgeConfig = {
     new MakerZIP({}, ["darwin"]),
     new MakerRpm({}),
     new MakerDeb({}),
+    {
+      // ESM-only package: referenced by name so Forge loads it with import().
+      config: { options: { bin: "Personare", categories: ["Education"] } },
+      name: "@reforged/maker-appimage",
+      // The maker claims support on every platform; the Windows job has no mksquashfs.
+      platforms: ["linux"],
+    },
   ],
   packagerConfig: {
     asar: true,

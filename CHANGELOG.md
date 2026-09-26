@@ -6,6 +6,13 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+### Added
+
+- **Release para Linux em AppImage.** O workflow `Publish Release` agora roda também em
+  `ubuntu-latest` e anexa ao release um `Personare-<versão>-x64.AppImage` (maker
+  `@reforged/maker-appimage`), além dos `.deb` e `.rpm` que já estavam configurados mas nunca eram
+  gerados, porque o workflow só rodava no Windows.
+
 ## [0.1.0-alpha.2] - 2026-09-24
 
 ### Fixed
