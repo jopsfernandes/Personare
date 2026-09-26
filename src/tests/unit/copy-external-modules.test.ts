@@ -6,6 +6,8 @@ import { copyExternalModules } from "../../../scripts/copy-external-modules";
 import { EXTERNAL_MODULES } from "../../../scripts/external-modules";
 
 const MISSING_MODULE_ERROR = /missing-mod/;
+const WIN32_X64 = { arch: "x64", platform: "win32" } as const;
+const LINUX_X64 = { arch: "x64", platform: "linux" } as const;
 
 async function writeFiles(root: string, files: Record<string, string>) {
   await Promise.all(
@@ -42,7 +44,7 @@ describe("copyExternalModules (Issue #111)", () => {
       "node_modules/mod-a/prebuilds/win32-x64.node": "binary",
     });
 
-    await copyExternalModules(buildPath, projectRoot, ["mod-a"]);
+    await copyExternalModules(buildPath, WIN32_X64, projectRoot, ["mod-a"]);
 
     const copied = await readdir(path.join(buildPath, "node_modules/mod-a"));
     expect(copied.sort()).toEqual(["lib", "package.json", "prebuilds"]);
@@ -57,7 +59,7 @@ describe("copyExternalModules (Issue #111)", () => {
       "node_modules/mod-a/src/binding.cpp": "cpp",
     });
 
-    await copyExternalModules(buildPath, projectRoot, ["mod-a"]);
+    await copyExternalModules(buildPath, WIN32_X64, projectRoot, ["mod-a"]);
 
     const copied = await readdir(path.join(buildPath, "node_modules/mod-a"));
     expect(copied).not.toContain("build");
@@ -71,15 +73,54 @@ describe("copyExternalModules (Issue #111)", () => {
       "node_modules/mod-b/package.json": "{}",
     });
 
-    await copyExternalModules(buildPath, projectRoot, ["mod-a", "mod-b"]);
+    await copyExternalModules(buildPath, WIN32_X64, projectRoot, [
+      "mod-a",
+      "mod-b",
+    ]);
 
     const copied = await readdir(path.join(buildPath, "node_modules"));
     expect(copied.sort()).toEqual(["mod-a", "mod-b"]);
   });
 
+  it("keeps only the prebuild for the target platform and arch", async () => {
+    await writeFiles(projectRoot, {
+      "node_modules/mod-a/package.json": "{}",
+      "node_modules/mod-a/prebuilds/darwin-arm64.node": "binary",
+      "node_modules/mod-a/prebuilds/linux-arm64.node": "binary",
+      "node_modules/mod-a/prebuilds/linuxmusl-x64.node": "binary",
+      "node_modules/mod-a/prebuilds/win32-x64.node": "binary",
+    });
+
+    await copyExternalModules(buildPath, WIN32_X64, projectRoot, ["mod-a"]);
+
+    const prebuilds = await readdir(
+      path.join(buildPath, "node_modules/mod-a/prebuilds")
+    );
+    expect(prebuilds).toEqual(["win32-x64.node"]);
+  });
+
+  it("keeps the glibc and musl prebuilds of the target arch on Linux", async () => {
+    // rpmbuild strips every ELF in the package and aborts on foreign-arch binaries.
+    await writeFiles(projectRoot, {
+      "node_modules/mod-a/package.json": "{}",
+      "node_modules/mod-a/prebuilds/linux-arm64.node": "binary",
+      "node_modules/mod-a/prebuilds/linux-x64.node": "binary",
+      "node_modules/mod-a/prebuilds/linuxmusl-arm64.node": "binary",
+      "node_modules/mod-a/prebuilds/linuxmusl-x64.node": "binary",
+      "node_modules/mod-a/prebuilds/win32-x64.node": "binary",
+    });
+
+    await copyExternalModules(buildPath, LINUX_X64, projectRoot, ["mod-a"]);
+
+    const prebuilds = await readdir(
+      path.join(buildPath, "node_modules/mod-a/prebuilds")
+    );
+    expect(prebuilds.sort()).toEqual(["linux-x64.node", "linuxmusl-x64.node"]);
+  });
+
   it("fails naming the module when it is not installed", async () => {
     await expect(
-      copyExternalModules(buildPath, projectRoot, ["missing-mod"])
+      copyExternalModules(buildPath, WIN32_X64, projectRoot, ["missing-mod"])
     ).rejects.toThrow(MISSING_MODULE_ERROR);
   });
 });

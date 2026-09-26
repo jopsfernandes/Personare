@@ -12,8 +12,14 @@ import { EXTERNAL_MODULES } from "./scripts/external-modules";
 
 const config: ForgeConfig = {
   hooks: {
-    packageAfterCopy: async (_forgeConfig, buildPath) => {
-      await copyExternalModules(buildPath);
+    packageAfterCopy: async (
+      _forgeConfig,
+      buildPath,
+      _electronVersion,
+      platform,
+      arch
+    ) => {
+      await copyExternalModules(buildPath, { arch, platform });
     },
   },
   makers: [
