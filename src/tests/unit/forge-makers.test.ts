@@ -30,3 +30,19 @@ test("AppImage maker launches the executable named after productName", () => {
     config: { options: { bin: pkg.productName } },
   });
 });
+
+test.each(["deb", "rpm"])(
+  "%s maker points to the executable named after productName",
+  (makerName) => {
+    // Packager names the Linux binary after productName, but these makers
+    // default to package.json's lowercase name and fail to find it.
+    const maker = config.makers?.find(
+      (candidate) => "name" in candidate && candidate.name === makerName
+    );
+
+    // MakerBase instances keep the constructor argument here until Forge calls prepareConfig.
+    expect(maker).toMatchObject({
+      configOrConfigFetcher: { options: { bin: pkg.productName } },
+    });
+  }
+);
