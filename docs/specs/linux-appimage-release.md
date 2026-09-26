@@ -36,6 +36,11 @@
   e `fakeroot`/`dpkg` (maker-deb).
 - **`better-sqlite3`** já traz o prebuild `linux-x64` em `prebuilds/`, copiado pelo hook
   `copyExternalModules` (#111), então não precisa de rebuild no runner.
+- **Só os prebuilds do alvo vão para o pacote**: o segundo publish falhou no `.rpm`, porque o
+  `rpmbuild` roda `strip` em todo ELF do pacote e aborta nos binários `linux-arm64`/`linuxmusl-arm64`.
+  O `copyExternalModules` agora recebe `platform`/`arch` do hook `packageAfterCopy` e mantém só
+  `<platform>-<arch>.node`, mais `linuxmusl-<arch>.node` no Linux. É o mesmo nome que o
+  `better-sqlite3` procura em runtime.
 
 ## Testes (TDD)
 
