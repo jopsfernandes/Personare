@@ -6,6 +6,8 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.3] - 2026-09-26
+
 ### Added
 
 - **Release para Linux em AppImage.** O workflow `Publish Release` agora roda também em
